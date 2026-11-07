@@ -1,0 +1,21 @@
+studiobaff-publisher-komplett-AES/
+studiobaff-publisher-komplett-AES.zip
+work/
+outputs/
+.local/
+*.key
+*.pem
+
+# Private application state and local tooling
+__pycache__/
+*.pyc
+.DS_Store
+*.sqlite
+*.sqlite-*
+*.db
+/dronemissions/private/
+/dronemissions/config.json
+/dronemissions/public/config.json
+
+# User Litchi exports (private mission coordinates)
+/litchi/
