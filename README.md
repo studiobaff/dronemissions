@@ -1,6 +1,6 @@
 # Drone Missions
 
-Eine private Web-Bibliothek für DJI-WPML-Missionen: Projekte, Original-KMZ, Versionen, Kartenansicht und widerrufbare Projektfreigaben.
+Eine private Web-Bibliothek für DJI-WPML-Missionen: Projekte, Originaldateien (KMZ, CSV, LCHM/LCHZ), Versionen, Kartenansicht und widerrufbare Projektfreigaben.
 
 ![Drone Missions mit synthetischen Beispieldaten](dronemissions/docs/screenshots/library.png)
 

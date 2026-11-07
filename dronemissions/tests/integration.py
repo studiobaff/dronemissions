@@ -91,6 +91,18 @@ def main():
         assert z.read('mission.csv')==csv;assert json.loads(z.read('manifest.json'))['files']['mission.csv']==hashlib.sha256(csv).hexdigest()
     assert b'<svg' in c.call('preview&id='+csv_id)
     c.call('upload',{'folder':sub,'name':'Bad CSV'},expected=400,files={'kmz':('bad.csv',b'bad,header\n1,2')})
+    native_zip=io.BytesIO();native_zip.write(b'lchz'+b'\0'*4)
+    with zipfile.ZipFile(native_zip,'w',zipfile.ZIP_DEFLATED) as z:z.writestr('flight.lch2',b'lch2'+b'\0'*20)
+    embedded=io.BytesIO()
+    with zipfile.ZipFile(embedded,'w',zipfile.ZIP_DEFLATED) as z:z.writestr('flight.lch2',b'lch2'+b'\0'*20)
+    embedded_native=b'lchz'+len(embedded.getvalue()).to_bytes(4,'big')+embedded.getvalue()
+    for ext,native in [('lchm',b'lchm'+b'\0'*20),('lchz',native_zip.getvalue()),('lchz',embedded_native)]:
+        native_id=c.call('upload',{'folder':sub,'name':'Native Demo '+ext},files={'kmz':('demo.'+ext,native)})['id']
+        assert c.call('original&id='+native_id)==native
+        item=next(x for x in c.call('library')['missions'] if x['id']==native_id);assert item['details']['previewAvailable'] is False and item['details']['points']==[]
+        assert b'Litchi Original' in c.call('preview&id='+native_id)
+        with zipfile.ZipFile(io.BytesIO(c.call('package&id='+native_id))) as z:assert z.read('mission.'+ext)==native
+        c.call('upload',{'folder':sub,'name':'Bad'},expected=400,files={'kmz':('broken.'+ext,b'wrong-header')})
     c.call('settings',{'authorName':''})
     if a.fixture_dir:
         a.fixture_dir.mkdir(parents=True,exist_ok=True);(a.fixture_dir/'demo.kmz').write_bytes(raw)

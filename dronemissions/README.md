@@ -1,16 +1,16 @@
 # Drone Missions
 
-Private Web-Bibliothek für DJI-WPML-Missionen aus Litchi Hub oder Map Creator sowie ältere Litchi-CSV-Exporte. PHP 8.3, SQLite und Vanilla JavaScript; kein Node-Build erforderlich.
+Private Web-Bibliothek für DJI-WPML-Missionen aus Litchi Hub oder Map Creator sowie ältere Litchi-CSV-Exporte und native LCHM/LCHZ-Originale. PHP 8.3, SQLite und Vanilla JavaScript; kein Node-Build erforderlich.
 
 ![Bibliothek mit synthetischen Missionen](docs/screenshots/library.png)
 
 ## Funktionen
 
 - Projekte und Unterordner, Suche, Notizen, Archivieren und Wiederherstellen.
-- DJI-KMZ und Litchi-CSV mit unveränderter Originaldatei und SHA-256-Prüfsumme; getrennte Versionen mit Konflikterkennung.
+- DJI-KMZ, Litchi-CSV und native LCHM/LCHZ mit unveränderter Originaldatei und SHA-256-Prüfsumme; getrennte Versionen mit Konflikterkennung.
 - Routen und gespeicherte Missionshöhen aus `wpmz/waylines.wpml`; mehrere Flugrouten werden getrennt dargestellt.
 - basemap.at und österreichisches Luftbild, OpenStreetMap und Esri-Satellit als weitere Kartenebenen.
-- Originaldatei (KMZ/CSV) und ZIP-Archiv mit Vorschau, Manifest und Prüfsummen herunterladen.
+- Originaldatei (KMZ/CSV/LCHM/LCHZ) und ZIP-Archiv mit Vorschau, Manifest und Prüfsummen herunterladen.
 - Widerrufbare Projektfreigaben für Lesen/Download oder Bearbeiten, gültig für 30 Tage inklusive Unterordnern.
 - Wiederverwendbare Planungspunkte mit Höhe, Höhenbezug, Blickrichtung, Gimbalwinkel und gewünschter Panoramaaufnahme.
 
@@ -21,6 +21,8 @@ Private Web-Bibliothek für DJI-WPML-Missionen aus Litchi Hub oder Map Creator s
 Unter **Einstellungen → Autor / Betreiber** trägt der Eigentümer seinen eigenen Namen oder Firmennamen ein. Der Name erscheint auf dieser Installation und als Autor in neuen Archivpaketen. Ein leeres Feld zeigt die neutrale Oberfläche. Neue Installationen übernehmen keinen fest eingebauten Autor; optional kann beim CLI-Setup `authorName` mitgegeben werden. Die Einstellung liegt ausschließlich in der privaten Konfiguration.
 
 ## Grenzen
+
+Native LCHM/LCHZ-Dateien werden unverändert archiviert und heruntergeladen. Für diese proprietären Formate werden noch keine Wegpunkte, Routen oder Höhenprofile dargestellt und keine DJI-KMZ erzeugt.
 
 Dies ist ein Archiv und eine Vorschau, keine Flugfreigabe. Dateiintegrität bestätigt weder DJI-Fly-Kompatibilität noch Flugsicherheit. Das Höhenprofil zeigt gespeicherte Missionshöhen, keine Geländehöhen. Für ältere Litchi-CSV-Dateien wird der Höhenbezug ausdrücklich als nicht verifiziert angezeigt; die ursprünglichen Einstellungen bleiben in der Originaldatei erhalten. Die Strecke berücksichtigt weder Start-/Rückflug noch Aktionspausen. Planungspunkte erzeugen noch keine ausführbaren DJI-Flug- oder Panoramaaktionen. Die USB-/DJI-Fly-Bridge wird separat entwickelt; es werden hier noch keine Bridge-Downloads angeboten.
 

@@ -44,7 +44,7 @@ function dm_inspect(string $path): array {
  }finally{$zip->close();}
 }
 function dm_preview(array $details): string {
- $points=$details['points'];$lats=array_column($points,'lat');$lngs=array_column($points,'lng');$mid=array_sum($lats)/count($lats);$scale=max(.05,cos(deg2rad($mid)));$xs=array_map(fn($x)=>$x*$scale,$lngs);$minx=min($xs);$maxx=max($xs);$miny=min($lats);$maxy=max($lats);$span=max($maxx-$minx,($maxy-$miny)*1.6,.00001);$paths='';
+ $points=$details['points'];if(!$points)return '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="300" viewBox="0 0 480 300"><rect width="480" height="300" fill="#152e2b"/><text x="240" y="140" text-anchor="middle" font-family="sans-serif" font-size="26" fill="#b5d969">Litchi Original</text><text x="240" y="178" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#b1c6bc">Route noch nicht ausgelesen</text></svg>';$lats=array_column($points,'lat');$lngs=array_column($points,'lng');$mid=array_sum($lats)/count($lats);$scale=max(.05,cos(deg2rad($mid)));$xs=array_map(fn($x)=>$x*$scale,$lngs);$minx=min($xs);$maxx=max($xs);$miny=min($lats);$maxy=max($lats);$span=max($maxx-$minx,($maxy-$miny)*1.6,.00001);$paths='';
  foreach($details['routes'] as $route){$pts=[];for($i=$route['start'];$i<$route['start']+$route['count'];$i++)$pts[]=sprintf('%.2f,%.2f',30+($xs[$i]-($minx+$maxx)/2)/$span*420+210,150-($lats[$i]-($miny+$maxy)/2)/$span*420);$paths.='<polyline points="'.implode(' ',$pts).'" fill="none" stroke="#87d8ba" stroke-width="3" stroke-linejoin="round"/>';}
  return '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="300" viewBox="0 0 480 300"><rect width="480" height="300" fill="#152e2b"/><path d="M0 75H480M0 150H480M0 225H480M120 0V300M240 0V300M360 0V300" stroke="#25423d"/>'.$paths.'</svg>';
 }
@@ -62,7 +62,7 @@ function dm_payload(PDO $db,?array $scope): array {
  return ['folders'=>$folders,'missions'=>$missions,'points'=>$points,'role'=>$scope?($scope['role']==='edit'?'editor':'viewer'):'owner','scope'=>$scope['folder']??null];
 }
 
-function dm_format(array $details): string { return ($details['sourceFormat']??'dji-kmz')==='litchi-csv'?'csv':'kmz'; }
+function dm_format(array $details): string { return match($details['sourceFormat']??'dji-kmz'){'litchi-csv'=>'csv','litchi-lchm'=>'lchm','litchi-lchz'=>'lchz',default=>'kmz'}; }
 function dm_inspect_csv(string $path): array {
  if(!is_file($path)||filesize($path)>MAX_KMZ)throw new InvalidArgumentException('CSV fehlt oder ist größer als 16 MB.');
  $h=fopen($path,'rb');if(!$h)throw new RuntimeException('CSV kann nicht gelesen werden.');
@@ -86,4 +86,15 @@ function dm_inspect_csv(string $path): array {
   $heightMode='Litchi-CSV: Höhenbezug nicht verifiziert';
   return ['sourceFormat'=>'litchi-csv','points'=>$points,'routes'=>[['id'=>'0','start'=>0,'count'=>count($points),'heightMode'=>$heightMode]],'count'=>count($points),'distance'=>round($distance,1),'estimatedSeconds'=>round($duration),'droneEnum'=>null,'droneSubEnum'=>null,'author'=>'','heightMode'=>$heightMode,'originalName'=>'','csvAltitudeModes'=>array_keys($modes),'flightValidation'=>'nicht auf DJI Fly getestet'];
  }finally{fclose($h);}
+}
+
+function dm_inspect_native(string $path,string $extension): array {
+ if(!in_array($extension,['lchm','lchz'],true)||!is_file($path)||filesize($path)>MAX_KMZ||filesize($path)<8)throw new InvalidArgumentException('Ungültige native Litchi-Datei.');
+ $h=fopen($path,'rb');try{$magic=fread($h,4);}finally{fclose($h);}
+ if($magic!==$extension)throw new InvalidArgumentException('Litchi-Dateisignatur passt nicht zur Dateiendung.');
+ if($extension==='lchz'){
+  $z=new ZipArchive();$zipPath=null;if($z->open($path)!==true){$zipPath=tempnam(sys_get_temp_dir(),'dm-litchi-');$in=fopen($path,'rb');$out=fopen($zipPath,'wb');try{fseek($in,8);stream_copy_to_stream($in,$out);}finally{fclose($in);fclose($out);}if($z->open($zipPath)!==true){unlink($zipPath);throw new InvalidArgumentException('Ungültiges Litchi-Archiv.');}}
+  try{$total=0;if($z->numFiles>1000)throw new InvalidArgumentException('Zu viele Dateien im Litchi-Archiv.');for($i=0;$i<$z->numFiles;$i++){$entry=$z->statIndex($i);$total+=$entry['size'];if($total>67108864||str_contains($entry['name'],'..')||str_starts_with($entry['name'],'/'))throw new InvalidArgumentException('Unzulässiges Litchi-Archiv.');}$flight=$z->getFromName('flight.lch2',8);if($flight===false||!str_starts_with($flight,'lch2'))throw new InvalidArgumentException('Litchi-Flugdatei fehlt im Archiv.');}finally{$z->close();if($zipPath!==null)unlink($zipPath);}
+ }
+ return ['sourceFormat'=>'litchi-'.$extension,'previewAvailable'=>false,'points'=>[],'routes'=>[],'count'=>null,'distance'=>0,'estimatedSeconds'=>null,'droneEnum'=>null,'droneSubEnum'=>null,'author'=>'','heightMode'=>'Native Litchi-Daten noch nicht ausgelesen','originalName'=>'','flightValidation'=>'Original archiviert; keine Konvertierung oder Flugprüfung'];
 }

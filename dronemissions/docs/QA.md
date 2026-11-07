@@ -10,6 +10,7 @@ Stand: 7. November 2026. PHP 8.3.36 auf FreeBSD, getrennte Entwicklungsdatenbank
 - Nicht angemeldeter Zugriff und ungültiger Zugangsschlüssel.
 - Projekte, Unterordner und Ablehnung zyklischer Ordnerbeziehungen.
 - WPML-Einlesen, Wegpunktzahl, Routenlänge, SVG-Vorschau und Ablehnung defekter KMZ.
+- Native LCHM/LCHZ: Dateisignatur, beide ZIP-Offset-Varianten von LCHZ, Originaldownload, Platzhalter ohne erfundene Route und exakter Inhalt im Archivpaket.
 - Litchi-CSV: Header-/Koordinatenprüfung, Routenvorschau, Originaldownload und ZIP-Manifest.
 - Unveränderter Download bytegenau gleich Upload; Originalversion nach neuem Upload erhalten.
 - ZIP-Paket mit exaktem Original und korrektem Manifest-Hash.
