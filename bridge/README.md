@@ -7,7 +7,7 @@ Lokale Mac-Oberfläche für DJI-KMZ-Dateien. Der Kern verwendet für Android sep
 1. Gerät per Kabel verbinden, entsperren und diesem Computer vertrauen.
 2. DJI Fly vollständig schließen. Andere Übertragungsprogramme für den Vergleich schließen.
 3. In der Bridge Geräte suchen und das iPad/iPhone auswählen. Missionen lesen zeigt die DJI-Fly-Namen.
-4. Eine gültige DJI-KMZ auswählen, Namen eingeben und optional ein Hintergrundbild wählen. Ohne Bild wird die Route gezeichnet.
+4. Eine gültige DJI-KMZ auswählen, Namen eingeben und optional ein Hintergrundbild wählen. Ohne Bild wird die Route schräg von der Seite mit den echten Wegpunkthöhen gezeichnet (Bodenabdruck, Fallinien, Höhenverlauf in der Linienfarbe), damit Helix oder Halbkugel erkennbar bleiben. Flache Routen werden bis dreifach überhöht, das steht dann im Bild. DJI Fly zeigt das Bild fest; drehen lässt es sich dort nicht.
 5. „Vorschau prüfen“ zeigt den dritten Schritt mit großer Titelvorschau und Zielgerät.
 6. DJI Fly vollständig schließen, das im dritten Schritt bestätigen und „Jetzt übertragen“ wählen. Nach vollständiger Sicherung wird ein neuer Eintrag angelegt. Bestehende Missionen werden nicht ersetzt oder gelöscht.
 7. DJI Fly öffnen; Mission, Speichern und Cloud-Synchronisation prüfen.
@@ -34,7 +34,7 @@ Der Tab „Webarchiv“ meldet sich mit dem Zugangsschlüssel des Eigentümers a
 
 Python 3.9+, Abhängigkeiten aus requirements-desktop.txt installieren, dann `python bridge/build_desktop.py`. Windows muss unter Windows gebaut und getestet werden; ein Windows-Paket wurde hier nicht gebaut. Der lokale Mac-Build ist ad-hoc signiert und nicht notarisiert.
 
-Tests: `python3 -m unittest discover -s bridge/tests -v` (32 Tests, offscreen ohne Gerät; `test_archive.py` nutzt einen lokalen Nachbau der Archiv-API). Die automatisierten Testdaten sind synthetisch. Die iOS-Tests prüfen unter anderem die Wiederherstellung nach einer unklaren Datenbank-Umbenennung und das unveränderte Erhalten bestehender Datensätze.
+Tests: `python3 -m unittest discover -s bridge/tests -v` (34 Tests, offscreen ohne Gerät; `test_archive.py` nutzt einen lokalen Nachbau der Archiv-API). Die automatisierten Testdaten sind synthetisch. Die iOS-Tests prüfen unter anderem die Wiederherstellung nach einer unklaren Datenbank-Umbenennung und das unveränderte Erhalten bestehender Datensätze.
 
 GPL-3.0-or-later; siehe LICENSE und THIRD_PARTY.md. Öffentliche Binärreleases benötigen den passenden vollständigen Quellstand und Lizenzunterlagen.
 
