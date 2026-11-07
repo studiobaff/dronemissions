@@ -1,5 +1,7 @@
 # Update vom GitHub-Branch auf den Server
 
+**Produktivinstallation:** Seit PR #1/#2 veröffentlicht GitHub Actions geprüfte Änderungen in `main` automatisch auf `service.studiobaff.com/dronemissions/`. Änderungen vom Claude-Branch zuerst per PR nach `main` übernehmen. Der Release-Wechsel sichert SQLite/Konfiguration und prüft HTTPS; private Daten bleiben außerhalb. Die folgenden manuellen Kopierbefehle sind nur für andere Installationen bzw. administrativen Notbetrieb gedacht. Für die Produktivinstallation nicht parallel per rsync veröffentlichen. Details: `deploy/README.md` im Repository.
+
 Übergabe für die Person oder den Assistenten, der den Webserver betreut. Stand: 7. November 2026.
 
 ## Was wo liegt
@@ -33,4 +35,20 @@ Zielpfad an die Installation anpassen. `--delete` entfernt veraltete Dateien aus
 
 ## Bridge
 
-Die Bridge-App wird nicht auf den Server kopiert. Sie wird auf dem Mac aus `bridge/` gebaut (`python bridge/build_desktop.py`, siehe `bridge/README.md`) und ersetzt `/Applications/Drone Missions Bridge.app`.
+Die Bridge-App wird nicht auf den Server kopiert. Sie wird auf dem Mac aus `bridge/` gebaut und ersetzt `/Applications/Drone Missions Bridge.app`:
+
+```sh
+cd /Users/florianfrey/Documents/missionplaner && git pull origin claude/drone-missions-ui-handoff-4nsj6e
+python3 -m unittest discover -s bridge/tests
+rm -rf work/bridge-build && python3 bridge/build_desktop.py
+rm -rf "/Applications/Drone Missions Bridge.app" && cp -R "outputs/Drone Missions Bridge.app" /Applications/
+```
+
+Damit die Web-App die Bridge zum Download anbietet (Dialog „Bridge“), das gebaute Paket als ZIP in den privaten Serverordner legen, außerhalb des Webroots:
+
+```sh
+cd outputs && ditto -c -k --keepParent "Drone Missions Bridge.app" "Drone-Missions-Bridge-macOS.zip"
+# dann z. B. per scp nach privat/dronemissions/bridge/Drone-Missions-Bridge-macOS.zip
+```
+
+Erlaubte Endungen: zip, dmg, pkg, exe, msi, txt, md. Dateinamen mit „mac“ oder „win“ werden der Plattform zugeordnet. Die Web-App berechnet die SHA-256-Prüfsumme beim ersten Aufruf und zeigt sie im Dialog. Ein Windows-Paket entsteht nur auf einem Windows-Rechner (`bridge/README.md`, Abschnitt Windows 11).
