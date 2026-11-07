@@ -78,3 +78,20 @@ class UploadTests(Tests):
   with self.assertRaises(BridgeError):c.upload('Groß','b.kmz',b'x'*(16*1024*1024+1))
 
 if __name__=='__main__':unittest.main()
+
+class MoveTests(unittest.TestCase):
+ def test_move_uses_revision_and_verifies_same_file_and_id(self):
+  from unittest.mock import patch
+  c=ArchiveClient('https://archive.test/');old={'id':'a','folderId':'old','sha256':'hash','revision':3};new={**old,'folderId':'new','revision':4}
+  with patch.object(c,'_request',return_value={'ok':True}) as request,patch.object(c,'library',return_value=[new]):
+   self.assertEqual(c.move_existing(old,'new'),new)
+   request.assert_called_once_with('missions-move',{'folder':'new','missions':[{'id':'a','revision':3}]})
+ def test_move_rejects_missing_revision_and_changed_file(self):
+  from unittest.mock import patch
+  c=ArchiveClient('https://archive.test/')
+  with patch.object(c,'_request') as request:
+   with self.assertRaises(BridgeError):c.move_existing({'id':'a','folderId':'old'},'new')
+   request.assert_not_called()
+  old={'id':'a','folderId':'old','sha256':'hash','revision':3}
+  with patch.object(c,'_request',return_value={'ok':True}),patch.object(c,'library',return_value=[{**old,'folderId':'new','sha256':'different'}]):
+   with self.assertRaises(BridgeError):c.move_existing(old,'new')

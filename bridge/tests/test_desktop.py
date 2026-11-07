@@ -149,6 +149,7 @@ class Tests(unittest.TestCase):
             def login(self,key):pass
             def library(self):return []
             def find_by_sha(self,sha):return {'name':'Schon da'} if sha=='dup' else None
+            def matches_by_sha(self,sha):return []
             def upload(self,name,filename,raw,folder=None,preview=None):uploads.append((name,filename,raw,folder,preview));return {'id':'x'}
             def preview(self,m):return b'',''
         w.archive=FakeClient('');rows=[{'uuid':UID,'name':'Alpha','waypoints':2,'localState':'local','preview':True},{'uuid':UID.replace('A','B'),'name':'Beta','waypoints':2,'localState':'cloud-or-missing','preview':False},{'uuid':UID.replace('A','C'),'name':'Gamma','waypoints':2,'localState':'local','preview':False}]
@@ -242,5 +243,23 @@ class Tests(unittest.TestCase):
         w.device_sort.setCurrentIndex(w.device_sort.findData('name-asc'))
         self.assertEqual([m['uuid'] for _,m in w.visible_rows()],['cloud','local','saved'])
         w.list.setCurrentRow(0);self.assertEqual(w.selected_row()['uuid'],'cloud');self.assertTrue(w.cloud_download_button.isEnabled())
+
+    def test_resaving_identical_archive_mission_moves_without_upload(self):
+        from unittest.mock import patch
+        from core import digest
+        w=self.window;self.select('ios');raw=fixture();calls=[]
+        class Client:
+            folders=[{'id':'target','path':'Ziel','archived':False}];missions=[]
+            def matches_by_sha(self,sha):return [{'id':'existing','name':'Originalname','folderId':'old','revision':4,'sha256':sha}]
+            def move_existing(self,m,folder):calls.append((m['id'],folder,m['revision']))
+            def upload(self,*a,**kw):raise AssertionError('Must not upload a duplicate')
+        w.archive=Client();w.show_rows(w.current_device(),[{'uuid':UID,'name':'Gerätename','localState':'local','preview':False}]);w.toggle_checked(UID,True);w.read_device_mission=lambda *a:{'kmz':raw,'preview':None}
+        with patch('desktop.QInputDialog.getItem',return_value=('Ziel',True)),patch('desktop.QMessageBox.information'):
+            w.save_to_archive();deadline=time.monotonic()+10
+            while w.job and w.job.isRunning():
+                self.app.processEvents()
+                if time.monotonic()>deadline:self.fail('move did not complete')
+            self.app.processEvents()
+        self.assertEqual(calls,[('existing','target',4)]);self.assertIn('1 verschoben',w.status.text())
 
 if __name__=='__main__':unittest.main()

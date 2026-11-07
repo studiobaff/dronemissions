@@ -20,7 +20,7 @@ from mission_list import sort_rows,archive_state,metadata,numeric
 import credentials
 import ios
 
-VERSION='0.4.3'
+VERSION='0.4.4'
 THUMB=QSize(176,118)
 TAB_DEVICE,TAB_ARCHIVE,TAB_TRANSFER,TAB_LOG=0,1,2,3
 ARCHIVE_URL='https://service.studiobaff.com/dronemissions/'
@@ -84,8 +84,10 @@ class MissionRow(QWidget):
   else:picture.setPixmap(placeholder(THUMB,'Kein Vorschaubild'))
   layout.addWidget(picture)
   text=QVBoxLayout();text.setSpacing(4);title=QLabel(label);title.setObjectName('rowTitle');title.setWordWrap(True);text.addWidget(title)
-  waypoints=mission.get('waypoints','—');meta=QLabel(f'{waypoints} Wegpunkte · {STATE_LABELS.get(mission.get("localState"),"—")}'+((' · '+metadata(mission)) if metadata(mission) else ''));meta.setObjectName('muted');text.addWidget(meta)
-  saved=QLabel(mission.get('archiveStatus','Archivstatus: nicht geprüft'));saved.setObjectName('muted');text.addWidget(saved)
+  waypoints=mission.get('waypoints','—');meta=QLabel(f'{waypoints} Wegpunkte'+((' · '+metadata(mission)) if metadata(mission) else ''));meta.setObjectName('muted');text.addWidget(meta)
+  badges=QHBoxLayout();badges.setSpacing(6)
+  state=mission.get('localState');available=QLabel({'local':'Lokal','cloud-or-missing':'Nur Cloud','ambiguous':'Mehrere Dateien'}.get(state,'Unbekannt'));available.setObjectName('missionBadge');available.setProperty('badge',state or 'unknown');badges.addWidget(available)
+  saved=QLabel({'saved':'Im Webarchiv','missing':'Nicht im Webarchiv','unknown':'Archiv: nicht geprüft'}.get(mission.get('archiveState'),'Archiv: nicht geprüft'));saved.setObjectName('missionBadge');saved.setProperty('badge',mission.get('archiveState','unknown'));saved.setToolTip(mission.get('archiveStatus','Für den Vergleich im Webarchiv anmelden und lokale Missionen lesen.'));badges.addWidget(saved);badges.addStretch();text.addLayout(badges)
   ident=QLabel('Kennung '+mission['uuid']);ident.setObjectName('ident');text.addWidget(ident);text.addStretch();layout.addLayout(text,1)
 
 class Window(QMainWindow):
@@ -417,7 +419,9 @@ class Window(QMainWindow):
   r=self.current_device();current=self.selected_row();self.list.clear();self.device_rows_widgets=[]
   for i,m in self.visible_rows():
    item=QListWidgetItem();item.setSizeHint(QSize(0,THUMB.height()+18));item.setToolTip('Kennung: '+m['uuid']);item.setData(Qt.UserRole,i);self.list.addItem(item)
-   state=archive_state(m,self.archive_rows,self.archive is not None);display={**m,'archiveStatus':{'saved':'Im Webarchiv: identische KMZ','missing':'KMZ nicht im geladenen Webarchiv gefunden','unknown':'Archivstatus: nicht geprüft'}[state]}
+   state=archive_state(m,self.archive_rows,self.archive is not None);display={**m,'archiveState':state,'archiveStatus':{'saved':'Im Webarchiv: identische KMZ','missing':'KMZ nicht im geladenen Webarchiv gefunden','unknown':'Archivstatus: nicht geprüft'}[state]}
+   if state=='saved':
+    matches=[entry for entry in self.archive_rows if entry.get('sha256')==m.get('sha256')];display['archiveStatus']+='\n'+('\n'.join(entry.get('name','')+' · '+entry.get('folder','') for entry in matches))
    widget=MissionRow(self.row_label(r,m,i),display,m.get('image'),checked=m['uuid'] in self.checked,on_toggle=self.toggle_checked);self.list.setItemWidget(item,widget);self.device_rows_widgets.append((m,widget))
    if current and current['uuid']==m['uuid']:self.list.setCurrentItem(item)
   self.device_count.setText(f'{len(self.device_rows_widgets)} von {len(self.rows)} sichtbar');visible=bool(self.device_rows_widgets);self.list.setVisible(visible);self.list_empty.setVisible(not visible);self.list_empty.setText('Keine Mission passt zu Suche und Filter.' if self.rows else 'Keine Missionen auf dem Gerät gefunden.');self.update_checked()
@@ -472,28 +476,32 @@ class Window(QMainWindow):
   picked=[(i,m) for i,m in enumerate(self.rows) if m['uuid'] in self.checked and m.get('localState')=='local']
   if not picked:return
   folders=[('Ohne Projektordner',None)]+[(f['path']+(' (archiviert)' if f['archived'] else ''),f['id']) for f in self.archive.folders]
-  choice,ok=QInputDialog.getItem(self,'Im Webarchiv sichern',f'{len(picked)} Missionen als neue Einträge sichern. Projektordner im Archiv:',[name for name,_ in folders],0,False)
+  choice,ok=QInputDialog.getItem(self,'Im Webarchiv sichern',f'{len(picked)} Missionen sichern. Neue Dateien werden angelegt; identische vorhandene Archiveinträge werden in diesen Zielordner verschoben. Namen und Versionen bleiben erhalten. Projektordner:',[name for name,_ in folders],0,False)
   if not ok:return
   folder=dict(folders)[choice];client=self.archive;labels={m['uuid']:self.row_label(r,m,i) for i,m in picked}
   def work():
-   report={'saved':[],'skipped':[],'failed':[],'hashes':{}}
+   report={'saved':[],'moved':[],'skipped':[],'failed':[],'hashes':{}}
    for i,m in picked:
     label=labels[m['uuid']]
     try:
      data=self.read_device_mission(r,m);raw=data.get('kmz')
      if not raw:report['skipped'].append(label+' (keine lokale KMZ)');continue
-     inspect_kmz(raw);report['hashes'][m['uuid']]=digest(raw);existing=client.find_by_sha(digest(raw))
-     if existing:report['skipped'].append(f'{label} (bereits im Archiv als „{existing["name"]}“)');continue
+     inspect_kmz(raw);report['hashes'][m['uuid']]=digest(raw);matches=client.matches_by_sha(digest(raw))
+     target=next((entry for entry in matches if entry.get('folderId')==folder),None)
+     if target:report['skipped'].append(f'{label} (bereits im Zielordner als „{target["name"]}“)');continue
+     if len(matches)>1:raise BridgeError('Mehrere Archiveinträge mit identischer KMZ gefunden. Bitte den gewünschten Eintrag im Webarchiv zuordnen.')
+     if matches:
+      client.move_existing(matches[0],folder);report['moved'].append(f'{label} (vorhandener Eintrag „{matches[0]["name"]}“)');continue
      client.upload(label,label+'.kmz',raw,folder,data.get('preview'));report['saved'].append(label)
     except Exception as e:report['failed'].append(f'{label}: {e}')
    return report
   def done(report):
    for m in self.rows:
     if m['uuid'] in report.get('hashes',{}):m['sha256']=report['hashes'][m['uuid']]
-   for key,title in [('saved','Gesichert'),('skipped','Übersprungen'),('failed','Fehlgeschlagen')]:
+   for key,title in [('saved','Gesichert'),('moved','Verschoben'),('skipped','Übersprungen'),('failed','Fehlgeschlagen')]:
     for line in report[key]:self.log_line(f'{title}: {line}')
    self.checked=set();self.archive_rows=client.missions;self.render_device_list();self.archive_filter();self.archive_previews()
-   summary=f'{len(report["saved"])} gesichert, {len(report["skipped"])} übersprungen, {len(report["failed"])} fehlgeschlagen.';self.status.setText('Im Webarchiv gesichert: '+summary)
+   summary=f'{len(report["saved"])} neu gesichert, {len(report["moved"])} verschoben, {len(report["skipped"])} bereits im Zielordner, {len(report["failed"])} fehlgeschlagen.';self.status.setText('Im Webarchiv gesichert: '+summary)
    QMessageBox.information(self,'Im Webarchiv gesichert',summary+('\n\nÜbersprungen:\n'+'\n'.join(report['skipped']) if report['skipped'] else '')+('\n\nFehlgeschlagen:\n'+'\n'.join(report['failed']) if report['failed'] else '')+'\n\nEinzelheiten im Tab „Protokoll“.')
   self.task(f'{len(picked)} Missionen vom Gerät lesen und im Webarchiv sichern …',work,done)
  def backup(self):
@@ -662,6 +670,11 @@ QLineEdit,QComboBox{background:white;border:1px solid #ced9cd;border-radius:6px;
 QListWidget#missions{background:white;border:1px solid #d9e2d7;border-radius:8px;outline:none}
 QListWidget#missions::item{border-bottom:1px solid #edf0ea;border-radius:6px}
 QListWidget#missions::item:selected{background:#dcebd3}QListWidget#missions::item:hover{background:#f1f5ed}
+QLabel#missionBadge{border-radius:8px;padding:3px 8px;font-size:11px;font-weight:600;background:#eef1ed;color:#5b685e}
+QLabel#missionBadge[badge="saved"]{background:#dcefe2;color:#245535}
+QLabel#missionBadge[badge="missing"]{background:#fff0d7;color:#80551d}
+QLabel#missionBadge[badge="local"]{background:#e6eee8;color:#315a42}
+QLabel#missionBadge[badge="cloud-or-missing"]{background:#e1ecf8;color:#315c85}
 QPlainTextEdit{background:white;border:1px solid #d7e0d4;border-radius:6px;font-family:Menlo,monospace;font-size:11px;padding:8px}
 QCheckBox{spacing:9px;font-size:12px}QCheckBox::indicator{width:19px;height:19px;border:1px solid #a8b9a3;border-radius:4px;background:white}
 QCheckBox::indicator:checked{background:#254e3b;border:1px solid #254e3b;image:url("__CHECKMARK__")}

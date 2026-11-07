@@ -17,5 +17,5 @@ if sys.platform=='darwin':
  import plistlib
  info=root.parent/'outputs'/'Drone Missions Bridge.app'/'Contents'/'Info.plist'
  with info.open('rb') as stream:metadata=plistlib.load(stream)
- metadata.update(CFBundleShortVersionString='0.4.3',CFBundleVersion='20261108.3',UIDesignRequiresCompatibility=True)
+ metadata.update(CFBundleShortVersionString='0.4.4',CFBundleVersion='20261108.4',UIDesignRequiresCompatibility=True)
  with info.open('wb') as stream:plistlib.dump(metadata,stream)

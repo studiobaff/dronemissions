@@ -89,3 +89,11 @@ Die Geräteliste lässt sich nach Name, Änderungsdatum, Streckenlänge und Wegp
 **Nur Cloud** zeigt Missions-Einträge ohne lokale KMZ. Nach Auswahl erklärt **Download in DJI Fly**, wie die Datei auf dem Gerät heruntergeladen wird. Ein eigener DJI-Cloud-Download ist nicht implementiert. Nach Download erneut **Missionen lesen**. Cloud-Missionen werden ohne Datei nicht als „ungesichert“ oder „gesichert“ eingestuft.
 
 Für **Nicht im Webarchiv** zuerst im Webarchiv anmelden und die Geräteliste lesen. Ein identischer SHA-256 der aktuellen lokalen KMZ im geladenen Archivbestand ergibt **Im Webarchiv: identische KMZ**. Namen sind kein Sicherungsnachweis. Der Vergleich berücksichtigt den geladenen Versionsstand, nicht alle historischen Archivversionen, und ersetzt keine vollständige Geräte-Sicherung. Der Prüfstand gilt zum Zeitpunkt des Lesens; nach Änderungen erneut lesen/anmelden. Für die iPad-Liste werden höchstens 64 MiB lokale KMZ (je höchstens 16 MiB) eingelesen; nicht lesbare oder außerhalb des Budgets liegende Dateien bleiben **nicht geprüft**.
+
+## Status-Chips und erneutes Sichern (0.4.4)
+
+Die Geräteliste kennzeichnet **Lokal**, **Nur Cloud**, **Im Webarchiv**, **Nicht im Webarchiv** und **Archiv: nicht geprüft** als Chips. Beim Archiv-Chip nennt der Hinweis die passenden Namen und Projektordner. Das bleibt ein Vergleich der identischen aktuellen KMZ-Prüfsumme mit dem geladenen Archivbestand.
+
+Beim erneuten Sichern wird nach der Zielordner-Auswahl eine identische, bereits vorhandene Archiv-Mission in diesen Ordner verschoben. Es entsteht keine doppelte Mission; Name, Missions-ID, Versionen und Originaldatei bleiben erhalten. Liegt ein identischer Eintrag schon im Zielordner, wird nichts geändert. Bei mehreren Treffern außerhalb des Zielordners wird keine automatische Auswahl getroffen. Die Verschiebung verwendet die geladene Revision; zwischenzeitliche Änderungen werden vom Server mit Konflikt abgelehnt. Das Ergebnis unterscheidet neu gesichert, verschoben, bereits im Zielordner und fehlgeschlagen.
+
+**Löschen auf dem Gerät ist nicht eingebaut.** Dafür DJI Fly verwenden. Ein Download aus der DJI-Cloud bleibt ebenfalls eine Aktion in DJI Fly; die Bridge erklärt dafür den Weg und liest danach den lokalen Bestand neu.

@@ -57,11 +57,23 @@ class ArchiveClient:
   missions=[]
   for m in data['missions']:
    details=m.get('details') or {};fmt={'litchi-csv':'CSV','litchi-lchm':'LCHM','litchi-lchz':'LCHZ','mapcreator-project':'MPROJ'}.get(details.get('sourceFormat'),'KMZ')
-   missions.append({'id':m['id'],'folderId':m.get('folder'),'name':m['name'],'folder':path(m.get('folder')) or 'Ohne Projekt','archived':bool(m.get('archived')),'format':fmt,'filename':m.get('filename',''),'sha256':m.get('sha256',''),'bytes':int(m.get('bytes') or 0),'versionId':m.get('versionId'),'version':m.get('version'),'updated':m.get('updated',''),'waypoints':details.get('count'),'distance':details.get('distance') or 0,'transferable':fmt=='KMZ'})
+   missions.append({'id':m['id'],'revision':int(m.get('revision') or 0),'folderId':m.get('folder'),'name':m['name'],'folder':path(m.get('folder')) or 'Ohne Projekt','archived':bool(m.get('archived')),'format':fmt,'filename':m.get('filename',''),'sha256':m.get('sha256',''),'bytes':int(m.get('bytes') or 0),'versionId':m.get('versionId'),'version':m.get('version'),'updated':m.get('updated',''),'waypoints':details.get('count'),'distance':details.get('distance') or 0,'transferable':fmt=='KMZ'})
   self.folders=[{'id':f['id'],'path':path(f['id']),'archived':bool(f.get('archived'))} for f in data['folders']];self.folders.sort(key=lambda f:f['path'].lower());self.missions=missions
   return missions
  def find_by_sha(self,sha256:str):
   return next((m for m in self.missions if m.get('sha256')==sha256),None)
+ def matches_by_sha(self,sha256:str):
+  return [m for m in self.missions if sha256 and m.get('sha256')==sha256]
+ def move_existing(self,mission,folder):
+  """Move one exact loaded revision; never upload a duplicate or overwrite data."""
+  if mission.get('folderId')==folder:return mission
+  revision=mission.get('revision')
+  if not isinstance(revision,int) or revision<1:raise BridgeError('Archiv-Version fehlt. Bitte Bibliothek neu laden, bevor ein Eintrag verschoben wird.')
+  self._request('missions-move',{'folder':folder,'missions':[{'id':mission['id'],'revision':revision}]})
+  rows=self.library();updated=next((m for m in rows if m['id']==mission['id']),None)
+  if not updated or updated.get('folderId')!=folder or updated.get('sha256')!=mission.get('sha256'):
+   raise BridgeError('Verschieben wurde angefragt, der aktuelle Stand konnte aber nicht bestätigt werden. Bitte im Webarchiv prüfen; keine neue Datei wurde hochgeladen.')
+  return updated
  def upload(self,name:str,filename:str,raw:bytes,folder:str|None=None,preview:bytes|None=None):
   """Upload a KMZ as a new archive mission; the archive verifies the checksum and keeps the original unchanged."""
   if len(raw)>MAX_KMZ:raise BridgeError('KMZ ist größer als 16 MB.')
