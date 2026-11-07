@@ -2,4 +2,11 @@
 header('Content-Type: text/html; charset=utf-8');
 header('X-Content-Type-Options: nosniff');header('X-Frame-Options: DENY');header('Referrer-Policy: no-referrer');header('Cache-Control: no-store');
 header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://server.arcgisonline.com https://mapsneu.wien.gv.at; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
-readfile(__DIR__.'/view.html');
+$author='';$path=(getenv('DRONEMISSIONS_PRIVATE') ?: '/usr/local/www/vhosts/studiobaff/dronemissions-private').'/config.json';
+if(is_file($path)){$config=json_decode(file_get_contents($path),true);if(is_array($config)&&is_string($config['authorName']??null))$author=$config['authorName'];}
+$escaped=htmlspecialchars($author,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
+echo strtr(file_get_contents(__DIR__.'/view.html'),[
+ '{{AUTHOR_TITLE}}'=>$author!==''?' · '.$escaped:'',
+ '{{AUTHOR_HEADER}}'=>$author!==''?$escaped:'DRONE MISSIONS',
+ '{{AUTHOR_BADGE}}'=>$author!==''?'<small>'.$escaped.'</small>':''
+]);

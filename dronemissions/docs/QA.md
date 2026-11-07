@@ -6,6 +6,7 @@ Stand: 7. November 2026. PHP 8.3.36 auf FreeBSD, getrennte Entwicklungsdatenbank
 
 `tests/integration.py` verwendet nur die Python-Standardbibliothek und erzeugt synthetische WPML-KMZ-Dateien. Geprüft werden:
 
+- Autoreneinstellung: nur Eigentümer, HTML-Escaping, Manifest-Autor, neutrale Standardeinstellung.
 - Nicht angemeldeter Zugriff und ungültiger Zugangsschlüssel.
 - Projekte, Unterordner und Ablehnung zyklischer Ordnerbeziehungen.
 - WPML-Einlesen, Wegpunktzahl, Routenlänge, SVG-Vorschau und Ablehnung defekter KMZ.

@@ -51,6 +51,7 @@ def main():
     c.call('login',{'password':'incorrect'},expected=401); c.call('login',json.loads(a.access.read_text()))
     saved=c.csrf;c.csrf='invalid';c.call('folder',{'name':'CSRF blocked'},expected=403);c.csrf=saved
     assert not c.call('library')['missions'], 'Use a dedicated empty test installation'
+    author='Demo & Co <Test>';c.call('settings',{'authorName':author});assert c.call('settings')=={'authorName':author};html=c.opener.open(a.base.rstrip('/')+'/').read();assert b'Demo &amp; Co &lt;Test&gt;' in html and b'Demo & Co <Test>' not in html
     root=c.call('folder',{'name':'Demo · Küstenprojekt'})['id']; sub=c.call('folder',{'name':'Routen','parent':root})['id']; other=c.call('folder',{'name':'Privates Gegenprojekt'})['id']
     c.call('folder',{'id':root,'name':'Zyklus','parent':sub},expected=400)
     raw=synthetic_kmz(); raw2=synthetic_kmz(75)
@@ -63,7 +64,7 @@ def main():
     versions=c.call('versions&id='+m)['versions']; assert len(versions)==2
     assert c.call('kmz&id='+m+'&version='+versions[-1]['id'])==raw
     with zipfile.ZipFile(io.BytesIO(c.call('package&id='+m))) as z:
-        manifest=json.loads(z.read('manifest.json')); assert z.read('mission.kmz')==raw2; assert manifest['files']['mission.kmz']==hashlib.sha256(raw2).hexdigest()
+        manifest=json.loads(z.read('manifest.json'));assert manifest['author']==author; assert z.read('mission.kmz')==raw2; assert manifest['files']['mission.kmz']==hashlib.sha256(raw2).hexdigest()
     assert b'<svg' in c.call('preview&id='+m)
     c.call('upload',{'folder':sub,'name':'Bad'},expected=400,files={'kmz':('broken.kmz',b'broken')})
     point={'folder':sub,'name':'Demo · Panorama','lat':48.001,'lng':16.002,'settings':{'height':60,'heading':0,'gimbal':-90,'heightMode':'relativeToStartPoint','capture':'sphere'}}
@@ -71,10 +72,10 @@ def main():
     view=c.call('share',{'folder':root,'role':'view'}); edit=c.call('share',{'folder':root,'role':'edit'})
     v=Client(a.base);v.call('share-login',{'token':view['token']}); visible=v.call('library'); assert len(visible['folders'])==2 and len(visible['missions'])==1 and len(visible['points'])==1
     assert other not in json.dumps(visible)
-    v.call('upload',{'folder':sub,'name':'Blocked'},expected=403,files={'kmz':('demo.kmz',raw)});v.call('point',point,expected=403);v.call('folder',{'name':'No','parent':root},expected=403);v.call('shares',expected=403);v.call('share',{'folder':root},expected=403);v.call('folder',{'id':other,'name':'Leak'},expected=403)
+    v.call('upload',{'folder':sub,'name':'Blocked'},expected=403,files={'kmz':('demo.kmz',raw)});v.call('point',point,expected=403);v.call('folder',{'name':'No','parent':root},expected=403);v.call('shares',expected=403);v.call('settings',expected=403);v.call('settings',{'authorName':'Blocked'},expected=403);v.call('share',{'folder':root},expected=403);v.call('folder',{'id':other,'name':'Leak'},expected=403)
     assert v.call('kmz&id='+m)==raw2
     c.call('folder-archive',{'id':root,'archived':True});nested=c.call('share',{'folder':sub,'role':'view'});n=Client(a.base);n.call('share-login',{'token':nested['token']});assert next(f for f in n.call('library')['folders'] if f['id']==sub)['inheritedArchived'];c.call('revoke',{'id':nested['id']});c.call('folder-archive',{'id':root,'archived':False})
-    e=Client(a.base);e.call('share-login',{'token':edit['token']});e.call('folder',{'name':'Editor-Unterordner','parent':sub});e.call('folder',{'name':'Escape','parent':other},expected=403);e.call('mission',{'id':m,'revision':2,'folder':other},expected=403);e.call('folder',{'id':root,'name':'Escape','parent':sub},expected=400)
+    e=Client(a.base);e.call('share-login',{'token':edit['token']});e.call('settings',{'authorName':'Blocked'},expected=403);e.call('folder',{'name':'Editor-Unterordner','parent':sub});e.call('folder',{'name':'Escape','parent':other},expected=403);e.call('mission',{'id':m,'revision':2,'folder':other},expected=403);e.call('folder',{'id':root,'name':'Escape','parent':sub},expected=400)
     c.call('revoke',{'id':view['id']});v.call('library',expected=401);v.call('share-login',{'token':view['token']},expected=403)
     c.call('folder-archive',{'id':root,'archived':True});assert next(f for f in c.call('library')['folders'] if f['id']==root)['archived']==1
     c.call('folder-archive',{'id':root,'archived':False})
@@ -90,6 +91,7 @@ def main():
         assert z.read('mission.csv')==csv;assert json.loads(z.read('manifest.json'))['files']['mission.csv']==hashlib.sha256(csv).hexdigest()
     assert b'<svg' in c.call('preview&id='+csv_id)
     c.call('upload',{'folder':sub,'name':'Bad CSV'},expected=400,files={'kmz':('bad.csv',b'bad,header\n1,2')})
+    c.call('settings',{'authorName':''})
     if a.fixture_dir:
         a.fixture_dir.mkdir(parents=True,exist_ok=True);(a.fixture_dir/'demo.kmz').write_bytes(raw)
     print('PASS: authentication, folders/cycles, parsing, versions/conflicts, exact KMZ, package hashes, previews, points/conflicts, read/edit scopes, revocation, archive and metadata conflicts')

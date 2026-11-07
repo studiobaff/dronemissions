@@ -29,6 +29,10 @@ Das Setup verweigert die Änderung einer bestehenden Konfiguration. Die Zugangsd
 5. Den Inhalt von `public/` einschließlich `vendor/images/` in das Zielverzeichnis kopieren.
 6. HTTPS-Aufruf, Login, Secure-/HttpOnly-Cookie und leere Bibliothek prüfen. Keine realen Kundendaten für öffentliche Screenshots verwenden.
 
+## Eigener Name
+
+Nach der Anmeldung unter **Einstellungen → Autor / Betreiber** den eigenen Namen eintragen. Alternativ kann die JSON-Eingabe des Setups neben `password` ein optionales `authorName` enthalten. Standard ist ein leeres Feld und damit eine neutrale Oberfläche. Neue Archivpakete enthalten diesen Namen im Manifest-Feld `author`. Bestehende Originaldateien werden dadurch nicht verändert.
+
 ## Updates und Backups
 
 Vor Updates Datenbank und `blobs/` gemeinsam sichern. Bei laufender Anwendung für SQLite die SQLite-Backup-API oder `VACUUM INTO` verwenden; nicht einfach eine aktive Datenbankdatei kopieren. Konfiguration separat verschlüsselt sichern. Zugriffsrechte des Backups wie beim Original beschränken.

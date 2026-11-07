@@ -16,6 +16,10 @@ Private Web-Bibliothek für DJI-WPML-Missionen aus Litchi Hub oder Map Creator s
 
 ![Route und Höhenprofil auf basemap.at; synthetische Daten](docs/screenshots/mission-basemap.png)
 
+## Eigener Autor / Betreiber
+
+Unter **Einstellungen → Autor / Betreiber** trägt der Eigentümer seinen eigenen Namen oder Firmennamen ein. Der Name erscheint auf dieser Installation und als Autor in neuen Archivpaketen. Ein leeres Feld zeigt die neutrale Oberfläche. Neue Installationen übernehmen keinen fest eingebauten Autor; optional kann beim CLI-Setup `authorName` mitgegeben werden. Die Einstellung liegt ausschließlich in der privaten Konfiguration.
+
 ## Grenzen
 
 Dies ist ein Archiv und eine Vorschau, keine Flugfreigabe. Dateiintegrität bestätigt weder DJI-Fly-Kompatibilität noch Flugsicherheit. Das Höhenprofil zeigt gespeicherte Missionshöhen, keine Geländehöhen. Für ältere Litchi-CSV-Dateien wird der Höhenbezug ausdrücklich als nicht verifiziert angezeigt; die ursprünglichen Einstellungen bleiben in der Originaldatei erhalten. Die Strecke berücksichtigt weder Start-/Rückflug noch Aktionspausen. Planungspunkte erzeugen noch keine ausführbaren DJI-Flug- oder Panoramaaktionen. Die USB-/DJI-Fly-Bridge wird separat entwickelt; es werden hier noch keine Bridge-Downloads angeboten.
