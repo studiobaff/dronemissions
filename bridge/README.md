@@ -24,21 +24,21 @@ Zielgerät ausdrücklich auswählen, Missionen lesen und einen entbehrlichen lok
 
 Das experimentelle Anlegen einer unregistrierten Android-UUID wird in der Oberfläche nicht mehr angeboten. Keine automatische Cloud-Synchronisation oder Löschung.
 
-## Archiv
+## Webarchiv
 
-Das Webarchiv lässt sich über den Button öffnen. Derzeit KMZ im Browser herunterladen und über die Dateiauswahl der Bridge auswählen. Eine direkte Archiv-API-Verbindung und automatische Updates sind noch nicht eingebaut. LCHM/LCHZ und MPROJ sind bearbeitbare Quellprojekte; für DJI Fly wird ein gültiger DJI-KMZ-Export benötigt.
+Der Tab „Webarchiv“ meldet sich mit dem Zugangsschlüssel des Eigentümers an der Archiv-API an (`archive.py`, nur Standardbibliothek, HTTPS erforderlich außer auf localhost). Der Schlüssel bleibt nur für die laufende Sitzung im Speicher und wird nie gespeichert; die Archiv-Adresse wird gemerkt. Die Liste zeigt Vorschaubild, Projektpfad, Format, Version, Wegpunkte und Strecke, mit Suche und den Filtern „Nur DJI-KMZ“ und „Archivierte zeigen“. „Für Übertragung verwenden“ lädt die Originaldatei, vergleicht die SHA-256-Prüfsumme mit dem Archiv, legt sie im Anwendungsdatenordner unter `archive/` ab und setzt sie als Quelle im Tab „Übertragen“ ein. LCHM/LCHZ und MPROJ sind bearbeitbare Quellprojekte; für DJI Fly wird ein gültiger DJI-KMZ-Export benötigt. Der Weg vom Archiv zur Drohne: Archiv → Bridge → DJI Fly auf iPad oder Fernsteuerung → Fluggerät beim Start der Mission.
 
 ## Entwickeln und bauen
 
 Python 3.9+, Abhängigkeiten aus requirements-desktop.txt installieren, dann `python bridge/build_desktop.py`. Windows muss unter Windows gebaut und getestet werden; ein Windows-Paket wurde hier nicht gebaut. Der lokale Mac-Build ist ad-hoc signiert und nicht notarisiert.
 
-Tests: `python3 -m unittest discover -s bridge/tests -v`. Die automatisierten Testdaten sind synthetisch. Die iOS-Tests prüfen unter anderem die Wiederherstellung nach einer unklaren Datenbank-Umbenennung und das unveränderte Erhalten bestehender Datensätze.
+Tests: `python3 -m unittest discover -s bridge/tests -v` (26 Tests, offscreen ohne Gerät; `test_archive.py` nutzt einen lokalen Nachbau der Archiv-API). Die automatisierten Testdaten sind synthetisch. Die iOS-Tests prüfen unter anderem die Wiederherstellung nach einer unklaren Datenbank-Umbenennung und das unveränderte Erhalten bestehender Datensätze.
 
 GPL-3.0-or-later; siehe LICENSE und THIRD_PARTY.md. Öffentliche Binärreleases benötigen den passenden vollständigen Quellstand und Lizenzunterlagen.
 
 ## Oberfläche 0.4
 
-Drei Tabs statt drei Schritte: **Gerät & Missionen** (Gerät oben wählen, „Missionen lesen“ zeigt eine große Liste mit Vorschaubild, Wegpunkten, Bestand und Kennung; darunter die Aktionen „Neu anlegen“ und „Ausgewählte ersetzen“, letztere nur für lokal vorhandene Missionen), **Übertragen** (Modus Neu/Ersetzen, bei Ersetzen die Karte des Zieleintrags, KMZ, Name, großes Vorschaubild; „Vorschau prüfen“ führt zur Prüfseite mit großem Titelbild, Zusammenfassung und der ausdrücklichen Bestätigung „DJI Fly ist geschlossen“ vor „Jetzt übertragen“) und **Protokoll & Einstellungen** (Protokoll mit Zeitstempel, Sicherungen öffnen, ADB-Pfad).
+Vier Tabs statt drei Schritte: **Gerät & Missionen** (Gerät oben wählen, „Missionen lesen“ zeigt eine große Liste mit Vorschaubild, Wegpunkten, Bestand und Kennung; darunter die Aktionen „Neu anlegen“ und „Ausgewählte ersetzen“, letztere nur für lokal vorhandene Missionen), **Webarchiv** (siehe oben), **Übertragen** (Modus Neu/Ersetzen, bei Ersetzen die Karte des Zieleintrags, KMZ, Name, großes Vorschaubild; „Vorschau prüfen“ führt zur Prüfseite mit großem Titelbild, Zusammenfassung und der ausdrücklichen Bestätigung „DJI Fly ist geschlossen“ vor „Jetzt übertragen“) und **Protokoll & Einstellungen** (Protokoll mit Zeitstempel, Sicherungen öffnen, ADB-Pfad).
 
 Plattformregeln in der Oberfläche: Auf Android ist „Ersetzen“ der geprüfte Weg, „Neu anlegen“ ist als experimentell gekennzeichnet (Dateien geprüft, DJI-Fly-Sichtbarkeit nicht bestätigt). Auf iPad/iPhone ist „Neu anlegen“ geprüft, „Ersetzen“ nutzt `ios.apply_new(replace=…)` und ist als noch nicht am Gerät geprüft gekennzeichnet. Jede Änderung an Quelle, Name, Bild, Ziel oder Gerät verwirft den vorbereiteten Transfer; die Prüfseite muss erneut durchlaufen werden. Gerätefunktionen (`core.py`, `ios.py`, `preview.py`) sind gegenüber 0.3 unverändert.
 

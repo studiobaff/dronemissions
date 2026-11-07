@@ -6,7 +6,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from test_core import fixture
 try:
     from PySide6.QtWidgets import QApplication
-    from desktop import Window
+    from desktop import Window,TAB_TRANSFER
     HAS_QT=True
 except ImportError:
     HAS_QT=False
@@ -28,7 +28,7 @@ class Tests(unittest.TestCase):
             self.app.processEvents()
             if time.monotonic()>deadline:self.fail('Review did not complete')
     def test_confirmation_is_required_and_source_edit_invalidates_it(self):
-        w=self.window;self.select('ios');w.start_new();self.assertEqual(w.tabs.currentIndex(),1);self.assertEqual(w.mode,'new')
+        w=self.window;self.select('ios');w.start_new();self.assertEqual(w.tabs.currentIndex(),TAB_TRANSFER);self.assertEqual(w.mode,'new')
         with tempfile.TemporaryDirectory() as t:
             source=Path(t)/'Demo.kmz';source.write_bytes(fixture());w.set_source(source);w.prepare();self.wait_review()
             self.assertFalse(w.apply_button.isEnabled());self.assertFalse(w.closed.isChecked());self.assertEqual(w.transfer['mode'],'ios-new');self.assertIsNone(w.transfer['replace'])
@@ -49,5 +49,29 @@ class Tests(unittest.TestCase):
     def test_new_mode_is_default_and_marks_android_as_experimental(self):
         w=self.window;self.select('android');w.set_mode('new');self.assertTrue(w.target_panel.isHidden());self.assertIn('experimentell',w.mode_note.text())
         self.select('ios','ipad');w.set_mode('new');self.assertNotIn('experimentell',w.mode_note.text())
+
+    def test_archive_tab_loads_library_and_hands_over_a_verified_kmz(self):
+        w=self.window;kmz=fixture()
+        class FakeClient:
+            role='owner';logins=[]
+            def __init__(self,url):self.url=url
+            def login(self,key):FakeClient.logins.append(key);
+            def library(self):return [{'id':'m1','name':'Rundflug','folder':'Demo / Süd','archived':False,'format':'KMZ','filename':'a.kmz','sha256':'','bytes':1,'versionId':'v1','version':2,'updated':'','waypoints':2,'distance':150.0,'transferable':True},{'id':'m2','name':'Projekt','folder':'Ohne Projekt','archived':False,'format':'MPROJ','filename':'b.mproj','sha256':'','bytes':1,'versionId':'v2','version':1,'updated':'','waypoints':None,'distance':0,'transferable':False}]
+            def preview(self,m):return b'<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>','image/svg+xml'
+            def download(self,m,destination):destination.parent.mkdir(parents=True,exist_ok=True);destination.write_bytes(kmz);return destination
+        w.client_factory=FakeClient;w.archive_url.setText('http://127.0.0.1/dronemissions/');w.archive_key.setText('geheim');w.archive_login()
+        deadline=time.monotonic()+10
+        while w.job and w.job.isRunning() or not w.archive_rows:
+            self.app.processEvents()
+            if time.monotonic()>deadline:self.fail('Archive login did not complete')
+        self.app.processEvents();self.assertEqual(FakeClient.logins,['geheim']);self.assertEqual(w.archive_key.text(),'');self.assertEqual(w.archive_list.count(),1)
+        w.archive_kmz_only.setChecked(False);self.assertEqual(w.archive_list.count(),2)
+        w.archive_list.setCurrentRow(1);self.assertFalse(w.archive_use_button.isEnabled())
+        w.archive_list.setCurrentRow(0);self.assertTrue(w.archive_use_button.isEnabled());self.select('ios');w.archive_use()
+        deadline=time.monotonic()+10
+        while (w.job and w.job.isRunning()) or w.source_path is None:
+            self.app.processEvents()
+            if time.monotonic()>deadline:self.fail('Download did not complete')
+        self.assertEqual(w.tabs.currentIndex(),TAB_TRANSFER);self.assertEqual(w.name.text(),'Rundflug');self.assertEqual(w.source_path.read_bytes(),kmz);self.assertIn('Webarchiv',w.source_meta.text())
 
 if __name__=='__main__':unittest.main()

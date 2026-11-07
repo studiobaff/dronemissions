@@ -11,12 +11,16 @@ from PySide6.QtGui import QDesktopServices,QPixmap,QPainter,QColor,QFont
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,
  QLabel,QPushButton,QComboBox,QLineEdit,QFileDialog,QListWidget,QListWidgetItem,QPlainTextEdit,
  QMessageBox,QCheckBox,QStackedWidget,QFrame,QProgressBar,QTabWidget,QButtonGroup,QSizePolicy,QScrollArea)
+from PySide6.QtSvg import QSvgRenderer
 from core import Adb,devices,plan,apply,atomic_json,BridgeError,inspect_kmz,digest,BASE
 from preview import render_preview
+from archive import ArchiveClient,safe_filename
 import ios
 
 VERSION='0.4'
 THUMB=QSize(176,118)
+TAB_DEVICE,TAB_ARCHIVE,TAB_TRANSFER,TAB_LOG=0,1,2,3
+ARCHIVE_URL='https://service.studiobaff.com/dronemissions/'
 STATE_LABELS={'local':'Lokal vorhanden','cloud-or-missing':'Nur Cloud / fehlt lokal','ambiguous':'Mehrere Dateien'}
 
 class Job(QThread):
@@ -36,6 +40,28 @@ def placeholder(size,text):
  pixmap=QPixmap(size);pixmap.fill(QColor('#1b332b'));painter=QPainter(pixmap);painter.setPen(QColor('#a7c577'))
  painter.setFont(QFont('Helvetica Neue',11));painter.drawText(pixmap.rect(),Qt.AlignCenter|Qt.TextWordWrap,text);painter.end();return pixmap
 
+def picture_from(data,content_type='',size=THUMB):
+ pixmap=QPixmap()
+ if data and 'svg' in (content_type or ''):
+  renderer=QSvgRenderer(data)
+  if renderer.isValid():
+   pixmap=QPixmap(size);pixmap.fill(QColor('#152e2b'));painter=QPainter(pixmap);renderer.render(painter);painter.end();return pixmap
+ if data and pixmap.loadFromData(data):return pixmap.scaled(size,Qt.KeepAspectRatioByExpanding,Qt.SmoothTransformation)
+ return None
+
+class ArchiveRow(QWidget):
+ """Eine Zeile der Webarchiv-Liste: Vorschaubild, Name, Projekt, Format, Wegpunkte, Strecke."""
+ def __init__(self,m):
+  super().__init__();layout=QHBoxLayout(self);layout.setContentsMargins(10,8,10,8);layout.setSpacing(16)
+  self.picture=QLabel();self.picture.setFixedSize(THUMB);self.picture.setObjectName('thumb');self.picture.setAlignment(Qt.AlignCenter);self.picture.setPixmap(placeholder(THUMB,'Vorschau wird geladen …' if m['transferable'] else m['format']));layout.addWidget(self.picture)
+  text=QVBoxLayout();text.setSpacing(4);title=QLabel(m['name']);title.setObjectName('rowTitle');title.setWordWrap(True);text.addWidget(title)
+  folder=QLabel(m['folder']+(' · Archiv' if m['archived'] else ''));folder.setObjectName('muted');text.addWidget(folder)
+  meta=f"{m['format']} · V{m.get('version') or '?'}"+(f" · {m['waypoints']} Wegpunkte · {m['distance']/1000:.2f} km" if m['waypoints'] is not None else ' · Planungsdatei, kein Flugexport')
+  label=QLabel(meta);label.setObjectName('ident');text.addWidget(label);text.addStretch();layout.addLayout(text,1)
+ def set_picture(self,pixmap):
+  if pixmap:self.picture.setPixmap(pixmap)
+  else:self.picture.setPixmap(placeholder(THUMB,'Kein Vorschaubild'))
+
 class MissionRow(QWidget):
  """Eine Zeile der großen Missionsliste: Vorschaubild, Name, Wegpunkte, Bestand."""
  def __init__(self,label,mission,image=None):
@@ -54,12 +80,13 @@ class Window(QMainWindow):
   super().__init__();self.setWindowTitle(f'Drone Missions Bridge · {VERSION}');self.resize(1180,820);self.setMinimumSize(980,700)
   self.settings=QSettings('studiobaff','DroneMissionsBridge');self.root=Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation));self.root.mkdir(parents=True,exist_ok=True)
   self.transfer=None;self.rows=[];self.registry={};self.job=None;self.source_path=None;self.background_path=None;self.mode='new';self.prepared=None
+  self.archive=None;self.archive_rows=[];self.archive_widgets=[];self.client_factory=ArchiveClient
   try:self.registry=json.loads((self.root/'names.json').read_text())
   except (OSError,ValueError):pass
   self.body=QWidget();outer=QVBoxLayout(self.body);outer.setContentsMargins(24,18,24,18);outer.setSpacing(14);self.setCentralWidget(self.body)
   self.build_header(outer)
   self.tabs=QTabWidget();self.tabs.setObjectName('tabs');self.tabs.setDocumentMode(True);outer.addWidget(self.tabs,1)
-  self.build_device_tab();self.build_transfer_tab();self.build_log_tab()
+  self.build_device_tab();self.build_archive_tab();self.build_transfer_tab();self.build_log_tab()
   self.progress=QProgressBar();self.progress.setRange(0,0);self.progress.setFixedHeight(4);self.progress.setTextVisible(False);self.progress.hide();outer.addWidget(self.progress)
   self.status=QLabel('iPad oder Fernsteuerung per USB verbinden.');self.status.setObjectName('status');self.status.setWordWrap(True);outer.addWidget(self.status)
   self.set_mode('new');self.changed_device()
@@ -72,7 +99,7 @@ class Window(QMainWindow):
   header.addSpacing(18);header.addWidget(QLabel('Gerät'))
   self.device=QComboBox();self.device.setMinimumHeight(40);self.device.setMinimumWidth(320);self.device.currentIndexChanged.connect(self.changed_device);header.addWidget(self.device,1)
   self.refresh_button=QPushButton('Neu suchen');self.refresh_button.clicked.connect(self.refresh_devices);header.addWidget(self.refresh_button)
-  archive=QPushButton('Webarchiv ↗');archive.setObjectName('quiet');archive.clicked.connect(lambda:QDesktopServices.openUrl(QUrl('https://service.studiobaff.com/dronemissions/')));header.addWidget(archive)
+  archive=QPushButton('Webarchiv im Browser ↗');archive.setObjectName('quiet');archive.clicked.connect(lambda:QDesktopServices.openUrl(QUrl(self.archive_url.text().strip() or ARCHIVE_URL)));header.addWidget(archive)
   outer.addLayout(header)
   self.device_note=QLabel('Gerät auswählen, um fortzufahren.');self.device_note.setObjectName('muted');self.device_note.setWordWrap(True);outer.addWidget(self.device_note)
 
@@ -95,6 +122,24 @@ class Window(QMainWindow):
   self.new_button=QPushButton('Neu anlegen');self.new_button.setObjectName('primary');self.new_button.clicked.connect(self.start_new);actions.addWidget(self.new_button)
   self.replace_button=QPushButton('Ausgewählte ersetzen …');self.replace_button.setObjectName('primary');self.replace_button.setEnabled(False);self.replace_button.clicked.connect(self.start_replace);actions.addWidget(self.replace_button);card.addLayout(actions)
 
+ def build_archive_tab(self):
+  tab=QWidget();layout=QVBoxLayout(tab);layout.setContentsMargins(0,14,0,0);layout.setSpacing(12);self.tabs.addTab(tab,'Webarchiv')
+  card=self.card(layout,1)
+  row=QHBoxLayout();text=QVBoxLayout();text.setSpacing(2);title=QLabel('Missionen aus dem Webarchiv');title.setObjectName('pageTitle');text.addWidget(title)
+  self.archive_note=QLabel('Mit dem Zugangsschlüssel anmelden. Der Schlüssel bleibt nur für diese Sitzung im Speicher.');self.archive_note.setObjectName('muted');self.archive_note.setWordWrap(True);text.addWidget(self.archive_note);row.addLayout(text,1);card.addLayout(row)
+  grid=QGridLayout();grid.setHorizontalSpacing(10);grid.setVerticalSpacing(4)
+  grid.addWidget(QLabel('Archiv-Adresse'),0,0);self.archive_url=QLineEdit(self.settings.value('archiveURL','') or ARCHIVE_URL);self.archive_url.setPlaceholderText(ARCHIVE_URL);grid.addWidget(self.archive_url,1,0)
+  grid.addWidget(QLabel('Zugangsschlüssel'),0,1);self.archive_key=QLineEdit();self.archive_key.setEchoMode(QLineEdit.Password);self.archive_key.setPlaceholderText('Nur für diese Sitzung');self.archive_key.returnPressed.connect(self.archive_login);grid.addWidget(self.archive_key,1,1)
+  self.archive_login_button=QPushButton('Anmelden und Bibliothek laden');self.archive_login_button.clicked.connect(self.archive_login);grid.addWidget(self.archive_login_button,1,2);grid.setColumnStretch(0,3);grid.setColumnStretch(1,2);card.addLayout(grid)
+  tools=QHBoxLayout();self.archive_search=QLineEdit();self.archive_search.setPlaceholderText('Name, Projekt oder Dateiname suchen …');self.archive_search.textChanged.connect(self.archive_filter);tools.addWidget(self.archive_search,1)
+  self.archive_kmz_only=QCheckBox('Nur DJI-KMZ (übertragbar)');self.archive_kmz_only.setChecked(True);self.archive_kmz_only.toggled.connect(self.archive_filter);tools.addWidget(self.archive_kmz_only)
+  self.archive_archived=QCheckBox('Archivierte zeigen');self.archive_archived.toggled.connect(self.archive_filter);tools.addWidget(self.archive_archived);card.addLayout(tools)
+  self.archive_list=QListWidget();self.archive_list.setObjectName('missions');self.archive_list.setSelectionMode(QListWidget.SingleSelection);self.archive_list.setSpacing(4);self.archive_list.itemSelectionChanged.connect(self.archive_changed);self.archive_list.itemDoubleClicked.connect(lambda _:self.archive_use());card.addWidget(self.archive_list,1)
+  self.archive_empty=QLabel('Noch nicht angemeldet.');self.archive_empty.setObjectName('emptyList');self.archive_empty.setAlignment(Qt.AlignCenter);card.addWidget(self.archive_empty,1);self.archive_list.hide()
+  actions=QHBoxLayout();self.archive_selected=QLabel('Kein Eintrag ausgewählt.');self.archive_selected.setObjectName('muted');self.archive_selected.setWordWrap(True);actions.addWidget(self.archive_selected,1)
+  self.archive_use_button=QPushButton('Für Übertragung verwenden');self.archive_use_button.setObjectName('primary');self.archive_use_button.setEnabled(False);self.archive_use_button.clicked.connect(self.archive_use);actions.addWidget(self.archive_use_button);card.addLayout(actions)
+  label=QLabel('Die KMZ wird mit Prüfsumme aus dem Archiv geladen und als Quelle im Tab „Übertragen“ eingesetzt. Planungsdateien (MPROJ, LCHM, LCHZ) zuerst in Litchi oder Map Creator als DJI-KMZ exportieren.');label.setObjectName('muted');label.setWordWrap(True);layout.addWidget(label)
+
  def build_transfer_tab(self):
   tab=QWidget();layout=QVBoxLayout(tab);layout.setContentsMargins(0,14,0,0);layout.setSpacing(12);self.tabs.addTab(tab,'Übertragen')
   self.stack=QStackedWidget();layout.addWidget(self.stack,1)
@@ -112,7 +157,7 @@ class Window(QMainWindow):
   text=QVBoxLayout();text.setSpacing(3);label=QLabel('Zu ersetzender Eintrag');label.setObjectName('sectionTitle');text.addWidget(label)
   self.target_name=QLabel('Noch kein Eintrag gewählt.');self.target_name.setObjectName('rowTitle');self.target_name.setWordWrap(True);text.addWidget(self.target_name)
   self.target_meta=QLabel('');self.target_meta.setObjectName('muted');text.addWidget(self.target_meta);text.addStretch();target.addLayout(text,1)
-  button=QPushButton('Eintrag wählen …');button.setObjectName('quiet');button.clicked.connect(lambda:self.tabs.setCurrentIndex(0));target.addWidget(button,alignment=Qt.AlignTop);left.addWidget(self.target_panel)
+  button=QPushButton('Eintrag wählen …');button.setObjectName('quiet');button.clicked.connect(lambda:self.tabs.setCurrentIndex(TAB_DEVICE));target.addWidget(button,alignment=Qt.AlignTop);left.addWidget(self.target_panel)
   self.new_note=QLabel();self.new_note.setObjectName('muted');self.new_note.setWordWrap(True);left.addWidget(self.new_note)
   # Quelle
   label=QLabel('DJI-KMZ');label.setObjectName('sectionTitle');left.addWidget(label)
@@ -197,10 +242,10 @@ class Window(QMainWindow):
   self.transfer=None
   if hasattr(self,'apply_button'):self.apply_button.setEnabled(False)
   if hasattr(self,'stack') and self.stack.currentIndex()==1:self.stack.setCurrentIndex(0)
- def start_new(self):self.set_mode('new');self.tabs.setCurrentIndex(1);self.status.setText('Neu anlegen: KMZ auswählen und Missionsnamen eingeben.')
+ def start_new(self):self.set_mode('new');self.tabs.setCurrentIndex(TAB_TRANSFER);self.status.setText('Neu anlegen: KMZ auswählen oder aus dem Webarchiv übernehmen, dann Missionsnamen eingeben.')
  def start_replace(self):
   if not self.selected_row():self.status.setText('Zuerst einen Eintrag in der Liste auswählen.');return
-  self.set_mode('replace');self.tabs.setCurrentIndex(1);self.status.setText('Ersetzen: KMZ auswählen, Namen eingeben, dann Vorschau prüfen.')
+  self.set_mode('replace');self.tabs.setCurrentIndex(TAB_TRANSFER);self.status.setText('Ersetzen: KMZ auswählen, Namen eingeben, dann Vorschau prüfen.')
  def closeEvent(self,event):
   if self.job and self.job.isRunning():QMessageBox.information(self,'Aktion läuft','Bitte die laufende Aktion abschließen lassen.');event.ignore()
   else:event.accept()
@@ -286,6 +331,57 @@ class Window(QMainWindow):
   dest=self.root/'backups'/datetime.now().strftime('%Y%m%d-%H%M%S-%f');dest.parent.mkdir(parents=True,exist_ok=True)
   self.task('Missionsbestand sichern und zurücklesen …',lambda:ios.run(ios.backup(r['serial'],dest)) if r['kind']=='ios' else a.snapshot(dest),lambda result:self.status.setText(f'{len(result["files"])} Dateien gesichert. Ablage im Tab „Protokoll“ öffnen.'))
 
+ # ---------- Webarchiv ----------
+ def archive_login(self):
+  url=self.archive_url.text().strip();key=self.archive_key.text()
+  def connect():
+   client=self.client_factory(url);client.login(key);return client,client.library()
+  def done(result):
+   client,rows=result;self.archive=client;self.settings.setValue('archiveURL',url);self.archive_key.clear();self.archive_rows=rows
+   self.archive_note.setText(f'Angemeldet als {"Eigentümer" if client.role=="owner" else "Freigabe"} · {len(rows)} Missionen in der Bibliothek.');self.status.setText(f'{len(rows)} Missionen aus dem Webarchiv geladen.');self.archive_filter();self.archive_previews()
+  self.task('Am Webarchiv anmelden und Bibliothek laden …',connect,done)
+ def archive_visible(self):
+  q=self.archive_search.text().strip().lower();kmz=self.archive_kmz_only.isChecked();archived=self.archive_archived.isChecked()
+  return [m for m in self.archive_rows if (not kmz or m['transferable']) and (archived or not m['archived']) and q in f"{m['name']} {m['folder']} {m['filename']}".lower()]
+ def archive_filter(self,*args):
+  rows=self.archive_visible();self.archive_list.clear();self.archive_widgets=[]
+  for m in rows:
+   item=QListWidgetItem();item.setSizeHint(QSize(0,THUMB.height()+18));item.setToolTip(m['filename']);item.setData(Qt.UserRole,m['id']);self.archive_list.addItem(item);widget=ArchiveRow(m);self.archive_list.setItemWidget(item,widget);self.archive_widgets.append((m,widget))
+   if m.get('pixmap') is not None:widget.set_picture(m['pixmap'])
+  self.archive_list.setVisible(bool(rows));self.archive_empty.setVisible(not rows);self.archive_empty.setText('Noch nicht angemeldet.' if not self.archive else 'Keine Mission passt zu Suche und Filter.');self.archive_changed()
+ def archive_previews(self):
+  client=self.archive;pending=[m for m in self.archive_rows if m['transferable'] and 'pixmap' not in m][:60]
+  if not client or not pending:return
+  def fetch():
+   out=[]
+   for m in pending:
+    try:raw,content_type=client.preview(m);out.append((m['id'],raw,content_type))
+    except Exception:out.append((m['id'],None,''))
+   return out
+  def done(results):
+   for mission_id,raw,content_type in results:
+    m=next((x for x in self.archive_rows if x['id']==mission_id),None)
+    if m is None:continue
+    m['pixmap']=picture_from(raw,content_type)
+    for row,widget in self.archive_widgets:
+     if row['id']==mission_id:widget.set_picture(m['pixmap'])
+  self.task('Vorschaubilder laden …',fetch,done)
+ def archive_current(self):
+  item=self.archive_list.currentItem()
+  if not item or not item.isSelected():return None
+  return next((m for m in self.archive_rows if m['id']==item.data(Qt.UserRole)),None)
+ def archive_changed(self):
+  m=self.archive_current();self.archive_use_button.setEnabled(bool(m and m['transferable']))
+  self.archive_selected.setText(f'Ausgewählt: {m["name"]} ({m["format"]})'+('' if m['transferable'] else ' · kein DJI-KMZ, nicht übertragbar') if m else 'Kein Eintrag ausgewählt.')
+ def archive_use(self):
+  m=self.archive_current()
+  if not m or not m['transferable'] or not self.archive:return
+  folder=self.root/'archive'/safe_filename(m['id']);destination=folder/(safe_filename(m['name'])+'.kmz')
+  def download():return self.archive.download(m,destination)
+  def done(path):
+   self.set_source(path);self.name.setText(m['name']);self.source_meta.setText(self.source_meta.text()+f' · aus dem Webarchiv, V{m.get("version") or "?"}, Prüfsumme bestätigt');self.tabs.setCurrentIndex(TAB_TRANSFER);self.status.setText('KMZ aus dem Webarchiv übernommen. Jetzt Vorschau prüfen.')
+  self.task('KMZ aus dem Webarchiv laden und prüfen …',download,done)
+
  # ---------- Übertragen ----------
  def prepare(self):
   self.invalidate()
@@ -313,7 +409,7 @@ class Window(QMainWindow):
    self.summary_mode.setText(('ERSETZEN' if mode=='replace' else 'NEU ANLEGEN')+' · '+r['name']);self.summary_name.setText(name);self.summary_points.setText(f'{details["waypoints"]} Wegpunkte · {details["distance"]/1000:.2f} km');self.summary_target.setText(target_name)
    if r['kind']=='ios':self.review_note.setText('Neue Mission mit Name und Titelbild. Anschließend in DJI Fly öffnen und bei Bedarf synchronisieren.' if mode=='new' else 'Der Eintrag wird nach Sicherung ersetzt (am iPad noch nicht geprüft). Anschließend in DJI Fly öffnen und Speichern prüfen.')
    else:self.review_note.setText('Der gewählte Eintrag wird nach Sicherung ersetzt. Anschließend RC Pro 2 neu starten, Mission öffnen und Speichern prüfen.' if mode=='replace' else 'Experimentell: Neue Kennung wird geprüft übertragen. Anschließend RC Pro 2 neu starten und prüfen, ob DJI Fly die Mission anzeigt.')
-   self.closed.setChecked(False);self.stack.setCurrentIndex(1);self.tabs.setCurrentIndex(1);self.status.setText('Noch nichts übertragen. Vorschau prüfen und DJI Fly schließen.')
+   self.closed.setChecked(False);self.stack.setCurrentIndex(1);self.tabs.setCurrentIndex(TAB_TRANSFER);self.status.setText('Noch nichts übertragen. Vorschau prüfen und DJI Fly schließen.')
   self.task('Mission und Vorschau prüfen …',prepare_plan,done)
  def execute(self):
   p=self.transfer
