@@ -7,7 +7,7 @@ Lokale Mac-Oberfläche für DJI-KMZ-Dateien. Der Kern verwendet für Android sep
 1. Gerät per Kabel verbinden, entsperren und diesem Computer vertrauen.
 2. DJI Fly vollständig schließen. Andere Übertragungsprogramme für den Vergleich schließen.
 3. In der Bridge Geräte suchen und das iPad/iPhone auswählen. Missionen lesen zeigt die DJI-Fly-Namen.
-4. Eine gültige DJI-KMZ auswählen, Namen eingeben und optional ein Hintergrundbild wählen. Ohne Bild wird die Route schräg von der Seite mit den echten Wegpunkthöhen gezeichnet (Bodenabdruck, Fallinien, Höhenverlauf in der Linienfarbe), damit Helix oder Halbkugel erkennbar bleiben. Flache Routen werden bis dreifach überhöht, das steht dann im Bild. DJI Fly zeigt das Bild fest; drehen lässt es sich dort nicht.
+4. Eine gültige DJI-KMZ auswählen, Namen eingeben und optional ein Hintergrundbild wählen. Ohne Bild wird die Route schräg von der Seite mit den echten Wegpunkthöhen gezeichnet (siehe „Automatische 3D-Titelvorschau“). DJI Fly zeigt das Bild fest; drehen lässt es sich dort nicht.
 5. „Vorschau prüfen“ zeigt den dritten Schritt mit großer Titelvorschau und Zielgerät.
 6. DJI Fly vollständig schließen, das im dritten Schritt bestätigen und „Jetzt übertragen“ wählen. Nach vollständiger Sicherung wird ein neuer Eintrag angelegt. Bestehende Missionen werden nicht ersetzt oder gelöscht.
 7. DJI Fly öffnen; Mission, Speichern und Cloud-Synchronisation prüfen.
@@ -51,3 +51,9 @@ Map Creator schreibt bei manchen Exporten den letzten Wegpunkt zweimal mit derse
 ## Windows 11
 
 Der Code ist plattformunabhängig (PySide6). Das Paket muss auf einem Windows-Rechner mit demselben `build_desktop.py` gebaut werden; PyInstaller baut nicht quer. Zusätzlich nötig: die Windows-Version der Android Platform-Tools (ADB) und für iPad/iPhone die Apple-USB-Treiber (iTunes oder die Apple-Devices-App), damit pymobiledevice3 das Gerät sieht. Ein Windows-Paket wurde noch nicht gebaut oder getestet.
+
+## Automatische 3D-Titelvorschau
+
+Die automatische Vorschau zeigt eine schräge Projektion aus lokalen Meterkoordinaten und gespeicherten Wegpunkthöhen. Horizontale Strecken und Höhen verwenden denselben Maßstab; die Höhen werden nicht übertrieben. Unterschiedliche oder unbekannte Höhenbezüge sowie fehlende Höhen führen zu einer ausdrücklich beschrifteten Draufsicht. Die Grafik zeigt die geplante Route, kein Geländemodell und keine Hindernisse. Bodenraster, Bodenabdruck und Fallinien geben dem Auge eine Bezugsebene; ferne Segmente werden zuerst gezeichnet, nahe bleiben an Kreuzungen sichtbar; Start (grün) und Ende (weiß) sind markiert. Der Missionsname bleibt im unteren Titelband, der Wolkenbereich oben links bleibt frei.
+
+Ein eigenes Bild kann weiterhin ausdrücklich gewählt werden. Benachbarte JPEG-Dateien werden nicht mehr automatisch bevorzugt, damit alte 2D-Vorschaubilder die neue 3D-Ansicht nicht verdecken. Die Missions-KMZ wird durch die Darstellung nicht verändert.

@@ -1,7 +1,8 @@
 """Title preview rendered with Qt. No network or map-provider dependency.
 
 Without a background image the route is drawn as an oblique 3D view with the real waypoint heights,
-so a helix or hemisphere stays recognizable. The title band at the bottom is unchanged; DJI Fly shows
+so a helix or hemisphere stays recognizable. Missing heights or mixed vertical references fall back to a
+labelled plan view; heights are never inferred. The title band at the bottom is unchanged; DJI Fly shows
 this as a fixed picture, it cannot be rotated there.
 """
 import math
@@ -12,64 +13,80 @@ from core import BridgeError
 
 W,H=900,600
 PLOT=QRectF(60,40,780,350)   # area above the title band
-AZIMUTH=math.radians(32)     # rotation around the vertical axis
-TILT=math.radians(28)        # camera elevation above the ground plane
+AZIMUTH=math.radians(35)     # rotation around the vertical axis
+ELEVATION=math.radians(25)   # camera elevation above the ground plane; exposes the dome's height
+KNOWN_REFERENCES={'relativeToStartPoint','WGS84','EGM96'}
 
 def _local_metres(points):
-    lat0=sum(p['lat'] for p in points)/len(points);lng0=sum(p['lng'] for p in points)/len(points)
-    kx=111320*math.cos(math.radians(lat0));ky=110540
-    return [((p['lng']-lng0)*kx,(p['lat']-lat0)*ky,p['height'] if p.get('height') is not None else 0.0) for p in points]
+    lat0=(min(p['lat'] for p in points)+max(p['lat'] for p in points))/2
+    lng0=(min(p['lng'] for p in points)+max(p['lng'] for p in points))/2
+    kx=6371000*math.cos(math.radians(lat0))
+    return [(math.radians(p['lng']-lng0)*kx,math.radians(p['lat']-lat0)*6371000) for p in points]
 
-def oblique_view(points):
-    """Return projected (x,y) for route and ground footprint plus metadata, in image pixels."""
-    xyz=_local_metres(points);zs=[z for _,_,z in xyz];z0=min(zs);z1=max(zs)
-    spread=max(max(abs(x) for x,_,_ in xyz),max(abs(y) for _,y,_ in xyz),1.0)*2
-    height_span=z1-z0
-    # True scale, but lift flat routes a little so the third dimension stays visible.
-    exaggeration=1.0 if height_span<=0 else min(3.0,max(1.0,0.22*spread/height_span))
-    ca,sa=math.cos(AZIMUTH),math.sin(AZIMUTH);ct,st=math.cos(TILT),math.sin(TILT)
-    def project(x,y,z):
-        rx=x*ca-y*sa;ry=x*sa+y*ca
-        return rx,-(ry*st+(z-z0)*exaggeration*ct)
-    route=[project(x,y,z) for x,y,z in xyz];ground=[project(x,y,z0) for x,y,_ in xyz]
-    allpts=route+ground;minx=min(p[0] for p in allpts);maxx=max(p[0] for p in allpts);miny=min(p[1] for p in allpts);maxy=max(p[1] for p in allpts)
-    scale=min(PLOT.width()/max(maxx-minx,1e-6),PLOT.height()/max(maxy-miny,1e-6))
-    ox=PLOT.center().x()-(minx+maxx)/2*scale;oy=PLOT.center().y()-(miny+maxy)/2*scale
-    fit=lambda p:QPointF(p[0]*scale+ox,p[1]*scale+oy)
-    return {'route':[fit(p) for p in route],'ground':[fit(p) for p in ground],'heights':zs,'z0':z0,'z1':z1,'exaggeration':exaggeration,'project':lambda x,y,z:fit(project(x,y,z)),'scale':scale,'spread':spread}
+def route_scene(details):
+    """Project the route into preview pixels.
 
-def draw_route_3d(painter,details):
-    view=oblique_view(details['points']);route,ground=view['route'],view['ground'];starts={s['start'] for s in details['segments']}
-    painter.setRenderHint(QPainter.Antialiasing)
-    # Ground plane grid for depth; sized to the route footprint.
-    half=view['spread']*0.6;step=half/4;pen=QPen(QColor(255,255,255,22),1);painter.setPen(pen)
-    for i in range(-4,5):
-        painter.drawLine(view['project'](-half,i*step,view['z0']),view['project'](half,i*step,view['z0']))
-        painter.drawLine(view['project'](i*step,-half,view['z0']),view['project'](i*step,half,view['z0']))
-    # Footprint on the ground and vertical drop lines.
-    shadow=QPainterPath()
-    for i,p in enumerate(ground):
-        if i in starts:shadow.moveTo(p)
-        else:shadow.lineTo(p)
-    painter.setPen(QPen(QColor(181,217,105,70),3));painter.drawPath(shadow)
-    stride=max(1,len(route)//24);painter.setPen(QPen(QColor(181,217,105,45),1))
-    for i in range(0,len(route),stride):painter.drawLine(ground[i],route[i])
-    # The flight path itself, colour graded by height.
-    z0,z1=view['z0'],view['z1'];outline=QPainterPath()
-    for i,p in enumerate(route):
-        if i in starts:outline.moveTo(p)
-        else:outline.lineTo(p)
-    painter.setPen(QPen(QColor(20,45,40),7,Qt.SolidLine,Qt.RoundCap,Qt.RoundJoin));painter.drawPath(outline)
-    for i in range(1,len(route)):
-        if i in starts:continue
-        t=0.0 if z1<=z0 else ((view['heights'][i]-z0)/(z1-z0))
-        painter.setPen(QPen(QColor(int(120+135*t),int(205+40*t),int(90+60*(1-t))),3.5,Qt.SolidLine,Qt.RoundCap,Qt.RoundJoin));painter.drawLine(route[i-1],route[i])
-    painter.setPen(QPen(QColor('#20392d'),2));painter.setBrush(QBrush(QColor('#d9ff63')));painter.drawEllipse(route[0],7,7)
-    painter.setBrush(QBrush(QColor('#ffffff')));painter.drawEllipse(route[-1],5.5,5.5)
-    # Height legend, top right (the upper left is covered by DJI Fly's cloud icon).
-    painter.setPen(QColor(200,220,190));painter.setFont(QFont('Helvetica Neue',13))
-    note=f'Höhe {z0:.0f}–{z1:.0f} m · {len(route)} Wegpunkte · Ansicht schräg'+(f' · Höhe ×{view["exaggeration"]:.1f}' if view['exaggeration']>1.05 else '')
-    painter.drawText(QRectF(420,8,470,24),Qt.AlignRight|Qt.AlignVCenter,note)
+    Returns points as (x,y,depth,height) plus the ground footprint, whether the scene is 3D, the height range
+    and 'exaggeration' (always 1.0: horizontal distances and heights share one scale, heights are never
+    exaggerated). Different vertical references or missing heights cannot be combined into one scene; those
+    missions get a plan view.
+    """
+    points=details['points'];modes={s.get('heightMode','unbekannt') for s in details['segments']}
+    use_height=all(isinstance(p.get('height'),(int,float)) and math.isfinite(p['height']) for p in points) and len(modes)==1 and modes<=KNOWN_REFERENCES
+    heights=[float(p['height']) for p in points] if use_height else [0.0]*len(points)
+    bottom=min(heights);top=max(heights);metres=_local_metres(points)
+    spread=max(max(abs(x) for x,_ in metres),max(abs(y) for _,y in metres),1.0)*2
+    exaggeration=1.0
+    ca,sa=math.cos(AZIMUTH),math.sin(AZIMUTH);ce,se=math.cos(ELEVATION),math.sin(ELEVATION)
+    def project(east,north,h):
+        if not use_height:return east,-north,0.0
+        x=east*ca-north*sa;depth=east*sa+north*ca
+        return x,depth*se-(h-bottom)*exaggeration*ce,depth
+    route=[project(e,n,h) for (e,n),h in zip(metres,heights)];ground=[project(e,n,bottom) for e,n in metres]
+    allpts=route+ground;xs=[p[0] for p in allpts];ys=[p[1] for p in allpts]
+    scale=min(PLOT.width()/max(max(xs)-min(xs),1e-6),PLOT.height()/max(max(ys)-min(ys),1e-6))
+    cx=(min(xs)+max(xs))/2;cy=(min(ys)+max(ys))/2
+    fit=lambda p:(PLOT.center().x()+(p[0]-cx)*scale,PLOT.center().y()+(p[1]-cy)*scale,p[2])
+    projected=[(*fit(p),h) for p,h in zip(route,heights)];footprint=[fit(p) for p in ground]
+    return {'points':projected,'ground':footprint,'is3d':use_height,'heightMin':bottom,'heightMax':top,'exaggeration':exaggeration,
+            'project':lambda e,n,h:fit(project(e,n,h)),'spread':spread}
+
+def draw_route(painter,details):
+    scene=route_scene(details);points=scene['points'];starts={s['start'] for s in details['segments']}
+    painter.save();painter.setClipRect(QRectF(PLOT.left()-30,PLOT.top()-30,PLOT.width()+60,PLOT.height()+40));painter.setRenderHint(QPainter.Antialiasing)
+    if scene['is3d']:
+        # Ground plane grid, footprint and drop lines give the eye a floor to measure heights against.
+        half=scene['spread']*0.6;step=half/4;painter.setPen(QPen(QColor(255,255,255,22),1))
+        for i in range(-4,5):
+            a=scene['project'](-half,i*step,scene['heightMin']);b=scene['project'](half,i*step,scene['heightMin']);painter.drawLine(QPointF(a[0],a[1]),QPointF(b[0],b[1]))
+            a=scene['project'](i*step,-half,scene['heightMin']);b=scene['project'](i*step,half,scene['heightMin']);painter.drawLine(QPointF(a[0],a[1]),QPointF(b[0],b[1]))
+        shadow=QPainterPath()
+        for i,g in enumerate(scene['ground']):
+            if i in starts:shadow.moveTo(g[0],g[1])
+            else:shadow.lineTo(g[0],g[1])
+        painter.setPen(QPen(QColor(181,217,105,70),3));painter.drawPath(shadow)
+        stride=max(1,len(points)//24);painter.setPen(QPen(QColor(181,217,105,45),1))
+        for i in range(0,len(points),stride):painter.drawLine(QPointF(scene['ground'][i][0],scene['ground'][i][1]),QPointF(points[i][0],points[i][1]))
+    # One continuous dark outline (no per-segment caps, so the line never looks dashed), then colour by height,
+    # distant segments first so near ones remain visible at crossings.
+    outline=QPainterPath()
+    for i,p in enumerate(points):
+        if i in starts:outline.moveTo(p[0],p[1])
+        else:outline.lineTo(p[0],p[1])
+    painter.setPen(QPen(QColor('#0b2422'),7,Qt.SolidLine,Qt.RoundCap,Qt.RoundJoin));painter.drawPath(outline)
+    edges=[(points[i-1],p) for i,p in enumerate(points) if i and i not in starts];edges.sort(key=lambda edge:-(edge[0][2]+edge[1][2]))
+    low=scene['heightMin'];span=max(scene['heightMax']-low,1)
+    for a,b in edges:
+        t=((a[3]+b[3])/2-low)/span
+        colour=QColor(round(70+145*t),round(190+34*t),round(196-93*t)) if scene['is3d'] else QColor('#b5d969')
+        painter.setPen(QPen(colour,3.8,Qt.SolidLine,Qt.RoundCap,Qt.RoundJoin));painter.drawLine(QPointF(a[0],a[1]),QPointF(b[0],b[1]))
+    painter.setPen(QPen(QColor('#20392d'),2));painter.setBrush(QBrush(QColor('#d9ff63')));painter.drawEllipse(QPointF(points[0][0],points[0][1]),7,7)
+    painter.setBrush(QBrush(QColor('#ffffff')));painter.drawEllipse(QPointF(points[-1][0],points[-1][1]),5.5,5.5)
+    painter.restore()
+    painter.setFont(QFont('Helvetica Neue',14));painter.setPen(QColor('#b1c6bc'))
+    if scene['is3d']:label=f'3D · Höhe {low:.0f}–{scene["heightMax"]:.0f} m · {len(points)} Wegpunkte'
+    else:label='Draufsicht · Höhen fehlen oder Höhenbezüge verschieden'
+    painter.drawText(QRectF(115,392,670,25),Qt.AlignRight|Qt.AlignVCenter,label)  # upper left stays free for DJI Fly's cloud icon
 
 def render_preview(destination,name,details,background=None):
     image=QImage(W,H,QImage.Format_RGB32);image.fill(QColor('#152e2b'))
@@ -80,7 +97,7 @@ def render_preview(destination,name,details,background=None):
         source=source.scaled(W,H,Qt.KeepAspectRatioByExpanding,Qt.SmoothTransformation)
         painter.drawImage((W-source.width())//2,(H-source.height())//2,source)
     else:
-        draw_route_3d(painter,details)
+        draw_route(painter,details)
     # Avoid the cloud icon in the upper left and the cropped thumbnail edges.
     painter.fillRect(0,420,W,180,QColor('#122331'))
     font=QFont('Helvetica Neue',44,QFont.Bold);painter.setFont(font);metrics=QFontMetrics(font)

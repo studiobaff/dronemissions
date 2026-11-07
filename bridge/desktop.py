@@ -171,9 +171,9 @@ class Window(QMainWindow):
   left.addStretch(1)
   row=QHBoxLayout();row.addStretch();self.prepare_button=QPushButton('Vorschau prüfen');self.prepare_button.setObjectName('primary');self.prepare_button.clicked.connect(self.prepare);row.addWidget(self.prepare_button);left.addLayout(row)
   # rechts: Vorschaubild
-  right=self.card(columns,2);self.heading(right,'Vorschaubild','Titelbild für DJI Fly. Ohne eigenes Bild wird die Route gezeichnet.')
+  right=self.card(columns,2);self.heading(right,'Vorschaubild','Titelbild für DJI Fly. Die automatische 3D-Ansicht zeigt Route und Wegpunkthöhen.')
   self.image=QLabel();self.image.setObjectName('preview');self.image.setMinimumSize(420,280);self.image.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding);self.image.setAlignment(Qt.AlignCenter);self.image.setPixmap(placeholder(QSize(420,280),'Vorschau erscheint nach „Vorschau prüfen“'));right.addWidget(self.image,1)
-  self.preview_label=QLabel('Hintergrund: Route aus der KMZ.');self.preview_label.setObjectName('muted');self.preview_label.setWordWrap(True);right.addWidget(self.preview_label)
+  self.preview_label=QLabel('Automatisch: 3D-Route aus der KMZ; ohne vergleichbare Höhen Draufsicht.');self.preview_label.setObjectName('muted');self.preview_label.setWordWrap(True);right.addWidget(self.preview_label)
   row=QHBoxLayout();button=QPushButton('Eigenes Bild …');button.setObjectName('quiet');button.clicked.connect(self.choose_preview);row.addWidget(button)
   button=QPushButton('Bild entfernen');button.setObjectName('quiet');button.clicked.connect(self.clear_background);row.addWidget(button);row.addStretch();right.addLayout(row)
   # Seite 2: Prüfen und übertragen
@@ -283,16 +283,13 @@ class Window(QMainWindow):
     merged=', '.join(str(m['index']+1) for m in prepared['report']['merged']);text+=f' · Übertragungskopie: doppelter Schlusspunkt {merged} zusammengeführt (Stopp erhalten), Original unverändert';self.log_line(f'Übertragungskopie angelegt: {self.source_path} (Original {original})')
    self.source_meta.setText(text)
   except Exception as e:self.source_meta.setText('Datei kann nicht gelesen werden: '+str(e))
-  for folder in [self.source_path.parent/'Preview',self.source_path.parent/'preview',self.source_path.parent]:
-   thumb=folder/(self.source_path.stem+'.jpg')
-   if thumb.is_file():self.background_path=thumb;self.preview_label.setText('Hintergrund: '+thumb.name);break
  def choose_kmz(self):
   path,_=QFileDialog.getOpenFileName(self,'DJI-KMZ auswählen','','DJI-KMZ (*.kmz *.KMZ)')
   if path:self.set_source(path)
  def choose_preview(self):
   path,_=QFileDialog.getOpenFileName(self,'Bildhintergrund auswählen','','Bilder (*.jpg *.jpeg *.png)')
   if path:self.background_path=Path(path);self.preview_label.setText('Hintergrund: '+Path(path).name);self.invalidate()
- def clear_background(self):self.background_path=None;self.preview_label.setText('Hintergrund: Route aus der KMZ.');self.invalidate()
+ def clear_background(self):self.background_path=None;self.preview_label.setText('Automatisch: 3D-Route aus der KMZ; ohne vergleichbare Höhen Draufsicht.');self.invalidate()
 
  # ---------- Gerät ----------
  def refresh_devices(self):
