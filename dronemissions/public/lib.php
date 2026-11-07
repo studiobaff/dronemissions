@@ -5,10 +5,17 @@ function dm_private(): string { return getenv('DRONEMISSIONS_PRIVATE') ?: '/usr/
 function dm_db(): PDO {
  $dir=dm_private(); if(!is_dir($dir))throw new RuntimeException('Installation nicht eingerichtet.');
  $db=new PDO('sqlite:'.$dir.'/missions.sqlite',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);
- $db->exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;'); return $db;
+ $db->exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;'); dm_migrate($db); return $db;
+}
+function dm_migrate(PDO $db): void {
+ // Ergänzt Spalten und Tabellen, die seit 1.0 hinzugekommen sind, ohne bestehende Daten anzufassen. Neue Installationen laufen über dm_schema().
+ if(!$db->query("SELECT name FROM sqlite_master WHERE type='table' AND name='missions'")->fetch())return;
+ $columns=array_column($db->query('PRAGMA table_info(missions)')->fetchAll(),'name');
+ foreach(['overview_waypoint'=>'INTEGER','overview_version'=>'TEXT','litchi_url'=>'TEXT NOT NULL DEFAULT ""'] as $column=>$type)if(!in_array($column,$columns,true))$db->exec("ALTER TABLE missions ADD COLUMN $column $type");
+ $db->exec('CREATE TABLE IF NOT EXISTS mission_attachments(mission TEXT NOT NULL REFERENCES missions(id),version TEXT NOT NULL REFERENCES versions(id),PRIMARY KEY(mission,version))');
 }
 function dm_schema(PDO $db): void {
- $db->exec('CREATE TABLE IF NOT EXISTS points(id TEXT PRIMARY KEY,folder TEXT NOT NULL REFERENCES folders(id),name TEXT NOT NULL,notes TEXT NOT NULL DEFAULT "",lat REAL NOT NULL,lng REAL NOT NULL,settings TEXT NOT NULL DEFAULT "{}",revision INTEGER NOT NULL DEFAULT 1); CREATE TABLE IF NOT EXISTS folders(id TEXT PRIMARY KEY,parent TEXT REFERENCES folders(id),name TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS missions(id TEXT PRIMARY KEY,folder TEXT REFERENCES folders(id),name TEXT NOT NULL,notes TEXT NOT NULL DEFAULT "",archived INTEGER NOT NULL DEFAULT 0,created TEXT NOT NULL,updated TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1); CREATE TABLE IF NOT EXISTS versions(id TEXT PRIMARY KEY,mission TEXT NOT NULL REFERENCES missions(id),ordinal INTEGER NOT NULL,filename TEXT NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,details TEXT NOT NULL,created TEXT NOT NULL,UNIQUE(mission,ordinal)); CREATE TABLE IF NOT EXISTS shares(id TEXT PRIMARY KEY,folder TEXT NOT NULL REFERENCES folders(id),token_hash TEXT NOT NULL UNIQUE,role TEXT NOT NULL,expires INTEGER NOT NULL,created TEXT NOT NULL); CREATE TABLE IF NOT EXISTS login_attempts(ip TEXT NOT NULL,happened INTEGER NOT NULL);');
+ $db->exec('CREATE TABLE IF NOT EXISTS mission_attachments(mission TEXT NOT NULL REFERENCES missions(id),version TEXT NOT NULL REFERENCES versions(id),PRIMARY KEY(mission,version)); CREATE TABLE IF NOT EXISTS points(id TEXT PRIMARY KEY,folder TEXT NOT NULL REFERENCES folders(id),name TEXT NOT NULL,notes TEXT NOT NULL DEFAULT "",lat REAL NOT NULL,lng REAL NOT NULL,settings TEXT NOT NULL DEFAULT "{}",revision INTEGER NOT NULL DEFAULT 1); CREATE TABLE IF NOT EXISTS folders(id TEXT PRIMARY KEY,parent TEXT REFERENCES folders(id),name TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS missions(id TEXT PRIMARY KEY,folder TEXT REFERENCES folders(id),name TEXT NOT NULL,notes TEXT NOT NULL DEFAULT "",archived INTEGER NOT NULL DEFAULT 0,created TEXT NOT NULL,updated TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,overview_waypoint INTEGER,overview_version TEXT,litchi_url TEXT NOT NULL DEFAULT ""); CREATE TABLE IF NOT EXISTS versions(id TEXT PRIMARY KEY,mission TEXT NOT NULL REFERENCES missions(id),ordinal INTEGER NOT NULL,filename TEXT NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,details TEXT NOT NULL,created TEXT NOT NULL,UNIQUE(mission,ordinal)); CREATE TABLE IF NOT EXISTS shares(id TEXT PRIMARY KEY,folder TEXT NOT NULL REFERENCES folders(id),token_hash TEXT NOT NULL UNIQUE,role TEXT NOT NULL,expires INTEGER NOT NULL,created TEXT NOT NULL); CREATE TABLE IF NOT EXISTS login_attempts(ip TEXT NOT NULL,happened INTEGER NOT NULL);');
 }
 function dm_id(): string { return bin2hex(random_bytes(16)); }
 function dm_text(mixed $v,int $limit=200): string { if(!is_string($v))throw new InvalidArgumentException('Text erwartet.'); $v=trim($v);if(strlen($v)>$limit||preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F]/',$v))throw new InvalidArgumentException('Text zu lang oder ungültig.');return $v; }
@@ -44,7 +51,7 @@ function dm_inspect(string $path): array {
  }finally{$zip->close();}
 }
 function dm_preview(array $details): string {
- $points=$details['points'];if(!$points)return '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="300" viewBox="0 0 480 300"><rect width="480" height="300" fill="#152e2b"/><text x="240" y="140" text-anchor="middle" font-family="sans-serif" font-size="26" fill="#b5d969">Litchi Original</text><text x="240" y="178" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#b1c6bc">Route noch nicht ausgelesen</text></svg>';$lats=array_column($points,'lat');$lngs=array_column($points,'lng');$mid=array_sum($lats)/count($lats);$scale=max(.05,cos(deg2rad($mid)));$xs=array_map(fn($x)=>$x*$scale,$lngs);$minx=min($xs);$maxx=max($xs);$miny=min($lats);$maxy=max($lats);$span=max($maxx-$minx,($maxy-$miny)*1.6,.00001);$paths='';
+ $points=$details['points'];$label=($details['sourceFormat']??'')==='mapcreator-project'?'Map-Creator-Projekt':'Litchi Original';if(!$points)return '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="300" viewBox="0 0 480 300"><rect width="480" height="300" fill="#152e2b"/><text x="240" y="140" text-anchor="middle" font-family="sans-serif" font-size="26" fill="#b5d969">'.$label.'</text><text x="240" y="178" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#b1c6bc">Route noch nicht ausgelesen</text></svg>';$lats=array_column($points,'lat');$lngs=array_column($points,'lng');$mid=array_sum($lats)/count($lats);$scale=max(.05,cos(deg2rad($mid)));$xs=array_map(fn($x)=>$x*$scale,$lngs);$minx=min($xs);$maxx=max($xs);$miny=min($lats);$maxy=max($lats);$span=max($maxx-$minx,($maxy-$miny)*1.6,.00001);$paths='';
  foreach($details['routes'] as $route){$pts=[];for($i=$route['start'];$i<$route['start']+$route['count'];$i++)$pts[]=sprintf('%.2f,%.2f',30+($xs[$i]-($minx+$maxx)/2)/$span*420+210,150-($lats[$i]-($miny+$maxy)/2)/$span*420);$paths.='<polyline points="'.implode(' ',$pts).'" fill="none" stroke="#87d8ba" stroke-width="3" stroke-linejoin="round"/>';}
  return '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="300" viewBox="0 0 480 300"><rect width="480" height="300" fill="#152e2b"/><path d="M0 75H480M0 150H480M0 225H480M120 0V300M240 0V300M360 0V300" stroke="#25423d"/>'.$paths.'</svg>';
 }
@@ -57,12 +64,20 @@ function dm_payload(PDO $db,?array $scope): array {
  if($allowed!==null)$folders=array_values(array_filter($folders,fn($f)=>in_array($f['id'],$allowed,true)));
  $missions=$db->query('SELECT m.*,v.id AS versionId,v.ordinal AS version,v.filename,v.sha256,v.bytes,v.details FROM missions m JOIN versions v ON v.mission=m.id AND v.ordinal=(SELECT MAX(ordinal) FROM versions WHERE mission=m.id) ORDER BY m.updated DESC')->fetchAll();
  if($allowed!==null)$missions=array_values(array_filter($missions,fn($m)=>in_array($m['folder'],$allowed,true)));
- foreach($missions as &$m){$m['details']=json_decode($m['details'],true,512,JSON_THROW_ON_ERROR);$m['archived']=(bool)$m['archived'];}unset($m);
+ foreach($missions as &$m){$m['details']=json_decode($m['details'],true,512,JSON_THROW_ON_ERROR);$m['archived']=(bool)$m['archived'];$m['overviewPoint']=dm_overview_point($m);}unset($m);
+ foreach($missions as &$m){$q=$db->prepare('SELECT v.id,v.filename,v.sha256,v.bytes,v.details FROM mission_attachments a JOIN versions v ON v.id=a.version WHERE a.mission=? ORDER BY v.created');$q->execute([$m['id']]);$m['attachments']=[];foreach($q->fetchAll() as $file){$file['format']=dm_format(json_decode($file['details'],true,512,JSON_THROW_ON_ERROR));unset($file['details']);$m['attachments'][]=$file;}}unset($m);
  $points=$db->query('SELECT * FROM points ORDER BY name')->fetchAll();foreach($points as &$point)$point['settings']=json_decode($point['settings'],true,32,JSON_THROW_ON_ERROR);unset($point);if($allowed!==null)$points=array_values(array_filter($points,fn($p)=>in_array($p['folder'],$allowed,true)));
+ if($scope&&$scope['role']==='view'){
+  $hidden=[];foreach($folders as $f)if($f['archived']||$f['inheritedArchived'])$hidden[$f['id']]=true;
+  $missions=array_values(array_filter($missions,fn($m)=>!$m['archived']&&!isset($hidden[$m['folder']])&&$m['overviewPoint']!==null));
+  foreach($missions as &$m){$point=$m['overviewPoint'];$m=['id'=>$m['id'],'folder'=>$m['folder'],'name'=>$m['name'],'updated'=>$m['updated'],'archived'=>false,'overviewPoint'=>$point,'overview_waypoint'=>$m['overview_waypoint'],'notes'=>'','filename'=>'','versionId'=>$m['versionId'],'version'=>$m['version'],'details'=>['points'=>[['lat'=>$point['lat'],'lng'=>$point['lng'],'height'=>null]],'routes'=>[],'count'=>1,'distance'=>0,'previewAvailable'=>true,'heightMode'=>'Standort']];}unset($m);
+  $points=array_values(array_filter($points,fn($p)=>!isset($hidden[$p['folder']])));foreach($points as &$p){$p['notes']='';$p['settings']=[];}unset($p);
+  $folders=array_values(array_filter($folders,fn($f)=>!isset($hidden[$f['id']])));
+ }
  return ['folders'=>$folders,'missions'=>$missions,'points'=>$points,'role'=>$scope?($scope['role']==='edit'?'editor':'viewer'):'owner','scope'=>$scope['folder']??null];
 }
 
-function dm_format(array $details): string { return match($details['sourceFormat']??'dji-kmz'){'litchi-csv'=>'csv','litchi-lchm'=>'lchm','litchi-lchz'=>'lchz',default=>'kmz'}; }
+function dm_format(array $details): string { return match($details['sourceFormat']??'dji-kmz'){'litchi-csv'=>'csv','litchi-lchm'=>'lchm','litchi-lchz'=>'lchz','mapcreator-project'=>'mproj',default=>'kmz'}; }
 function dm_inspect_csv(string $path): array {
  if(!is_file($path)||filesize($path)>MAX_KMZ)throw new InvalidArgumentException('CSV fehlt oder ist größer als 16 MB.');
  $h=fopen($path,'rb');if(!$h)throw new RuntimeException('CSV kann nicht gelesen werden.');
@@ -97,4 +112,16 @@ function dm_inspect_native(string $path,string $extension): array {
   try{$total=0;if($z->numFiles>1000)throw new InvalidArgumentException('Zu viele Dateien im Litchi-Archiv.');for($i=0;$i<$z->numFiles;$i++){$entry=$z->statIndex($i);$total+=$entry['size'];if($total>67108864||str_contains($entry['name'],'..')||str_starts_with($entry['name'],'/'))throw new InvalidArgumentException('Unzulässiges Litchi-Archiv.');}$flight=$z->getFromName('flight.lch2',8);if($flight===false||!str_starts_with($flight,'lch2'))throw new InvalidArgumentException('Litchi-Flugdatei fehlt im Archiv.');}finally{$z->close();if($zipPath!==null)unlink($zipPath);}
  }
  return ['sourceFormat'=>'litchi-'.$extension,'previewAvailable'=>false,'points'=>[],'routes'=>[],'count'=>null,'distance'=>0,'estimatedSeconds'=>null,'droneEnum'=>null,'droneSubEnum'=>null,'author'=>'','heightMode'=>'Native Litchi-Daten noch nicht ausgelesen','originalName'=>'','flightValidation'=>'Original archiviert; keine Konvertierung oder Flugprüfung'];
+}
+
+function dm_overview_point(array $m): ?array {
+ $index=$m['overview_waypoint']??null;if($index===null||($m['overview_version']??null)!==$m['versionId'])return null;
+ $p=$m['details']['points'][(int)$index]??null;return $p?['lat'=>$p['lat'],'lng'=>$p['lng']]:null;
+}
+function dm_inspect_mproj(string $path): array {
+ if(filesize($path)>1048576)throw new InvalidArgumentException('Map-Creator-Projekt ist größer als 1 MB.');
+ $d=json_decode(file_get_contents($path),true,32,JSON_THROW_ON_ERROR);
+ if(!is_array($d)||($d['version']??null)!==1||!in_array($d['type']??null,['circle','polygon'],true)||!is_array($d['polygon']??null)||!is_array($d['settings']??null))throw new InvalidArgumentException('Unbekanntes Map-Creator-Projektformat.');
+ foreach($d['polygon'] as $p)if(!is_array($p)||count($p)!==2||!is_numeric($p[0])||!is_numeric($p[1])||!is_finite((float)$p[0])||!is_finite((float)$p[1]))throw new InvalidArgumentException('Ungültige Planungsgeometrie.');
+ return ['sourceFormat'=>'mapcreator-project','previewAvailable'=>false,'points'=>[],'routes'=>[],'count'=>null,'distance'=>0,'estimatedSeconds'=>null,'droneEnum'=>null,'droneSubEnum'=>null,'author'=>'','heightMode'=>'Map-Creator-Projekt – kein Flugexport','originalName'=>'','planningType'=>$d['type'],'planningVertexCount'=>count($d['polygon']),'flightValidation'=>'Originalprojekt archiviert. Für die Übertragung auf DJI Fly einen DJI-KMZ-Export zuordnen.'];
 }

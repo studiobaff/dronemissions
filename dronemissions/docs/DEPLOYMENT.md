@@ -48,3 +48,23 @@ Eigentümer haben Zugriff auf die ganze Bibliothek. Lesefreigaben erlauben Proje
 Freigaben lassen sich jederzeit in „Freigaben“ widerrufen und laufen nach 30 Tagen ab. Der Link wird nur beim Erstellen angezeigt. Keine Freigabelinks in öffentlichen Screenshots speichern.
 
 Für einen Schlüsselwechsel die Konfiguration administrativ aktualisieren und bestehende Sitzungen ungültig machen; dafür gibt es aktuell keinen Webdialog. Produktionszugang niemals für Integrationstests verwenden.
+
+### Geozonen und Adresssuche
+
+`zones.php` lädt den zum aktuellen Datum gültigen ED-269-Datensatz ausschließlich von der offiziellen Austro-Control-Seite. Die Originaldaten liegen im privaten Cache, nicht im öffentlichen Repository. Die Quelle wird beim Einschalten geprüft und höchstens stündlich erneut abgefragt; bei Ausfall wird ein vorhandener Stand ausdrücklich als nicht aktualisiert angezeigt. Die Karte berücksichtigt Datumsbereiche, wertet tägliche Aktivierungszeiten und NOTAMs aber nicht live aus. Sie erteilt keine Flugfreigabe. Abgelaufene und künftige Zeiträume sind standardmäßig ausgeblendet.
+
+Die ausdrücklich ausgelöste Adresssuche verwendet Photon / OpenStreetMap für Österreich. Keine Autovervollständigung: Der Suchbegriff wird erst beim Absenden an den Dienst übertragen. Antworten werden 24 Stunden privat zwischengespeichert; gleichzeitige Anfragen und mehr als eine neue Anfrage pro Sekunde werden abgewiesen. `geocoderURL` in der privaten `config.json` kann auf eine eigene HTTPS-Photon-Instanz zeigen. Keine Zugangsdaten in die öffentliche Konfiguration schreiben. Die öffentlichen Photon-Server bieten keine Verfügbarkeitsgarantie; siehe https://github.com/komoot/photon#demo-server.
+
+Prüfungen: `php tests/zones.php`, `php tests/address.php`, `node tests/zones.js` (PHP-Zonentest benötigt eine dedizierte Installation über `DRONEMISSIONS_PRIVATE`).
+
+### Standortdetails, Wetter und Geländehöhe
+
+`location.php` verwendet für die Wetterprognose GeoSphere Austria C-LAEF AlpeAdria 1 km (CC BY 4.0) und für die Geländehöhe Open Topo Data / Copernicus EU-DEM 25 m. Koordinaten werden für Wetter auf drei, für die Höhe auf vier Nachkommastellen gerundet. Suchtreffer öffnen die Standortansicht; vorhandene Missionen bleiben unverändert. Wetterangaben sind Modellwerte, Wind/Böen gelten für 10 m über Grund. Angezeigte Tages-Minima und -Maxima beziehen sich nur auf die ausdrücklich angegebenen verfügbaren Prognosestunden. Niederschlag wird als Menge, nicht als Wahrscheinlichkeit dargestellt.
+
+Wetter wird privat eine Stunde, Gelände einen Monat zwischengespeichert. Open Topo Data wird auf eine neue Abfrage pro Sekunde und höchstens 1.000 pro UTC-Tag begrenzt. Beide Dienste können unabhängig ausfallen; die Zonendetails bleiben nutzbar. Gespeicherte Rückfallwerte werden als solche gekennzeichnet. EU-DEM ist ein Geländemodell, keine Startplatzvermessung.
+
+Zonenstatus wird ausschließlich aus auswertbaren ED-269-Datums- und Wochenzeitplänen abgeleitet. UTC-Zeitpläne werden für die Anzeige in Europe/Vienna umgerechnet. Fehlende Betriebszeiten (z.B. MCTR LOXT im ED-269-Datensatz) bleiben ausdrücklich unbekannt. Es werden keine AIP-Betriebszeiten aus Drittseiten übernommen. Feiertage, NOTAMs und Sonderaktivierungen werden nicht automatisch ausgewertet; die aktuelle AIP und DroneSpace sind verlinkt.
+
+### Ordner löschen und Seitenleiste
+
+Nur Eigentümer können einen leeren Projektordner endgültig löschen. Der Server prüft direkte Unterordner, alle zugeordneten Missionen einschließlich archivierter und Planungspunkte sowie Name/Elternordner gegen den geöffneten Stand. Die Löschung widerruft Freigaben dieses Ordners innerhalb derselben Transaktion. Befüllte Ordner können weiterhin archiviert werden. Die einklappbare Icon-Leiste speichert ihre Ansicht ausschließlich lokal im Browser.
