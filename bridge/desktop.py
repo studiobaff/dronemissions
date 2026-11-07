@@ -7,7 +7,7 @@ import json,os,re,shutil,sys,uuid
 from datetime import datetime
 from pathlib import Path
 from PySide6.QtCore import QThread,Signal,QSettings,QStandardPaths,Qt,QUrl,QTimer,QSize
-from PySide6.QtGui import QDesktopServices,QPixmap,QPainter,QColor,QFont,QIcon
+from PySide6.QtGui import QDesktopServices,QPixmap,QPainter,QColor,QFont,QIcon,QAction,QKeySequence
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,
  QLabel,QPushButton,QComboBox,QLineEdit,QFileDialog,QListWidget,QListWidgetItem,QPlainTextEdit,
  QMessageBox,QCheckBox,QStackedWidget,QFrame,QProgressBar,QTabWidget,QButtonGroup,QSizePolicy,QScrollArea,QInputDialog)
@@ -100,7 +100,7 @@ class Window(QMainWindow):
   self.build_device_tab();self.build_archive_tab();self.build_transfer_tab();self.build_log_tab()
   self.progress=QProgressBar();self.progress.setRange(0,0);self.progress.setFixedHeight(4);self.progress.setTextVisible(False);self.progress.hide();outer.addWidget(self.progress)
   self.status=QLabel('iPad oder Fernsteuerung per USB verbinden.');self.status.setObjectName('status');self.status.setWordWrap(True);outer.addWidget(self.status)
-  self.set_mode('new');self.changed_device()
+  self.set_mode('new');self.changed_device();self.build_menu()
   self.tabs.currentChanged.connect(lambda i:self.archive_login() if i==TAB_ARCHIVE and self.archive_auto and self.archive is None and not (self.job and self.job.isRunning()) else None)
   if autosearch:QTimer.singleShot(0,self.refresh_devices)
 
@@ -235,6 +235,26 @@ class Window(QMainWindow):
   label=QLabel(f'Drone Missions Bridge {VERSION} · GPL-3.0-or-later · Lizenzen im Programmpaket. Dateiprüfung ist keine Bestätigung eines nutzbaren Flugplans.');label.setObjectName('muted');label.setWordWrap(True);layout.addWidget(label)
   # Rückwärtskompatibel: frühere Aufrufer öffneten einen Einstellungsdialog.
   self.settings_dialog=QWidget()
+
+ def build_menu(self):
+  """Native Menüleiste (macOS oben, Windows im Fenster) mit den Hauptfunktionen und Tastenkürzeln."""
+  bar=self.menuBar();bar.setNativeMenuBar(True);self.menu_actions={}
+  def add(menu,text,slot,shortcut=None,role=None):
+   action=QAction(text,self);action.triggered.connect(lambda *_:slot())
+   if shortcut:action.setShortcut(QKeySequence(shortcut))
+   if role is not None:action.setMenuRole(role)
+   menu.addAction(action);self.menu_actions[text]=action;return action
+  datei=bar.addMenu('Datei');add(datei,'KMZ auswählen …',self.choose_kmz,'Ctrl+O');add(datei,'Eigenes Vorschaubild …',self.choose_preview,'Ctrl+Shift+O');add(datei,'Bridge-Konfiguration laden …',self.archive_import_config);datei.addSeparator()
+  add(datei,'Sicherungen öffnen',lambda:QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.root))));datei.addSeparator();add(datei,'Beenden',self.close,'Ctrl+Q',QAction.QuitRole)
+  geraet=bar.addMenu('Gerät');add(geraet,'Geräte neu suchen',self.refresh_devices,'Ctrl+R');add(geraet,'Missionen lesen',self.list_missions,'Ctrl+L');add(geraet,'Gerät sichern …',self.backup,'Ctrl+B');geraet.addSeparator()
+  add(geraet,'Umbenennen …',self.rename_selected,'Ctrl+E');add(geraet,'Neu anlegen',self.start_new,'Ctrl+N');add(geraet,'Ausgewählte ersetzen …',self.start_replace,'Ctrl+Shift+R');geraet.addSeparator();add(geraet,'Im Webarchiv sichern …',self.save_to_archive,'Ctrl+S')
+  archiv=bar.addMenu('Webarchiv');add(archiv,'Anmelden und Bibliothek laden',lambda:(self.tabs.setCurrentIndex(TAB_ARCHIVE),self.archive_login()),'Ctrl+Shift+L');add(archiv,'Ausgewählte für Übertragung verwenden',self.archive_use,'Ctrl+U');archiv.addSeparator();add(archiv,'Webarchiv im Browser öffnen',lambda:QDesktopServices.openUrl(QUrl(self.archive_url.text().strip() or ARCHIVE_URL)))
+  transfer=bar.addMenu('Übertragen');add(transfer,'Vorschau prüfen',self.prepare,'Ctrl+Return');add(transfer,'Jetzt übertragen',self.execute,'Ctrl+Shift+Return');transfer.addSeparator();add(transfer,'Modus: Neu anlegen',lambda:self.set_mode('new'));add(transfer,'Modus: Ersetzen',lambda:self.set_mode('replace'))
+  ansicht=bar.addMenu('Ansicht')
+  for i,title in enumerate(['Gerät & Missionen','Webarchiv','Übertragen','Protokoll & Einstellungen']):add(ansicht,title,lambda i=i:self.tabs.setCurrentIndex(i),f'Ctrl+{i+1}')
+  hilfe=bar.addMenu('Hilfe');add(hilfe,'Anleitung (README)',lambda:QDesktopServices.openUrl(QUrl('https://github.com/studiobaff/dronemissions/blob/main/bridge/README.md')));add(hilfe,'Über Drone Missions Bridge',self.about,None,QAction.AboutRole)
+ def about(self):
+  QMessageBox.about(self,'Über Drone Missions Bridge',f'<b>Drone Missions Bridge {VERSION}</b><br>Überträgt DJI-KMZ-Missionen aus dem Webarchiv per USB auf iPad, iPhone oder DJI-Fernsteuerung.<br><br>GPL-3.0-or-later · Lizenzen im Programmpaket.<br>Dateiprüfung ist keine Bestätigung eines nutzbaren Flugplans.')
 
  # ---------- Zustand ----------
  def log_line(self,text):self.log.appendPlainText(datetime.now().strftime('%H:%M:%S')+'  '+text)

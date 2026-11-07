@@ -172,4 +172,10 @@ class Tests(unittest.TestCase):
             self.app.processEvents()
         self.assertEqual(calls,[('demo',UID,'Neu',True)]);self.assertEqual(w.rows[0]['name'],'Neu');self.assertEqual(w.registry['demo:'+UID],'Neu')
 
+    def test_menu_offers_main_functions_with_shortcuts(self):
+        w=self.window;titles=[m.title() for m in w.menuBar().findChildren(type(w.menuBar().addMenu('x')))]
+        self.assertTrue({'Datei','Gerät','Webarchiv','Übertragen','Ansicht','Hilfe'}<=set(titles))
+        self.assertEqual(w.menu_actions['KMZ auswählen …'].shortcut().toString(),'Ctrl+O');self.assertEqual(w.menu_actions['Im Webarchiv sichern …'].shortcut().toString(),'Ctrl+S')
+        w.menu_actions['Übertragen'].trigger();self.assertEqual(w.tabs.currentIndex(),TAB_TRANSFER);w.menu_actions['Modus: Ersetzen'].trigger();self.assertEqual(w.mode,'replace')
+
 if __name__=='__main__':unittest.main()

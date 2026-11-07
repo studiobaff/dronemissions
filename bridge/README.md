@@ -34,7 +34,7 @@ Der Tab „Webarchiv“ meldet sich mit dem Zugangsschlüssel des Eigentümers a
 
 Python 3.9+, Abhängigkeiten aus requirements-desktop.txt installieren, dann `python bridge/build_desktop.py`. Windows muss unter Windows gebaut und getestet werden; ein Windows-Paket wurde hier nicht gebaut. Der lokale Mac-Build ist ad-hoc signiert und nicht notarisiert.
 
-Tests: `python3 -m unittest discover -s bridge/tests -v` (56 Tests, offscreen ohne Gerät; `test_archive.py` nutzt einen lokalen Nachbau der Archiv-API). Die automatisierten Testdaten sind synthetisch. Die iOS-Tests prüfen unter anderem die Wiederherstellung nach einer unklaren Datenbank-Umbenennung und das unveränderte Erhalten bestehender Datensätze.
+Tests: `python3 -m unittest discover -s bridge/tests -v` (57 Tests, offscreen ohne Gerät; `test_archive.py` nutzt einen lokalen Nachbau der Archiv-API). Die automatisierten Testdaten sind synthetisch. Die iOS-Tests prüfen unter anderem die Wiederherstellung nach einer unklaren Datenbank-Umbenennung und das unveränderte Erhalten bestehender Datensätze.
 
 GPL-3.0-or-later; siehe LICENSE und THIRD_PARTY.md. Öffentliche Binärreleases benötigen den passenden vollständigen Quellstand und Lizenzunterlagen.
 
@@ -51,6 +51,10 @@ Auf iPad/iPhone ändert „Umbenennen …“ den Anzeigenamen in der DJI-Fly-Dat
 ## Übertragungskopie bei doppeltem Schlusspunkt
 
 Map Creator schreibt bei manchen Exporten den letzten Wegpunkt zweimal mit derselben `wpml:index`-Nummer, gleichen Koordinaten und gleicher Höhe; der einzige Unterschied ist der Abbiegemodus (erst Durchfahren, dann Stopp). `inspect_kmz` lehnt doppelte Nummern weiterhin ab. `prepare_source` erkennt genau diesen Fall über `sanitize_kmz`, behält den Placemark mit dem Stopp, verwirft den Zwilling und schreibt eine Übertragungskopie `<Name> (bereinigt).kmz` plus Journal in den Anwendungsdatenordner unter `cleaned/`. Die Originaldatei bleibt unverändert, Wegpunkte werden nicht umnummeriert, Aktionsgruppen und ihre Indexverweise bleiben erhalten. Jedes andere Duplikat (abweichende Koordinaten, mehr als zwei Treffer, Duplikat nicht am Ende, keine Stopp-Variante) bleibt ein Fehler. Die Oberfläche zeigt die Bereinigung in der Dateizeile an; der Transferplan enthält `originalSource`. Dass das Webarchiv eine Datei liest, bestätigt keine DJI-Fly-Kompatibilität; die Übertragung muss am Gerät geprüft werden.
+
+## Menüleiste
+
+Die Hauptfunktionen liegen zusätzlich in einer nativen Menüleiste (macOS oben, Windows im Fenster): Datei (KMZ ⌘O, eigenes Vorschaubild, Bridge-Konfiguration, Sicherungen öffnen, Beenden ⌘Q), Gerät (Geräte neu suchen ⌘R, Missionen lesen ⌘L, Gerät sichern ⌘B, Umbenennen ⌘E, Neu anlegen ⌘N, Ausgewählte ersetzen ⇧⌘R, Im Webarchiv sichern ⌘S), Webarchiv (Anmelden ⇧⌘L, für Übertragung verwenden ⌘U, im Browser öffnen), Übertragen (Vorschau prüfen ⌘↩, Jetzt übertragen ⇧⌘↩, Modus), Ansicht (Tabs ⌘1 bis ⌘4) und Hilfe (README, Über).
 
 ## App-Icon
 
