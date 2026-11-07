@@ -1,4 +1,4 @@
-# Drone Missions Bridge 0.3
+# Drone Missions Bridge 0.4
 
 Lokale Mac-Oberfläche für DJI-KMZ-Dateien. Der Kern verwendet für Android separat installiertes ADB; der iPad/iPhone-Adapter verwendet pymobiledevice3 über USB. Keine Injector-Bibliotheken werden gebündelt.
 
@@ -36,6 +36,12 @@ Tests: `python3 -m unittest discover -s bridge/tests -v`. Die automatisierten Te
 
 GPL-3.0-or-later; siehe LICENSE und THIRD_PARTY.md. Öffentliche Binärreleases benötigen den passenden vollständigen Quellstand und Lizenzunterlagen.
 
-## Oberfläche 0.3
+## Oberfläche 0.4
 
-Drei getrennte Schritte: Gerät, Mission, Übertragen. Gerätenamen sind lesbar; ADB-Pfad, zusätzliche Sicherung und Protokoll liegen ausschließlich in den Einstellungen. Die Ersetzungsliste mit Bild und Punktzahl erscheint nur bei Android. UUIDs stehen in den Tooltips. Die letzte Seite ist die konkrete Bestätigung vor einer Übertragung.
+Drei Tabs statt drei Schritte: **Gerät & Missionen** (Gerät oben wählen, „Missionen lesen“ zeigt eine große Liste mit Vorschaubild, Wegpunkten, Bestand und Kennung; darunter die Aktionen „Neu anlegen“ und „Ausgewählte ersetzen“, letztere nur für lokal vorhandene Missionen), **Übertragen** (Modus Neu/Ersetzen, bei Ersetzen die Karte des Zieleintrags, KMZ, Name, großes Vorschaubild; „Vorschau prüfen“ führt zur Prüfseite mit großem Titelbild, Zusammenfassung und der ausdrücklichen Bestätigung „DJI Fly ist geschlossen“ vor „Jetzt übertragen“) und **Protokoll & Einstellungen** (Protokoll mit Zeitstempel, Sicherungen öffnen, ADB-Pfad).
+
+Plattformregeln in der Oberfläche: Auf Android ist „Ersetzen“ der geprüfte Weg, „Neu anlegen“ ist als experimentell gekennzeichnet (Dateien geprüft, DJI-Fly-Sichtbarkeit nicht bestätigt). Auf iPad/iPhone ist „Neu anlegen“ geprüft, „Ersetzen“ nutzt `ios.apply_new(replace=…)` und ist als noch nicht am Gerät geprüft gekennzeichnet. Jede Änderung an Quelle, Name, Bild, Ziel oder Gerät verwirft den vorbereiteten Transfer; die Prüfseite muss erneut durchlaufen werden. Gerätefunktionen (`core.py`, `ios.py`, `preview.py`) sind gegenüber 0.3 unverändert.
+
+## Windows 11
+
+Der Code ist plattformunabhängig (PySide6). Das Paket muss auf einem Windows-Rechner mit demselben `build_desktop.py` gebaut werden; PyInstaller baut nicht quer. Zusätzlich nötig: die Windows-Version der Android Platform-Tools (ADB) und für iPad/iPhone die Apple-USB-Treiber (iTunes oder die Apple-Devices-App), damit pymobiledevice3 das Gerät sieht. Ein Windows-Paket wurde noch nicht gebaut oder getestet.

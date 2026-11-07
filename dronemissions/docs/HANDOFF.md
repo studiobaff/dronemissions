@@ -59,7 +59,7 @@ Nicht geprüft, weil in der Cloud-Umgebung nicht möglich: echte Kartenkacheln (
 
 ## Offene Punkte Bridge
 
-Die Bridge ist eine eigenständige Desktop-App (PySide6, GPL-3.0-or-later) mit ADB-Übertragung auf Android-Controller, iPad/iPhone-Import über pymobiledevice3, Titelvorschau und Build-Skript. Der Quellcode liegt jetzt im Repository unter `bridge/` (`desktop.py`, `core.py`, `ios.py`, `preview.py`, `map_preview.py`, `cli.py`, `build_desktop.py`, Tests, `INVESTIGATION.md` mit dem Stand der Gerätetests). Installiert ist sie als `/Applications/Drone Missions Bridge.app`. Die Oberfläche wurde in dieser Sitzung noch nicht angefasst.
+Die Bridge ist eine eigenständige Desktop-App (PySide6, GPL-3.0-or-later) mit ADB-Übertragung auf Android-Controller, iPad/iPhone-Import über pymobiledevice3, Titelvorschau und Build-Skript. Der Quellcode liegt jetzt im Repository unter `bridge/` (`desktop.py`, `core.py`, `ios.py`, `preview.py`, `map_preview.py`, `cli.py`, `build_desktop.py`, Tests, `INVESTIGATION.md` mit dem Stand der Gerätetests). Installiert ist sie als `/Applications/Drone Missions Bridge.app`. Die Oberfläche wurde in dieser Sitzung auf 0.4 umgebaut (drei Tabs, große Missionsliste mit Vorschaubildern, großes Titelbild, Aktionen „Neu anlegen“ und „Ersetzen“); siehe `bridge/README.md`. `bridge/tests/test_desktop.py` prüft die Bestätigungsgrenze, den Ersetzen-Pfad und das Verwerfen bei Geräte- oder Eingabewechsel. Alle 20 Bridge-Tests bestehen (offscreen, ohne Gerät).
 
 Anforderungen des Eigentümers für die Bridge-Oberfläche (unverändert übernommen):
 
@@ -69,7 +69,7 @@ Anforderungen des Eigentümers für die Bridge-Oberfläche (unverändert überno
 - Deutlich größere Vorschaubilder.
 - Klare Aktionen „Neu anlegen“ und „Ersetzen“.
 
-Nächster Schritt: `bridge/desktop.py` lesen (drei Schritte Gerät, Mission, Übertragen) und die Oberfläche nach denselben Gestaltungsregeln wie oben umbauen, ohne `core.py` und `ios.py` zu verändern. Vorher `python3 -m unittest discover -s bridge/tests -v` laufen lassen und danach erneut. Gerätetests kann nur der Eigentümer am Mac mit angeschlossenem iPad oder RC Pro 2 machen. Erst danach den Hinweis „USB-Übertragung über die Bridge-App“ in der Web-UI um einen echten Download- oder Kopplungsweg ergänzen.
+Nächste Schritte: Auf dem Mac `python bridge/build_desktop.py` ausführen, die App am iPad („Neu anlegen“) und an der RC Pro 2 („Ersetzen“) durchspielen, Rückmeldung zur Logik einarbeiten. Windows-11-Paket auf einem Windows-Rechner bauen (siehe `bridge/README.md`). Gerätetests kann nur der Eigentümer machen. Erst danach den Hinweis „USB-Übertragung über die Bridge-App“ in der Web-UI um einen echten Download- oder Kopplungsweg ergänzen.
 
 ## Server-Update
 
