@@ -8,6 +8,8 @@ try:
     from PySide6.QtWidgets import QApplication
     from PySide6.QtCore import QSettings
     from desktop import Window,TAB_TRANSFER,TAB_ARCHIVE
+    from PySide6.QtWidgets import QMessageBox
+    import desktop as desktop_module
     HAS_QT=True
 except ImportError:
     HAS_QT=False
@@ -131,5 +133,43 @@ class Tests(unittest.TestCase):
     def test_loopback_archive_url_from_tests_is_not_restored(self):
         QSettings('studiobaff','DroneMissionsBridge').setValue('archiveURL','http://127.0.0.1/dronemissions/')
         w=Window(autosearch=False);self.assertTrue(w.archive_url.text().startswith('https://'));w.close()
+
+    def test_search_multiselect_and_save_to_archive(self):
+        from unittest.mock import patch
+        w=self.window;self.select('ios');kmz=fixture();uploads=[]
+        class FakeClient:
+            role='owner';folders=[{'id':'f1','path':'Demo','archived':False}];missions=[]
+            def __init__(self,url):pass
+            def login(self,key):pass
+            def library(self):return []
+            def find_by_sha(self,sha):return {'name':'Schon da'} if sha=='dup' else None
+            def upload(self,name,filename,raw,folder=None,preview=None):uploads.append((name,filename,raw,folder,preview));return {'id':'x'}
+            def preview(self,m):return b'',''
+        w.archive=FakeClient('');rows=[{'uuid':UID,'name':'Alpha','waypoints':2,'localState':'local','preview':True},{'uuid':UID.replace('A','B'),'name':'Beta','waypoints':2,'localState':'cloud-or-missing','preview':False},{'uuid':UID.replace('A','C'),'name':'Gamma','waypoints':2,'localState':'local','preview':False}]
+        w.show_rows(w.device.currentData(),rows);self.assertEqual(w.list.count(),3)
+        w.device_search.setText('alp');self.assertEqual(w.list.count(),1);w.select_all.setChecked(True);self.assertEqual(w.checked,{UID});w.device_search.setText('')
+        self.assertEqual(w.list.count(),3);w.device_rows_widgets[2][1].check.setChecked(True);self.assertEqual(w.checked,{UID,UID.replace('A','C')});self.assertTrue(w.save_web_button.isEnabled())
+        w.read_device_mission=lambda r,m:{'kmz':kmz,'preview':b'\xff\xd8img'}
+        with patch('desktop.QInputDialog.getItem',return_value=('Demo',True)),patch('desktop.QMessageBox.information'):
+            w.save_to_archive()
+            deadline=time.monotonic()+10
+            while w.job and w.job.isRunning():
+                self.app.processEvents()
+                if time.monotonic()>deadline:self.fail('save did not complete')
+            self.app.processEvents()
+        self.assertEqual([(u[0],u[1],u[3]) for u in uploads],[('Alpha','Alpha.kmz','f1'),('Gamma','Gamma.kmz','f1')]);self.assertEqual(uploads[0][2],kmz);self.assertEqual(uploads[0][4],b'\xff\xd8img');self.assertEqual(w.checked,set())
+    def test_rename_on_ipad_uses_the_database_transaction(self):
+        from unittest.mock import patch
+        w=self.window;self.select('ios');calls=[]
+        w.show_rows(w.device.currentData(),[{'uuid':UID,'name':'Alt','waypoints':2,'localState':'local','preview':False}]);w.list.setCurrentRow(0);self.assertTrue(w.rename_button.isEnabled())
+        async def fake_rename(serial,uid,name,work,*,fly_closed):calls.append((serial,uid,name,fly_closed));return {'status':'db-verified'}
+        with patch('desktop.QInputDialog.getText',return_value=('Neu',True)),patch('desktop.QMessageBox.question',return_value=QMessageBox.Yes),patch.object(desktop_module.ios,'rename_mission',fake_rename):
+            w.rename_selected()
+            deadline=time.monotonic()+10
+            while w.job and w.job.isRunning():
+                self.app.processEvents()
+                if time.monotonic()>deadline:self.fail('rename did not complete')
+            self.app.processEvents()
+        self.assertEqual(calls,[('demo',UID,'Neu',True)]);self.assertEqual(w.rows[0]['name'],'Neu');self.assertEqual(w.registry['demo:'+UID],'Neu')
 
 if __name__=='__main__':unittest.main()

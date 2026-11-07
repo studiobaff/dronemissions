@@ -27,8 +27,11 @@ class Handler(BaseHTTPRequestHandler):
   if action=='original':return self.send(200,KMZ[:-1]+b'!' if self.state['tampered'] else KMZ,'application/vnd.google-earth.kmz')
   self.send(404,b'{"error":"Nicht gefunden."}')
  def do_POST(self):
-  action=parse_qs(urlparse(self.path).query).get('action',[''])[0];body=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0)) or 0) or b'{}')
+  action=parse_qs(urlparse(self.path).query).get('action',[''])[0];self.raw_body=self.rfile.read(int(self.headers.get('Content-Length',0)) or 0);body=json.loads(self.raw_body or b'{}') if self.headers.get('Content-Type','').startswith('application/json') else {}
   if self.headers.get('X-CSRF-Token')!=self.state['csrf']:return self.send(403,b'{"error":"Sitzung abgelaufen."}')
+  if action=='upload':
+   body=self.rfile.read(0);raw=self.raw_body;assert b'name="kmz"; filename="a.kmz"' in raw and b'name="name"\r\n\r\nRundflug' in raw and b'name="folder"\r\n\r\nf2' in raw and b'name="preview"; filename="preview.jpg"' in raw and KMZ in raw,'multipart body'
+   return self.send(200,b'{"id":"m3","version":1}')
   if action=='login':
    if body.get('password')!='richtig':return self.send(401,b'{"error":"Zugangsschl\\u00fcssel nicht korrekt."}')
    self.state['logged']=True;self.state['csrf']='token-2';return self.send(200,json.dumps({'ok':True,'csrf':'token-2'}).encode())
@@ -67,5 +70,11 @@ class Tests(unittest.TestCase):
    Handler.state['tampered']=True
    with self.assertRaisesRegex(BridgeError,'Prüfsumme'):c.download(rows[0],Path(t)/'c.kmz')
    self.assertFalse((Path(t)/'c.kmz').exists());self.assertFalse((Path(t)/'c.kmz.part').exists())
+
+class UploadTests(Tests):
+ def test_upload_sends_multipart_and_refreshes_library(self):
+  c=ArchiveClient(self.url);c.login('richtig');rows=c.library();self.assertEqual([f['path'] for f in c.folders],['Demo','Demo / Süd']);self.assertEqual(c.find_by_sha(SHA)['name'],'Rundflug');self.assertIsNone(c.find_by_sha('x'*64))
+  result=c.upload('Rundflug','a.kmz',KMZ,'f2',b'\xff\xd8preview');self.assertEqual(result['id'],'m3')
+  with self.assertRaises(BridgeError):c.upload('Groß','b.kmz',b'x'*(16*1024*1024+1))
 
 if __name__=='__main__':unittest.main()

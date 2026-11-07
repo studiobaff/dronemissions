@@ -147,6 +147,58 @@ async def list_missions(serial,work):
                      'preview':f'{BASE}/map_preview/{uid}/{uid}.jpg' in found} for uid,name,count in rows]
         finally: p.unlink(missing_ok=True)
 
+async def read_mission(serial,uid):
+    """Read one mission's KMZ and title picture from the device without changing anything."""
+    if not re.fullmatch(r'[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}',uid):raise BridgeError('Ungültige Missionskennung.')
+    async with connect(serial) as (afc,container,version):
+        present=set(await files(afc));kmz=f'{BASE}/{uid}/{uid}.kmz';image=f'{BASE}/map_preview/{uid}/{uid}.jpg'
+        return {'kmz':await afc.get_file_contents(kmz) if kmz in present else None,'preview':await afc.get_file_contents(image) if image in present else None}
+
+def rename_database(original,destination,uid,name):
+    """Set the display name of one existing row; everything else unchanged. Does not touch the device."""
+    destination.write_bytes(original);os.chmod(destination,0o600);validate_db(destination)
+    with sqlite3.connect(destination) as c:
+        if not c.execute('SELECT 1 FROM kmzTable WHERE missionId=? AND deleteTime=-1',(uid,)).fetchone():raise BridgeError('Mission auf dem iPad nicht gefunden.')
+        c.execute('UPDATE kmzTable SET name=?,updateTime=? WHERE missionId=? AND deleteTime=-1',(name,time.time(),uid));c.commit()
+    validate_db(destination);return destination.read_bytes()
+
+async def rename_mission(serial,uid,name,work,*,fly_closed):
+    """Rename a mission in DJI Fly's database with the same stage, verify and rollback discipline as apply_new."""
+    if not fly_closed: raise BridgeError('DJI Fly auf dem iPad/iPhone zuerst vollständig schließen.')
+    if not re.fullmatch(r'[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}',uid):raise BridgeError('Ungültige Missionskennung.')
+    name=name.strip()
+    if not name or len(name)>200 or any(ord(ch)<32 for ch in name):raise BridgeError('Ungültiger Missionsname.')
+    work.mkdir(parents=True,exist_ok=False);os.chmod(work,0o700)
+    journal={'uuid':uid,'name':name,'device':serial,'mode':'rename','status':'backing-up'};atomic_json(work/'transfer.json',journal)
+    async with connect(serial) as (afc,container,version):
+        await snapshot(afc,work/'before',serial);original=(work/'before/mission_db/wpmz.sqlite3').read_bytes()
+        updated=rename_database(original,work/'new.sqlite3',uid,name);temp=DB+'.missionbridge-'+uuid.uuid4().hex;attempted=False
+        try:
+            await afc.set_file_contents(temp,updated)
+            if await afc.get_file_contents(temp)!=updated:raise BridgeError('Datenbank konnte nicht fehlerfrei übertragen werden.')
+            if await database(afc)!=original:raise BridgeError('Datenbank wurde inzwischen geändert. Nichts umbenannt.')
+            journal['status']='staged-verified';atomic_json(work/'transfer.json',journal)
+            attempted=True;await afc.rename(temp,DB)
+            if await afc.get_file_contents(DB)!=updated:raise BridgeError('Datenbank nach Übertragung nicht identisch.')
+            journal.update(status='db-verified',flyVersion=version);atomic_json(work/'transfer.json',journal);return journal
+        except Exception as error:
+            journal.update(status='failed',error=str(error))
+            if attempted:
+                try:
+                    current=await database(afc)
+                    if current==updated:
+                        await afc.set_file_contents(temp,original)
+                        if await afc.get_file_contents(temp)!=original:raise BridgeError('Rollback-Staging fehlgeschlagen.')
+                        await afc.rename(temp,DB)
+                        if await afc.get_file_contents(DB)!=original:raise BridgeError('Rollback-Rückleseprüfung fehlgeschlagen.')
+                    elif current!=original:raise BridgeError('Datenbank inzwischen geändert; Sicherung für manuelle Wiederherstellung erhalten.')
+                    journal['rollback']='verified'
+                except Exception as rollback:journal['rollback']='manual-recovery-required: '+str(rollback)
+            atomic_json(work/'transfer.json',journal);raise
+        finally:
+            try:await afc.rm_single(temp,force=True)
+            except Exception:pass
+
 async def backup(serial,destination):
     async with connect(serial) as (afc,container,version):
         return await snapshot(afc,destination,serial)

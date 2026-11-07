@@ -10,7 +10,7 @@ from PySide6.QtCore import QThread,Signal,QSettings,QStandardPaths,Qt,QUrl,QTime
 from PySide6.QtGui import QDesktopServices,QPixmap,QPainter,QColor,QFont,QIcon
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,
  QLabel,QPushButton,QComboBox,QLineEdit,QFileDialog,QListWidget,QListWidgetItem,QPlainTextEdit,
- QMessageBox,QCheckBox,QStackedWidget,QFrame,QProgressBar,QTabWidget,QButtonGroup,QSizePolicy,QScrollArea)
+ QMessageBox,QCheckBox,QStackedWidget,QFrame,QProgressBar,QTabWidget,QButtonGroup,QSizePolicy,QScrollArea,QInputDialog)
 from PySide6.QtSvg import QSvgRenderer
 from core import Adb,devices,plan,apply,atomic_json,BridgeError,inspect_kmz,digest,BASE,prepare_source,bundled_adb
 from preview import render_preview
@@ -72,8 +72,11 @@ class ArchiveRow(QWidget):
 
 class MissionRow(QWidget):
  """Eine Zeile der großen Missionsliste: Vorschaubild, Name, Wegpunkte, Bestand."""
- def __init__(self,label,mission,image=None):
+ def __init__(self,label,mission,image=None,checked=False,on_toggle=None):
   super().__init__();layout=QHBoxLayout(self);layout.setContentsMargins(10,8,10,8);layout.setSpacing(16)
+  self.check=QCheckBox();self.check.setChecked(checked);self.check.setToolTip('Für „Im Webarchiv sichern“ auswählen')
+  if on_toggle:self.check.toggled.connect(lambda state:on_toggle(mission['uuid'],state))
+  layout.addWidget(self.check,alignment=Qt.AlignVCenter)
   picture=QLabel();picture.setFixedSize(THUMB);picture.setObjectName('thumb');picture.setAlignment(Qt.AlignCenter)
   pixmap=QPixmap()
   if image and pixmap.loadFromData(image):picture.setPixmap(pixmap.scaled(THUMB,Qt.KeepAspectRatioByExpanding,Qt.SmoothTransformation))
@@ -88,7 +91,7 @@ class Window(QMainWindow):
   super().__init__();self.setWindowTitle(f'Drone Missions Bridge · {VERSION}');self.setWindowIcon(app_icon());self.resize(1180,820);self.setMinimumSize(980,700)
   self.settings=QSettings('studiobaff','DroneMissionsBridge');self.root=Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation));self.root.mkdir(parents=True,exist_ok=True)
   self.transfer=None;self.rows=[];self.registry={};self.job=None;self.source_path=None;self.background_path=None;self.mode='new';self.prepared=None
-  self.archive=None;self.archive_rows=[];self.archive_widgets=[];self.client_factory=ArchiveClient;self.credential_store=credentials;self.original_source=None;self.archive_auto=False;self.preview_mode=self.settings.value('previewMode','3d') or '3d'
+  self.archive=None;self.archive_rows=[];self.archive_widgets=[];self.client_factory=ArchiveClient;self.credential_store=credentials;self.original_source=None;self.archive_auto=False;self.checked=set();self.device_rows_widgets=[];self.preview_mode=self.settings.value('previewMode','3d') or '3d'
   try:self.registry=json.loads((self.root/'names.json').read_text())
   except (OSError,ValueError):pass
   self.body=QWidget();outer=QVBoxLayout(self.body);outer.setContentsMargins(24,18,24,18);outer.setSpacing(14);self.setCentralWidget(self.body)
@@ -125,9 +128,14 @@ class Window(QMainWindow):
   self.list_note=QLabel('Liste laden, um Bild, Wegpunkte und Bestand jeder Mission zu sehen.');self.list_note.setObjectName('muted');self.list_note.setWordWrap(True);text.addWidget(self.list_note);row.addLayout(text,1)
   self.list_button=QPushButton('Missionen lesen');self.list_button.clicked.connect(self.list_missions);row.addWidget(self.list_button)
   self.backup_button=QPushButton('Gerät sichern');self.backup_button.setObjectName('quiet');self.backup_button.clicked.connect(self.backup);row.addWidget(self.backup_button);card.addLayout(row)
+  tools=QHBoxLayout();self.device_search=QLineEdit();self.device_search.setPlaceholderText('Name oder Kennung suchen …');self.device_search.textChanged.connect(self.render_device_list);tools.addWidget(self.device_search,1)
+  self.select_all=QCheckBox('Alle sichtbaren');self.select_all.toggled.connect(self.toggle_all_visible);tools.addWidget(self.select_all)
+  self.checked_label=QLabel('0 ausgewählt');self.checked_label.setObjectName('muted');tools.addWidget(self.checked_label)
+  self.save_web_button=QPushButton('Im Webarchiv sichern …');self.save_web_button.setEnabled(False);self.save_web_button.clicked.connect(self.save_to_archive);tools.addWidget(self.save_web_button);card.addLayout(tools)
   self.list=QListWidget();self.list.setObjectName('missions');self.list.setSelectionMode(QListWidget.SingleSelection);self.list.setSpacing(4);self.list.setUniformItemSizes(False);self.list.itemSelectionChanged.connect(self.changed_target);self.list.itemDoubleClicked.connect(lambda _:self.start_replace());card.addWidget(self.list,1)
   self.list_empty=QLabel('Noch keine Missionen gelesen.');self.list_empty.setObjectName('emptyList');self.list_empty.setAlignment(Qt.AlignCenter);card.addWidget(self.list_empty,1)
   actions=QHBoxLayout();self.selected_label=QLabel('Kein Eintrag ausgewählt.');self.selected_label.setObjectName('muted');self.selected_label.setWordWrap(True);actions.addWidget(self.selected_label,1)
+  self.rename_button=QPushButton('Umbenennen …');self.rename_button.setObjectName('quiet');self.rename_button.setEnabled(False);self.rename_button.clicked.connect(self.rename_selected);actions.addWidget(self.rename_button)
   self.new_button=QPushButton('Neu anlegen');self.new_button.setObjectName('primary');self.new_button.clicked.connect(self.start_new);actions.addWidget(self.new_button)
   self.replace_button=QPushButton('Ausgewählte ersetzen …');self.replace_button.setObjectName('primary');self.replace_button.setEnabled(False);self.replace_button.clicked.connect(self.start_replace);actions.addWidget(self.replace_button);card.addLayout(actions)
 
@@ -232,8 +240,6 @@ class Window(QMainWindow):
  def log_line(self,text):self.log.appendPlainText(datetime.now().strftime('%H:%M:%S')+'  '+text)
  def current_device(self):return self.device.currentData()
  def is_ios(self):r=self.current_device();return bool(r and r['kind']=='ios')
- def selected_row(self):
-  i=self.list.currentRow();return self.rows[i] if 0<=i<len(self.rows) and self.list.currentItem() and self.list.currentItem().isSelected() else None
  def row_label(self,r,m,index):return m.get('name') or (self.registry.get(r['serial']+':'+m['uuid']) if r else None) or 'Eintrag '+str(index+1)
  def set_mode(self,mode):
   self.mode=mode;self.mode_new.setChecked(mode=='new');self.mode_replace.setChecked(mode=='replace')
@@ -252,16 +258,18 @@ class Window(QMainWindow):
   pixmap=QPixmap()
   if m.get('image') and pixmap.loadFromData(m['image']):self.target_image.setPixmap(pixmap.scaled(THUMB,Qt.KeepAspectRatioByExpanding,Qt.SmoothTransformation))
   else:self.target_image.setPixmap(placeholder(THUMB,'Kein Vorschaubild'))
-  self.target_name.setText(self.row_label(r,m,self.list.currentRow()));self.target_meta.setText(f'{m.get("waypoints","—")} Wegpunkte · {STATE_LABELS.get(m.get("localState"),"—")} · Kennung {m["uuid"]}')
+  self.target_name.setText(self.row_label(r,m,self.rows.index(m)));self.target_meta.setText(f'{m.get("waypoints","—")} Wegpunkte · {STATE_LABELS.get(m.get("localState"),"—")} · Kennung {m["uuid"]}')
  def changed_device(self,*args):
-  self.invalidate();self.rows=[];self.list.clear();self.list.hide();self.list_empty.show();self.list_empty.setText('Noch keine Missionen gelesen.')
+  self.invalidate();self.rows=[];self.checked=set();self.list.clear();self.list.hide();self.list_empty.show();self.list_empty.setText('Noch keine Missionen gelesen.')
   r=self.current_device();self.replace_button.setEnabled(False);self.selected_label.setText('Kein Eintrag ausgewählt.')
+  if hasattr(self,'checked_label'):self.update_checked()
   if r:self.device_note.setText(('iPad/iPhone: Neue Mission mit Name und Titelbild anlegen (geprüft).' if r['kind']=='ios' else 'Fernsteuerung: Bestehenden Eintrag nach Sicherung ersetzen (geprüft). Danach Neustart erforderlich.')+' Vor jeder Übertragung wird der Bestand gesichert.')
   else:self.device_note.setText('Gerät auswählen, um fortzufahren.')
   self.update_mode_notes()
  def changed_target(self):
   m=self.selected_row();self.replace_button.setEnabled(m is not None and m.get('localState')=='local');r=self.current_device()
-  if m:self.selected_label.setText(f'Ausgewählt: {self.row_label(r,m,self.list.currentRow())}'+('' if m.get('localState')=='local' else ' · nur lokal vorhandene Missionen lassen sich ersetzen'))
+  self.rename_button.setEnabled(m is not None);self.rename_button.setToolTip('Name in DJI Fly ändern (iPad/iPhone)' if r and r['kind']=='ios' else 'Auf Android nur das Etikett in der Bridge; der DJI-Fly-Name ist dort nicht erreichbar.')
+  if m:self.selected_label.setText(f'Ausgewählt: {self.row_label(r,m,self.rows.index(m))}'+('' if m.get('localState')=='local' else ' · nur lokal vorhandene Missionen lassen sich ersetzen'))
   else:self.selected_label.setText('Kein Eintrag ausgewählt.')
   self.invalidate();self.update_target_card()
  def invalidate(self,*args):
@@ -354,12 +362,90 @@ class Window(QMainWindow):
    return rows
   self.task('Missionen auf dem Gerät lesen …',read,lambda rows:self.show_rows(r,rows))
  def show_rows(self,r,rows):
-  self.rows=rows;self.list.clear()
-  for i,m in enumerate(rows):
-   item=QListWidgetItem();item.setSizeHint(QSize(0,THUMB.height()+18));item.setToolTip('Kennung: '+m['uuid']);self.list.addItem(item);self.list.setItemWidget(item,MissionRow(self.row_label(r,m,i),m,m.get('image')))
-  self.list.setVisible(bool(rows));self.list_empty.setVisible(not rows);self.list_empty.setText('Keine Missionen auf dem Gerät gefunden.')
+  self.rows=rows;self.checked=set();self.render_device_list()
+  self.list_empty.setText('Keine Missionen auf dem Gerät gefunden.')
   self.list_note.setText(f'{len(rows)} Missionen auf {r["name"]}. Vergleiche Bild und Punktzahl mit DJI Fly.'+(' Der Listenname auf Android ist für die Bridge nicht lesbar.' if r['kind']=='android' else ''))
   self.status.setText(f'{len(rows)} Missionen gelesen.');self.changed_target()
+ def visible_rows(self):
+  q=self.device_search.text().strip().lower();r=self.current_device()
+  return [(i,m) for i,m in enumerate(self.rows) if not q or q in self.row_label(r,m,i).lower() or q in m['uuid'].lower()]
+ def render_device_list(self,*args):
+  r=self.current_device();current=self.selected_row();self.list.clear();self.device_rows_widgets=[]
+  for i,m in self.visible_rows():
+   item=QListWidgetItem();item.setSizeHint(QSize(0,THUMB.height()+18));item.setToolTip('Kennung: '+m['uuid']);item.setData(Qt.UserRole,i);self.list.addItem(item)
+   widget=MissionRow(self.row_label(r,m,i),m,m.get('image'),checked=m['uuid'] in self.checked,on_toggle=self.toggle_checked);self.list.setItemWidget(item,widget);self.device_rows_widgets.append((m,widget))
+   if current and current['uuid']==m['uuid']:self.list.setCurrentItem(item)
+  self.list.setVisible(bool(self.rows));self.list_empty.setVisible(not self.rows);self.update_checked()
+ def selected_row(self):
+  item=self.list.currentItem();i=item.data(Qt.UserRole) if item and item.isSelected() else None
+  return self.rows[i] if isinstance(i,int) and 0<=i<len(self.rows) else None
+ def toggle_checked(self,uid,state):
+  if state:self.checked.add(uid)
+  else:self.checked.discard(uid)
+  self.update_checked()
+ def toggle_all_visible(self,state):
+  for _,m in self.visible_rows():
+   if state:self.checked.add(m['uuid'])
+   else:self.checked.discard(m['uuid'])
+  for m,widget in self.device_rows_widgets:widget.check.blockSignals(True);widget.check.setChecked(m['uuid'] in self.checked);widget.check.blockSignals(False)
+  self.update_checked()
+ def update_checked(self):
+  local=[m for m in self.rows if m['uuid'] in self.checked and m.get('localState')=='local'];total=len([m for m in self.rows if m['uuid'] in self.checked])
+  self.checked_label.setText(f'{total} ausgewählt'+(f' · {len(local)} lokal' if total and len(local)!=total else ''))
+  self.save_web_button.setEnabled(bool(local) and self.archive is not None);self.save_web_button.setToolTip('' if self.archive else 'Zuerst im Tab „Webarchiv“ anmelden.')
+  visible=self.visible_rows();self.select_all.blockSignals(True);self.select_all.setChecked(bool(visible) and all(m['uuid'] in self.checked for _,m in visible));self.select_all.blockSignals(False)
+ def rename_selected(self):
+  m=self.selected_row()
+  if not m:return
+  try:r=self.selected_device()
+  except Exception as e:self.error(str(e));return
+  current=self.row_label(r,m,self.rows.index(m));name,ok=QInputDialog.getText(self,'Mission umbenennen','Neuer Name'+(' in DJI Fly' if r['kind']=='ios' else ' (Etikett in der Bridge)'),QLineEdit.Normal,current)
+  name=name.strip() if ok else ''
+  if not name or name==current:return
+  if len(name)>200:self.error('Bitte einen Namen bis 200 Zeichen eingeben.');return
+  if r['kind']!='ios':
+   self.registry[r['serial']+':'+m['uuid']]=name;atomic_json(self.root/'names.json',self.registry);self.render_device_list();self.status.setText('Etikett gespeichert. Der Name in DJI Fly auf Android bleibt unverändert.');return
+  if QMessageBox.question(self,'In DJI Fly umbenennen',f'„{current}“ wird auf dem iPad in „{name}“ umbenannt.\n\nIst DJI Fly vollständig geschlossen und kein Flug aktiv? Die Datenbank wird vorher gesichert und nach dem Schreiben zurückgelesen.')!=QMessageBox.Yes:return
+  dest=self.root/'transfers'/datetime.now().strftime('%Y%m%d-%H%M%S-%f');dest.parent.mkdir(parents=True,exist_ok=True);uid=m['uuid']
+  def done(result):
+   self.registry[r['serial']+':'+uid]=name;atomic_json(self.root/'names.json',self.registry)
+   for row in self.rows:
+    if row['uuid']==uid:row['name']=name
+   self.render_device_list();self.log_line('Umbenannt und zurückgelesen: '+str(dest));self.status.setText(f'In DJI Fly umbenannt: „{name}“. Beim nächsten Öffnen von DJI Fly prüfen; Cloud-Synchronisation kann folgen.')
+  self.task('Datenbank sichern, Namen schreiben und zurücklesen …',lambda:ios.run(ios.rename_mission(r['serial'],uid,name,dest,fly_closed=True)),done)
+ def read_device_mission(self,r,m):
+  """KMZ und Titelbild einer Mission vom Gerät lesen (nur lesen)."""
+  if r['kind']=='ios':return ios.run(ios.read_mission(r['serial'],m['uuid']))
+  a=self.adb_for(r);return {'kmz':a.read(m['path']) if m.get('path') else None,'preview':a.read(f'{BASE}/map_preview/{m["uuid"]}/{m["uuid"]}.jpg') if m.get('preview') else None}
+ def save_to_archive(self):
+  if not self.archive:self.tabs.setCurrentIndex(TAB_ARCHIVE);self.status.setText('Zuerst im Webarchiv anmelden, dann die Auswahl sichern.');return
+  try:r=self.selected_device()
+  except Exception as e:self.error(str(e));return
+  picked=[(i,m) for i,m in enumerate(self.rows) if m['uuid'] in self.checked and m.get('localState')=='local']
+  if not picked:return
+  folders=[('Ohne Projektordner',None)]+[(f['path']+(' (archiviert)' if f['archived'] else ''),f['id']) for f in self.archive.folders]
+  choice,ok=QInputDialog.getItem(self,'Im Webarchiv sichern',f'{len(picked)} Missionen als neue Einträge sichern. Projektordner im Archiv:',[name for name,_ in folders],0,False)
+  if not ok:return
+  folder=dict(folders)[choice];client=self.archive;labels={m['uuid']:self.row_label(r,m,i) for i,m in picked}
+  def work():
+   report={'saved':[],'skipped':[],'failed':[]}
+   for i,m in picked:
+    label=labels[m['uuid']]
+    try:
+     data=self.read_device_mission(r,m);raw=data.get('kmz')
+     if not raw:report['skipped'].append(label+' (keine lokale KMZ)');continue
+     inspect_kmz(raw);existing=client.find_by_sha(digest(raw))
+     if existing:report['skipped'].append(f'{label} (bereits im Archiv als „{existing["name"]}“)');continue
+     client.upload(label,label+'.kmz',raw,folder,data.get('preview'));report['saved'].append(label)
+    except Exception as e:report['failed'].append(f'{label}: {e}')
+   return report
+  def done(report):
+   for key,title in [('saved','Gesichert'),('skipped','Übersprungen'),('failed','Fehlgeschlagen')]:
+    for line in report[key]:self.log_line(f'{title}: {line}')
+   self.checked=set();self.render_device_list();self.archive_rows=client.missions;self.archive_filter();self.archive_previews()
+   summary=f'{len(report["saved"])} gesichert, {len(report["skipped"])} übersprungen, {len(report["failed"])} fehlgeschlagen.';self.status.setText('Im Webarchiv gesichert: '+summary)
+   QMessageBox.information(self,'Im Webarchiv gesichert',summary+('\n\nÜbersprungen:\n'+'\n'.join(report['skipped']) if report['skipped'] else '')+('\n\nFehlgeschlagen:\n'+'\n'.join(report['failed']) if report['failed'] else '')+'\n\nEinzelheiten im Tab „Protokoll“.')
+  self.task(f'{len(picked)} Missionen vom Gerät lesen und im Webarchiv sichern …',work,done)
  def backup(self):
   try:r=self.selected_device();a=self.adb_for(r)
   except Exception as e:self.error(str(e));return
@@ -378,7 +464,7 @@ class Window(QMainWindow):
     try:self.archive_forget.setEnabled(self.credential_store.save(url,key,self.root,preference=pref));self.log_line(f'Zugangsschlüssel gespeichert ({self.archive_store.currentText()}).')
     except Exception as e:self.log_line('Schlüssel konnte nicht gespeichert werden: '+str(e))
    else:self.credential_store.delete(url,self.root,preference=pref);self.archive_key.clear();self.archive_forget.setEnabled(False)
-   self.archive_note.setText(f'Angemeldet als {"Eigentümer" if client.role=="owner" else "Freigabe"} · {len(rows)} Missionen in der Bibliothek.');self.status.setText(f'{len(rows)} Missionen aus dem Webarchiv geladen.');self.archive_filter();self.archive_previews()
+   self.archive_note.setText(f'Angemeldet als {"Eigentümer" if client.role=="owner" else "Freigabe"} · {len(rows)} Missionen in der Bibliothek.');self.status.setText(f'{len(rows)} Missionen aus dem Webarchiv geladen.');self.archive_filter();self.archive_previews();self.update_checked()
   self.task('Am Webarchiv anmelden und Bibliothek laden …',connect,done)
  def store_preference(self):return self.archive_store.currentData() or 'auto'
  def archive_restore_key(self):
@@ -457,7 +543,7 @@ class Window(QMainWindow):
     m=self.selected_row()
     if not m:raise BridgeError('Bitte im Tab „Gerät & Missionen“ den Eintrag wählen, der ersetzt werden soll.')
     if m.get('localState')!='local':raise BridgeError('Nur lokal vorhandene Missionen lassen sich ersetzen. Cloud-Mission zuerst in DJI Fly herunterladen.')
-    target=m['uuid'];target_name='Ersetzt: '+self.row_label(r,m,self.list.currentRow())
+    target=m['uuid'];target_name='Ersetzt: '+self.row_label(r,m,self.rows.index(m))
    else:target_name='Neue Mission auf '+r['name']
   except Exception as e:self.error(str(e));return
   mode=self.mode;preview_mode=self.preview_mode;background=self.background_path;notes=[]

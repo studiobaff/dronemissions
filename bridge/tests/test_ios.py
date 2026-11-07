@@ -58,6 +58,30 @@ class Tests(unittest.TestCase):
                     self.assertEqual(len(a.content),3)
     def test_transfer_creates_new_only(self):self.exercise()
     def test_ambiguous_rename_failure_restores_database(self):self.exercise(True)
+    def rename(self,fail=False):
+        with tempfile.TemporaryDirectory() as t:
+            root=Path(t);original=database(root/'original.db');a=Afc(original);a.fail_rename=fail
+            @asynccontextmanager
+            async def connect(serial):yield a,'/var/mobile/Containers/Data/Application/12345678-1234-1234-1234-123456789ABC','test'
+            with patch.object(ios,'connect',connect):
+                uid='12345678-1234-1234-1234-123456789ABC'
+                with sqlite3.connect(root/'original.db') as c:c.execute("INSERT INTO kmzTable(missionId,name,author,deleteTime,updateTime) VALUES(?,'Alt','x',-1,2)",(uid,))
+                a.content[ios.DB]=original=(root/'original.db').read_bytes()
+                if fail:
+                    with self.assertRaises(OSError):ios.run(ios.rename_mission('test',uid,'Neu',root/'rename',fly_closed=True))
+                    self.assertEqual(a.content,{ios.DB:original});self.assertEqual(json.loads((root/'rename/transfer.json').read_text())['rollback'],'verified')
+                else:
+                    result=ios.run(ios.rename_mission('test',uid,'Neu',root/'rename',fly_closed=True));self.assertEqual(result['status'],'db-verified')
+                    (root/'after.db').write_bytes(a.content[ios.DB])
+                    with sqlite3.connect(root/'after.db') as c:
+                        self.assertEqual(c.execute('select name from kmzTable where missionId=?',(uid,)).fetchone()[0],'Neu')
+                        self.assertEqual(c.execute('select name from kmzTable where missionId="original"').fetchone()[0],'Original')
+                    self.assertEqual(len(a.content),1)
+                    with self.assertRaises(BridgeError):ios.run(ios.rename_mission('test','00000000-0000-0000-0000-000000000000','X',root/'rename2',fly_closed=True))
+    def test_rename_changes_only_the_name(self):self.rename()
+    def test_rename_failure_restores_database(self):self.rename(True)
+    def test_rename_requires_closed_fly_and_valid_name(self):
+        with self.assertRaises(BridgeError):ios.run(ios.rename_mission('test','12345678-1234-1234-1234-123456789ABC','X',None,fly_closed=False))
     def test_live_database_sidecar_rejected(self):
         a=Afc(b'db');a.content[ios.DB+'-wal']=b'active'
         with self.assertRaises(BridgeError):ios.run(ios.database(a))

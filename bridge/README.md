@@ -34,15 +34,19 @@ Der Tab „Webarchiv“ meldet sich mit dem Zugangsschlüssel des Eigentümers a
 
 Python 3.9+, Abhängigkeiten aus requirements-desktop.txt installieren, dann `python bridge/build_desktop.py`. Windows muss unter Windows gebaut und getestet werden; ein Windows-Paket wurde hier nicht gebaut. Der lokale Mac-Build ist ad-hoc signiert und nicht notarisiert.
 
-Tests: `python3 -m unittest discover -s bridge/tests -v` (45 Tests, offscreen ohne Gerät; `test_archive.py` nutzt einen lokalen Nachbau der Archiv-API). Die automatisierten Testdaten sind synthetisch. Die iOS-Tests prüfen unter anderem die Wiederherstellung nach einer unklaren Datenbank-Umbenennung und das unveränderte Erhalten bestehender Datensätze.
+Tests: `python3 -m unittest discover -s bridge/tests -v` (56 Tests, offscreen ohne Gerät; `test_archive.py` nutzt einen lokalen Nachbau der Archiv-API). Die automatisierten Testdaten sind synthetisch. Die iOS-Tests prüfen unter anderem die Wiederherstellung nach einer unklaren Datenbank-Umbenennung und das unveränderte Erhalten bestehender Datensätze.
 
 GPL-3.0-or-later; siehe LICENSE und THIRD_PARTY.md. Öffentliche Binärreleases benötigen den passenden vollständigen Quellstand und Lizenzunterlagen.
 
 ## Oberfläche 0.4
 
-Vier Tabs statt drei Schritte: **Gerät & Missionen** (Gerät oben wählen, „Missionen lesen“ zeigt eine große Liste mit Vorschaubild, Wegpunkten, Bestand und Kennung; darunter die Aktionen „Neu anlegen“ und „Ausgewählte ersetzen“, letztere nur für lokal vorhandene Missionen), **Webarchiv** (siehe oben), **Übertragen** (Modus Neu/Ersetzen, bei Ersetzen die Karte des Zieleintrags, KMZ, Name, großes Vorschaubild; „Vorschau prüfen“ führt zur Prüfseite mit großem Titelbild, Zusammenfassung und der ausdrücklichen Bestätigung „DJI Fly ist geschlossen“ vor „Jetzt übertragen“) und **Protokoll & Einstellungen** (Protokoll mit Zeitstempel, Sicherungen öffnen, ADB-Pfad).
+Vier Tabs statt drei Schritte: **Gerät & Missionen** (Gerät oben wählen, „Missionen lesen“ zeigt eine große Liste mit Vorschaubild, Wegpunkten, Bestand und Kennung, mit Namenssuche und Checkboxen für Mehrfachauswahl; darunter „Umbenennen …“, „Neu anlegen“ und „Ausgewählte ersetzen“, letztere nur für lokal vorhandene Missionen; „Im Webarchiv sichern …“ lädt die angehakten, lokal vorhandenen Missionen samt Titelbild als neue Einträge in einen wählbaren Projektordner des Archivs, bereits vorhandene Prüfsummen werden übersprungen), **Webarchiv** (siehe oben), **Übertragen** (Modus Neu/Ersetzen, bei Ersetzen die Karte des Zieleintrags, KMZ, Name, großes Vorschaubild; „Vorschau prüfen“ führt zur Prüfseite mit großem Titelbild, Zusammenfassung und der ausdrücklichen Bestätigung „DJI Fly ist geschlossen“ vor „Jetzt übertragen“) und **Protokoll & Einstellungen** (Protokoll mit Zeitstempel, Sicherungen öffnen, ADB-Pfad).
 
 Plattformregeln in der Oberfläche: Auf Android ist „Ersetzen“ der geprüfte Weg, „Neu anlegen“ ist als experimentell gekennzeichnet (Dateien geprüft, DJI-Fly-Sichtbarkeit nicht bestätigt). Auf iPad/iPhone ist „Neu anlegen“ geprüft, „Ersetzen“ nutzt `ios.apply_new(replace=…)` und ist als noch nicht am Gerät geprüft gekennzeichnet. Jede Änderung an Quelle, Name, Bild, Ziel oder Gerät verwirft den vorbereiteten Transfer; die Prüfseite muss erneut durchlaufen werden. Gerätefunktionen (`core.py`, `ios.py`, `preview.py`) sind gegenüber 0.3 unverändert.
+
+## Umbenennen und Sichern ins Webarchiv
+
+Auf iPad/iPhone ändert „Umbenennen …“ den Anzeigenamen in der DJI-Fly-Datenbank (`ios.rename_mission`): Sicherung, temporär schreiben, zurücklesen, umbenennen, bei Fehlern verifizierter Rollback; dieselbe Disziplin wie beim Anlegen. Auf Android ist die Datenbank nicht erreichbar, dort ändert der Knopf nur das Etikett in der Bridge. „Im Webarchiv sichern …“ liest die KMZ und das Titelbild nur vom Gerät (`ios.read_mission` beziehungsweise ADB) und lädt sie über `archive.upload` hoch; das Archiv prüft die Prüfsumme und legt das Original unverändert ab. Cloud-Missionen ohne lokale KMZ werden übersprungen.
 
 ## Übertragungskopie bei doppeltem Schlusspunkt
 
