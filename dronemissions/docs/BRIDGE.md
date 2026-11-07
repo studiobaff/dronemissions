@@ -1,7 +1,7 @@
 # Bridge bedienen und aktualisieren
 
-Stand: 8. November 2026. Quellstand der Mac-App: `66bc6b4` auf
-[Claudes Bridge-Branch](https://github.com/studiobaff/dronemissions/tree/66bc6b4/bridge).
+Stand: 8. November 2026. Quellstand der Mac-App 0.4.1: `1679b96` auf
+[Claudes Bridge-Branch](https://github.com/studiobaff/dronemissions/tree/1679b96/bridge).
 
 ## Download und Anmeldung
 
@@ -73,3 +73,24 @@ Gerätetest **Ersetzen auf RC Pro 2**, Windows-Paket und 1Password-Integration a
 diesem Mac sind noch offen. Änderungen am Schlüsselbund dürfen niemals aus Tests
 heraus erfolgen; die Desktop-Tests injizieren ihren Test-Schlüsselspeicher bereits
 vor dem Fensteraufbau.
+
+## Korrekturen in 0.4.1
+
+Der Konfigurationsknopf und die native Menüaktion können die heruntergeladene JSON
+öffnen. Nach dem Import wird der gespeicherte Zugangsschlüssel nur für die
+importierte Archiv-Adresse geladen; anschließend „Anmelden und Bibliothek laden“
+wählen. Test-Adressen wie `example.com` oder Loopback werden außerhalb des
+Entwicklermodus auf die produktive Vorgabe zurückgesetzt.
+
+Die Desktop-Tests verwenden explizite temporäre INI-Einstellungen und einen
+vor dem Fensteraufbau injizierten Schlüsselspeicher. Sie lesen und ändern weder
+die echten macOS-Präferenzen noch den Schlüsselbund. 60 Tests bestanden.
+
+Qt wurde von 6.8.3 auf 6.10.3 aktualisiert. Der gemeldete native macOS-Absturz
+in `QMacAccessibilityElement` passt zu QTBUG-134784 (Listen-/Tabellenmodell wird
+nach einer Bedienungshilfe-Abfrage zurückgesetzt):
+https://qt-project.atlassian.net/browse/QTBUG-134784.
+Die Konfiguration aus Downloads, das Wiederherstellen des gespeicherten Schlüssels
+und die erneute Anmeldung mit geladener Bibliothek wurden mit der gebauten App
+auf dem Mac erfolgreich geprüft. Das ist keine Garantie gegen jeden weiteren
+nativen Qt-Absturz; Bedienungshilfen bleiben aktiviert.
