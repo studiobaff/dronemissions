@@ -115,6 +115,7 @@
    <div class="page-actions">
     <button id="share-project" class="btn btn-outline hidden" type="button"><svg class="icon"><use href="#i-share"/></svg><span>Projekt teilen</span></button>
     <button id="folder-options" class="btn btn-outline hidden" type="button"><svg class="icon"><use href="#i-pencil"/></svg><span>Ordner bearbeiten</span></button>
+    <button id="bridge" class="btn btn-outline" type="button"><svg class="icon"><use href="#i-download"/></svg><span>Bridge</span></button>
     <button id="manage-shares" class="btn btn-outline" type="button"><svg class="icon"><use href="#i-link"/></svg><span>Freigaben</span></button>
     <button id="settings" class="btn btn-outline" type="button"><svg class="icon"><use href="#i-settings"/></svg><span>Einstellungen</span></button>
     <button id="upload" class="btn btn-primary" type="button"><svg class="icon"><use href="#i-upload"/></svg><span>Mission hochladen</span></button>
@@ -267,6 +268,20 @@
  <div class="dialog-head"><div><div class="eyebrow">Standort &amp; Luftraum</div><h2 id="location-heading">Standortdetails</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Standortdetails schließen"><svg class="icon"><use href="#i-close"/></svg></button></div>
  <div id="location-body" class="dialog-body"></div>
  <div class="dialog-foot"><button id="location-plan-point" type="button" class="btn btn-outline hidden"><svg class="icon"><use href="#i-crosshair"/></svg><span>Planungspunkt anlegen</span></button><span class="dialog-foot-spacer"></span><button type="button" class="btn btn-primary" data-close>Schließen</button></div>
+</dialog>
+
+<dialog id="bridge-dialog" class="dialog">
+ <div class="dialog-head"><div><div class="eyebrow">USB-Übertragung</div><h2>Drone Missions Bridge</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Schließen"><svg class="icon"><use href="#i-close"/></svg></button></div>
+ <div class="dialog-body">
+  <p class="hint" style="max-width:none">Die Bridge-App überträgt DJI-KMZ-Missionen aus diesem Archiv per USB auf iPad, iPhone oder DJI-Fernsteuerung. Sie meldet sich mit deinem Zugangsschlüssel am Archiv an; der Schlüssel wird nicht in der Konfiguration gespeichert.</p>
+  <div id="bridge-files" class="bridge-files"></div>
+  <div class="bridge-config">
+   <div><strong>Konfiguration</strong><small id="bridge-url"></small></div>
+   <a id="bridge-config-link" class="btn btn-outline btn-sm" href="api.php?action=bridge-config" download><svg class="icon"><use href="#i-download"/></svg><span>Konfiguration herunterladen</span></a>
+  </div>
+  <p class="hint" style="max-width:none">Nach der Installation: Bridge öffnen, Tab „Webarchiv“, „Konfiguration laden …“ und die Datei wählen, dann mit dem Zugangsschlüssel anmelden.</p>
+ </div>
+ <div class="dialog-foot"><button type="button" class="btn btn-primary" data-close>Schließen</button></div>
 </dialog>
 
 <dialog id="confirm-dialog" class="dialog dialog-sm">

@@ -130,7 +130,8 @@ class Window(QMainWindow):
   grid=QGridLayout();grid.setHorizontalSpacing(10);grid.setVerticalSpacing(4)
   grid.addWidget(QLabel('Archiv-Adresse'),0,0);self.archive_url=QLineEdit(self.settings.value('archiveURL','') or ARCHIVE_URL);self.archive_url.setPlaceholderText(ARCHIVE_URL);grid.addWidget(self.archive_url,1,0)
   grid.addWidget(QLabel('Zugangsschlüssel'),0,1);self.archive_key=QLineEdit();self.archive_key.setEchoMode(QLineEdit.Password);self.archive_key.setPlaceholderText('Nur für diese Sitzung');self.archive_key.returnPressed.connect(self.archive_login);grid.addWidget(self.archive_key,1,1)
-  self.archive_login_button=QPushButton('Anmelden und Bibliothek laden');self.archive_login_button.clicked.connect(self.archive_login);grid.addWidget(self.archive_login_button,1,2);grid.setColumnStretch(0,3);grid.setColumnStretch(1,2);card.addLayout(grid)
+  self.archive_login_button=QPushButton('Anmelden und Bibliothek laden');self.archive_login_button.clicked.connect(self.archive_login);grid.addWidget(self.archive_login_button,1,2)
+  config=QPushButton('Konfiguration laden …');config.setObjectName('quiet');config.setToolTip('Konfigurationsdatei aus dem Webarchiv (Bereich „Bridge“) einlesen: setzt die Archiv-Adresse.');config.clicked.connect(self.archive_import_config);grid.addWidget(config,1,3);grid.setColumnStretch(0,3);grid.setColumnStretch(1,2);card.addLayout(grid)
   tools=QHBoxLayout();self.archive_search=QLineEdit();self.archive_search.setPlaceholderText('Name, Projekt oder Dateiname suchen …');self.archive_search.textChanged.connect(self.archive_filter);tools.addWidget(self.archive_search,1)
   self.archive_kmz_only=QCheckBox('Nur DJI-KMZ (übertragbar)');self.archive_kmz_only.setChecked(True);self.archive_kmz_only.toggled.connect(self.archive_filter);tools.addWidget(self.archive_kmz_only)
   self.archive_archived=QCheckBox('Archivierte zeigen');self.archive_archived.toggled.connect(self.archive_filter);tools.addWidget(self.archive_archived);card.addLayout(tools)
@@ -348,6 +349,18 @@ class Window(QMainWindow):
    client,rows=result;self.archive=client;self.settings.setValue('archiveURL',url);self.archive_key.clear();self.archive_rows=rows
    self.archive_note.setText(f'Angemeldet als {"Eigentümer" if client.role=="owner" else "Freigabe"} · {len(rows)} Missionen in der Bibliothek.');self.status.setText(f'{len(rows)} Missionen aus dem Webarchiv geladen.');self.archive_filter();self.archive_previews()
   self.task('Am Webarchiv anmelden und Bibliothek laden …',connect,done)
+ def archive_import_config(self,path=None):
+  if path is None:
+   path,_=QFileDialog.getOpenFileName(self,'Bridge-Konfiguration auswählen','','Konfiguration (*.json)')
+   if not path:return
+  try:
+   data=json.loads(Path(path).read_text(encoding='utf-8'))
+   if not isinstance(data,dict) or data.get('format')!='dronemissions-bridge-config/1' or not isinstance(data.get('archiveURL'),str):raise BridgeError('Keine Bridge-Konfiguration aus dem Webarchiv.')
+   if any(k in data for k in ('password','key','accessKey','token')):raise BridgeError('Die Konfiguration darf keinen Zugangsschlüssel enthalten.')
+   from archive import normalize_url;url=normalize_url(data['archiveURL'])
+  except BridgeError as e:self.error(str(e));return
+  except (OSError,ValueError) as e:self.error('Konfiguration kann nicht gelesen werden: '+str(e));return
+  self.archive_url.setText(url);self.settings.setValue('archiveURL',url);self.archive_note.setText(f'Archiv-Adresse aus der Konfiguration übernommen{(" · "+data["authorName"]) if data.get("authorName") else ""}. Jetzt mit dem Zugangsschlüssel anmelden.');self.archive_key.setFocus();self.log_line('Konfiguration geladen: '+url)
  def archive_visible(self):
   q=self.archive_search.text().strip().lower();kmz=self.archive_kmz_only.isChecked();archived=self.archive_archived.isChecked()
   return [m for m in self.archive_rows if (not kmz or m['transferable']) and (archived or not m['archived']) and q in f"{m['name']} {m['folder']} {m['filename']}".lower()]

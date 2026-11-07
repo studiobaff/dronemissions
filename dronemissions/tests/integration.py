@@ -153,6 +153,11 @@ def main():
     for mid in bulk:assert c.call('original&id='+mid)==raw
     c.call('revoke',{'id':readonly['id']});c.call('revoke',{'id':editable['id']})
     print('PASS: ten-mission bulk move, stale/duplicate atomic rejection, source/destination scopes, viewer denial, exact originals')
+    bridge=c.call('bridge');assert bridge['archiveURL'].endswith('/dronemissions/') and isinstance(bridge['files'],list) and bridge['folder']=='bridge/'
+    cfg=c.call('bridge-config');assert cfg['format']=='dronemissions-bridge-config/1' and cfg['archiveURL']==bridge['archiveURL'] and 'password' not in json.dumps(cfg)
+    for bad in ['..%2Fconfig.json','.checksums.json','nicht-da.zip']:c.call('bridge-file&name='+bad,expected=400 if bad.startswith('.') or '%2F' in bad else 404)
+    customer=c.call('share',{'folder':root,'role':'view'});cust=Client(a.base);cust.call('share-login',{'token':customer['token']});cust.call('bridge',expected=403);cust.call('bridge-config',expected=403);c.call('revoke',{'id':customer['id']})
+    print('PASS: bridge download listing, config without secrets, filename validation, customer denial')
     c.call('settings',{'authorName':''})
     if a.fixture_dir:
         a.fixture_dir.mkdir(parents=True,exist_ok=True);(a.fixture_dir/'demo.kmz').write_bytes(raw)

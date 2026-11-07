@@ -82,4 +82,14 @@ class Tests(unittest.TestCase):
             self.assertIn('Übertragungskopie',w.source_meta.text());self.assertEqual(w.name.text(),'Double Helix')
             w.prepare();self.wait_review();self.assertEqual(Path(w.transfer['source']),w.source_path.resolve());self.assertEqual(Path(w.transfer['originalSource']),source.resolve());self.assertEqual(w.transfer['kmz']['waypoints'],3)
 
+    def test_config_import_sets_archive_url_and_rejects_keys(self):
+        w=self.window
+        with tempfile.TemporaryDirectory() as t:
+            good=Path(t)/'c.json';good.write_text('{"format":"dronemissions-bridge-config/1","archiveURL":"https://example.com/dronemissions/index.php","authorName":"Demo"}')
+            w.archive_import_config(str(good));self.assertEqual(w.archive_url.text(),'https://example.com/dronemissions/');self.assertIn('Demo',w.archive_note.text())
+            bad=Path(t)/'bad.json';bad.write_text('{"format":"dronemissions-bridge-config/1","archiveURL":"https://example.com/","password":"x"}')
+            from unittest.mock import patch
+            with patch('desktop.QMessageBox.warning'):w.archive_import_config(str(bad))
+            self.assertEqual(w.archive_url.text(),'https://example.com/dronemissions/')
+
 if __name__=='__main__':unittest.main()
