@@ -173,6 +173,18 @@ class Adb:
   result={'format':'dronemissions-device-snapshot/1','device':self.serial,'created':datetime.now(timezone.utc).isoformat(),'files':manifest,'complete':True}
   atomic_json(destination/'manifest.json',result);return result
 
+def bundled_adb(base:Path|None=None):
+ """Pfad zum mitgelieferten ADB (vendor/platform-tools), nur wenn die Prüfsumme zur provenance.json passt."""
+ import sys
+ folders=[Path(base)] if base else ([Path(getattr(sys,'_MEIPASS'))/'platform-tools'] if getattr(sys,'frozen',False) and hasattr(sys,'_MEIPASS') else [])+[Path(__file__).resolve().parent/'vendor'/'platform-tools']
+ for folder in folders:
+  exe=folder/('adb.exe' if os.name=='nt' else 'adb');provenance=folder/'provenance.json'
+  if not exe.is_file() or not provenance.is_file():continue
+  try:expected=json.loads(provenance.read_text()).get('adbSha256','')
+  except (OSError,ValueError):continue
+  if expected and digest(exe.read_bytes())==expected:return exe
+ return None
+
 def devices(executable):
  r=subprocess.run([executable,'devices','-l'],capture_output=True,text=True,timeout=20,check=True);out=[]
  for line in r.stdout.splitlines()[1:]:

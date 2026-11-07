@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBo
  QLabel,QPushButton,QComboBox,QLineEdit,QFileDialog,QListWidget,QListWidgetItem,QPlainTextEdit,
  QMessageBox,QCheckBox,QStackedWidget,QFrame,QProgressBar,QTabWidget,QButtonGroup,QSizePolicy,QScrollArea)
 from PySide6.QtSvg import QSvgRenderer
-from core import Adb,devices,plan,apply,atomic_json,BridgeError,inspect_kmz,digest,BASE,prepare_source
+from core import Adb,devices,plan,apply,atomic_json,BridgeError,inspect_kmz,digest,BASE,prepare_source,bundled_adb
 from preview import render_preview
 from archive import ArchiveClient,safe_filename
 import ios
@@ -196,8 +196,11 @@ class Window(QMainWindow):
   self.log=QPlainTextEdit();self.log.setReadOnly(True);card.addWidget(self.log,1)
   row=QHBoxLayout();button=QPushButton('Sicherungen öffnen');button.clicked.connect(lambda:QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.root))));row.addWidget(button);row.addStretch();card.addLayout(row)
   card=self.card(layout);self.heading(card,'Android-Verbindung','ADB wird nur für die Fernsteuerung benötigt. Für iPad/iPhone ist kein ADB nötig.')
-  row=QHBoxLayout();self.adb=QLineEdit();self.adb.setReadOnly(True);fallback='/Applications/DJIKMZInjector.app/Contents/Frameworks/tools/adb' if sys.platform=='darwin' else '';self.adb.setText(self.settings.value('adb','') or shutil.which('adb') or fallback);self.adb.textChanged.connect(self.invalidate);row.addWidget(self.adb,1)
-  button=QPushButton('ADB wählen …');button.clicked.connect(self.choose_adb);row.addWidget(button);card.addLayout(row)
+  row=QHBoxLayout();self.adb=QLineEdit();self.adb.setReadOnly(True);bundled=bundled_adb();saved=self.settings.value('adb','')
+  self.adb.setText(saved or (str(bundled) if bundled else '') or shutil.which('adb') or '');self.adb.textChanged.connect(self.invalidate);row.addWidget(self.adb,1)
+  button=QPushButton('ADB wählen …');button.clicked.connect(self.choose_adb);row.addWidget(button)
+  reset=QPushButton('Eingebautes ADB');reset.setObjectName('quiet');reset.setEnabled(bundled is not None);reset.clicked.connect(lambda:(self.settings.remove('adb'),self.adb.setText(str(bundled))));row.addWidget(reset);card.addLayout(row)
+  self.adb_note=QLabel('Eingebautes ADB aus den Android Platform-Tools 37.0.1, Prüfsumme bestätigt.' if bundled and not saved else ('Eigener ADB-Pfad aus den Einstellungen.' if saved else 'Kein ADB gefunden. Für die Fernsteuerung ADB wählen; iPad/iPhone funktioniert ohne.'));self.adb_note.setObjectName('muted');self.adb_note.setWordWrap(True);card.addWidget(self.adb_note)
   label=QLabel(f'Drone Missions Bridge {VERSION} · GPL-3.0-or-later · Lizenzen im Programmpaket. Dateiprüfung ist keine Bestätigung eines nutzbaren Flugplans.');label.setObjectName('muted');label.setWordWrap(True);layout.addWidget(label)
   # Rückwärtskompatibel: frühere Aufrufer öffneten einen Einstellungsdialog.
   self.settings_dialog=QWidget()
@@ -269,7 +272,7 @@ class Window(QMainWindow):
  # ---------- Dateien ----------
  def choose_adb(self):
   path,_=QFileDialog.getOpenFileName(self,'ADB auswählen')
-  if path:self.adb.setText(path);self.settings.setValue('adb',path)
+  if path:self.adb.setText(path);self.settings.setValue('adb',path);self.adb_note.setText('Eigener ADB-Pfad aus den Einstellungen.')
  def set_source(self,path):
   original=Path(path);self.original_source=original;self.source_path=original;self.source_label.setText(original.name);self.source_label.setToolTip(str(original));self.name.setText(original.stem);self.clear_background();self.invalidate()
   try:

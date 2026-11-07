@@ -1,7 +1,7 @@
 import io,json,sys,tempfile,unittest,zipfile
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from core import inspect_kmz,BridgeError,plan,apply,digest,BASE,atomic_json,sanitize_kmz,prepare_source
+from core import inspect_kmz,BridgeError,plan,apply,digest,BASE,atomic_json,sanitize_kmz,prepare_source,bundled_adb
 UID='12345678-1234-1234-1234-123456789ABC'
 def helix_fixture(last_turn='toPointAndStopWithDiscontinuityCurvature',twin_lat='48.002',twin_index='2',actions=True,twin_turn='toPointAndPassWithContinuityCurvature'):
  """Map-Creator-Muster: letzter Wegpunkt doppelt, Unterschied nur im Abbiegemodus (Durchfahren, dann Stopp)."""
@@ -106,4 +106,12 @@ class Tests(unittest.TestCase):
    plain=root/'plain.kmz';plain.write_bytes(fixture());q=prepare_source(plain,root/'cleaned');self.assertFalse(q['cleaned']);self.assertEqual(q['path'],plain)
    bad=root/'bad.kmz';bad.write_bytes(helix_fixture(twin_lat='48.003'))
    with self.assertRaisesRegex(BridgeError,'Wegpunktnummer'):prepare_source(bad,root/'cleaned')
+ def test_bundled_adb_requires_matching_checksum(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   folder=Path(tmp);exe=folder/'adb';exe.write_bytes(b'fake-adb');(folder/'provenance.json').write_text(json.dumps({'adbSha256':digest(b'fake-adb')}))
+   self.assertEqual(bundled_adb(folder),exe)
+   exe.write_bytes(b'tampered');self.assertIsNone(bundled_adb(folder))
+   (folder/'provenance.json').unlink();self.assertIsNone(bundled_adb(folder))
+  vendored=Path(__file__).resolve().parents[1]/'vendor'/'platform-tools'
+  if (vendored/'adb').is_file():self.assertEqual(bundled_adb(),vendored/'adb')
 if __name__=='__main__':unittest.main()
