@@ -87,11 +87,11 @@ class MissionRow(QWidget):
   ident=QLabel('Kennung '+mission['uuid']);ident.setObjectName('ident');text.addWidget(ident);text.addStretch();layout.addLayout(text,1)
 
 class Window(QMainWindow):
- def __init__(self,autosearch=True):
+ def __init__(self,autosearch=True,credential_store=None,client_factory=None):
   super().__init__();self.setWindowTitle(f'Drone Missions Bridge · {VERSION}');self.setWindowIcon(app_icon());self.resize(1180,820);self.setMinimumSize(980,700)
   self.settings=QSettings('studiobaff','DroneMissionsBridge');self.root=Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation));self.root.mkdir(parents=True,exist_ok=True)
   self.transfer=None;self.rows=[];self.registry={};self.job=None;self.source_path=None;self.background_path=None;self.mode='new';self.prepared=None
-  self.archive=None;self.archive_rows=[];self.archive_widgets=[];self.client_factory=ArchiveClient;self.credential_store=credentials;self.original_source=None;self.archive_auto=False;self.checked=set();self.device_rows_widgets=[];self.preview_mode=self.settings.value('previewMode','3d') or '3d'
+  self.archive=None;self.archive_rows=[];self.archive_widgets=[];self.client_factory=client_factory or ArchiveClient;self.credential_store=credential_store or credentials;self.original_source=None;self.archive_auto=False;self.checked=set();self.device_rows_widgets=[];self.preview_mode=self.settings.value('previewMode','3d') or '3d'
   try:self.registry=json.loads((self.root/'names.json').read_text())
   except (OSError,ValueError):pass
   self.body=QWidget();outer=QVBoxLayout(self.body);outer.setContentsMargins(24,18,24,18);outer.setSpacing(14);self.setCentralWidget(self.body)

@@ -32,7 +32,7 @@ class Tests(unittest.TestCase):
         def save(self,url,key,root=None,preference='auto'):self.data[url]=key;return True
         def load(self,url,root=None,preference='auto'):return self.data.get(url)
         def delete(self,url,root=None,preference='auto'):self.data.pop(url,None)
-    def setUp(self):self.window=Window(autosearch=False);self.window.credential_store=self.FakeStore()
+    def setUp(self):self.window=Window(autosearch=False,credential_store=self.FakeStore())  # never the real keychain
     def tearDown(self):self.window.close();self.app.processEvents()
     def select(self,kind,serial='demo'):
         self.window.device.addItem('Demo',{'kind':kind,'serial':serial,'state':'device','name':'Demo'})
@@ -123,7 +123,7 @@ class Tests(unittest.TestCase):
         self.app.processEvents();self.assertEqual(store.data,{'https://example.com/dronemissions/':'geheim'});self.assertTrue(w.archive_forget.isEnabled())
         w.archive_forget_key();self.assertEqual(store.data,{});self.assertEqual(w.archive_key.text(),'')
         # A stored key is restored on start and used when the tab opens.
-        store.data['https://example.com/dronemissions/']='geheim';w2=Window(autosearch=False);w2.credential_store=store;w2.client_factory=FakeClient;w2.archive_url.setText('https://example.com/dronemissions/');w2.archive_restore_key()
+        store.data['https://example.com/dronemissions/']='geheim';w2=Window(autosearch=False,credential_store=store,client_factory=FakeClient);w2.archive_url.setText('https://example.com/dronemissions/');w2.archive_restore_key()
         self.assertEqual(w2.archive_key.text(),'geheim');self.assertTrue(w2.archive_auto);w2.tabs.setCurrentIndex(TAB_ARCHIVE)
         deadline=time.monotonic()+10
         while w2.job and w2.job.isRunning() or w2.archive is None:
@@ -132,7 +132,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(logins[-1],('https://example.com/dronemissions/','geheim'));w2.close()
     def test_loopback_archive_url_from_tests_is_not_restored(self):
         QSettings('studiobaff','DroneMissionsBridge').setValue('archiveURL','http://127.0.0.1/dronemissions/')
-        w=Window(autosearch=False);self.assertTrue(w.archive_url.text().startswith('https://'));w.close()
+        w=Window(autosearch=False,credential_store=self.FakeStore());self.assertTrue(w.archive_url.text().startswith('https://'));w.close()
 
     def test_search_multiselect_and_save_to_archive(self):
         from unittest.mock import patch
