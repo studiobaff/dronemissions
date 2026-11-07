@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="vendor/leaflet.css">
 <link rel="stylesheet" href="style.css">
 <script defer src="vendor/leaflet.js"></script>
+<script defer src="zones.js"></script>
 <script defer src="app.js"></script>
 </head>
 <body>
@@ -48,6 +49,14 @@
 <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
 <symbol id="i-restore" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9"/><path d="M12 17v-5m0 0-2.5 2.5M12 12l2.5 2.5"/></symbol>
 <symbol id="i-spinner" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 1-9 9"/></symbol>
+<symbol id="i-collapse" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16M16 9.5 13.5 12 16 14.5"/></symbol>
+<symbol id="i-check-square" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="m8 12.5 2.5 2.5L16 9.5"/></symbol>
+<symbol id="i-move" viewBox="0 0 24 24"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4.6l2 2h8.4A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/><path d="M9 13.5h6m0 0-2.2-2.2M15 13.5l-2.2 2.2"/></symbol>
+<symbol id="i-navigate" viewBox="0 0 24 24"><path d="m4 11 16-7-7 16-2-7z"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 2.5 14.4 0 17M12 3.5c-2.5 2.6-2.5 14.4 0 17"/></symbol>
+<symbol id="i-weather" viewBox="0 0 24 24"><circle cx="9" cy="9" r="3.5"/><path d="M9 2.5v1.5M9 14v1.5M2.5 9H4M14 9h1.5M4.4 4.4l1 1M12.6 12.6l1 1M4.4 13.6l1-1M12.6 5.4l1-1"/><path d="M14 19.5h5a2.5 2.5 0 0 0 .3-5 3.5 3.5 0 0 0-6.7-1A2.9 2.9 0 0 0 14 19.5z"/></symbol>
+<symbol id="i-mountain" viewBox="0 0 24 24"><path d="m3 19 6-11 4 6.5 2-3L21 19z"/><path d="m9 8 1.5 2.5"/></symbol>
+<symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M19 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></symbol>
 </svg>
 
 <div id="progress" class="progress" aria-hidden="true"></div>
@@ -79,11 +88,12 @@
  <div id="scrim" class="scrim" hidden></div>
 
  <aside id="sidebar" class="sidebar">
-  <a class="brand" href="./"><span class="brand-mark" aria-hidden="true"><svg class="icon"><use href="#i-route"/></svg></span><span class="brand-name">drone<em>missions</em>{{AUTHOR_BADGE}}</span></a>
+  <div class="sidebar-head"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true"><svg class="icon"><use href="#i-route"/></svg></span><span class="brand-name">drone<em>missions</em>{{AUTHOR_BADGE}}</span></a><button id="sidebar-toggle" class="btn btn-icon btn-xs" type="button" aria-controls="sidebar" aria-expanded="true" aria-label="Seitenleiste einklappen" title="Seitenleiste einklappen"><svg class="icon"><use href="#i-collapse"/></svg></button></div>
   <button id="new-project" class="btn btn-outline btn-block sidebar-create" type="button"><svg class="icon"><use href="#i-plus"/></svg><span>Neues Projekt</span></button>
   <div class="sidebar-label">Bibliothek</div>
   <nav class="sidebar-nav" aria-label="Bibliothek">
    <button data-view="all" class="nav-item active" type="button"><svg class="icon"><use href="#i-grid"/></svg><span>Alle Missionen</span><b id="count">0</b></button>
+   <button data-view="unfiled" class="nav-item" type="button"><svg class="icon"><use href="#i-file"/></svg><span>Ohne Projekt</span><b id="count-unfiled"></b></button>
    <button data-view="archive" class="nav-item" type="button"><svg class="icon"><use href="#i-archive"/></svg><span>Archiv</span><b id="count-archive"></b></button>
   </nav>
   <div class="sidebar-label sidebar-label-row"><span>Projekte</span><button id="add-folder" class="btn btn-icon btn-xs" type="button" title="Unterordner anlegen" aria-label="Unterordner anlegen"><svg class="icon"><use href="#i-plus"/></svg></button></div>
@@ -131,6 +141,7 @@
      <button class="chip" type="button" data-filter="kmz">KMZ</button>
      <button class="chip" type="button" data-filter="csv">CSV</button>
      <button class="chip" type="button" data-filter="native">Litchi</button>
+     <button class="chip" type="button" data-filter="mproj">MPROJ</button>
      <button class="chip" type="button" data-filter="points">Punkte</button>
     </div>
     <label class="sort"><span class="visually-hidden">Sortierung</span><select id="sort" aria-label="Sortierung"><option value="updated">Zuletzt geändert</option><option value="name">Name A–Z</option><option value="distance">Längste Route</option></select></label>
@@ -138,8 +149,15 @@
      <button id="cards-toggle" class="selected" type="button" aria-pressed="true" title="Kartenansicht"><svg class="icon"><use href="#i-grid"/></svg><span>Karten</span></button>
      <button id="map-toggle" type="button" aria-pressed="false" title="Alle Missionen auf der Karte"><svg class="icon"><use href="#i-map"/></svg><span>Karte</span></button>
     </div>
+    <label id="subfolders-control" class="check hidden"><input id="include-subfolders" type="checkbox" checked><span>Unterordner einbeziehen</span></label>
     <button id="add-point" class="btn btn-outline hidden" type="button"><svg class="icon"><use href="#i-crosshair"/></svg><span>Planungspunkt</span></button>
    </div>
+  </div>
+  <div id="selection-tools" class="selection-tools hidden" role="region" aria-label="Auswahl">
+   <label class="check"><input id="select-visible" type="checkbox"><span>Alle sichtbaren</span></label>
+   <strong id="selection-count" aria-live="polite">0 ausgewählt</strong>
+   <button id="move-selected" class="btn btn-primary btn-sm" type="button" disabled><svg class="icon"><use href="#i-move"/></svg><span>In Ordner verschieben</span></button>
+   <button id="clear-selection" class="btn btn-outline btn-sm" type="button" disabled>Auswahl aufheben</button>
   </div>
 
   <p id="result-line" class="result-line" aria-live="polite"></p>
@@ -172,8 +190,8 @@
  <form id="upload-form" method="dialog">
   <div class="dialog-head"><div><div class="eyebrow">Original sichern</div><h2 id="upload-title">Mission hinzufügen</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Schließen"><svg class="icon"><use href="#i-close"/></svg></button></div>
   <div class="dialog-body">
-   <label class="field field-file"><span>Missionsdatei</span><input name="kmz" type="file" accept=".kmz,.csv,.lchm,.lchz" required><span class="file-drop"><svg class="icon"><use href="#i-file"/></svg><span class="file-drop-text" data-empty="Datei auswählen oder hierher ziehen">Datei auswählen oder hierher ziehen</span></span></label>
-   <p class="hint">DJI-KMZ, Litchi-CSV oder native LCHM/LCHZ · maximal 16 MB</p>
+   <label class="field field-file"><span>Missionsdatei</span><input name="kmz" type="file" accept=".kmz,.csv,.lchm,.lchz,.mproj" required><span class="file-drop"><svg class="icon"><use href="#i-file"/></svg><span class="file-drop-text" data-empty="Datei auswählen oder hierher ziehen">Datei auswählen oder hierher ziehen</span></span></label>
+   <p class="hint">DJI-KMZ, Litchi-CSV, native LCHM/LCHZ oder Map-Creator-Projekt (MPROJ) · maximal 16 MB</p>
    <label class="field"><span>Missionsname</span><input name="name" maxlength="200" required placeholder="Zum Beispiel: Rundflug – Sommer"></label>
    <label class="field"><span>Projektordner</span><select name="folder"></select></label>
    <label class="field field-file"><span>Vorschaubild <em>optional</em></span><input name="preview" type="file" accept="image/jpeg,image/png"><span class="file-drop file-drop-sm"><svg class="icon"><use href="#i-camera"/></svg><span class="file-drop-text" data-empty="JPEG oder PNG, bis 3 MB">JPEG oder PNG, bis 3 MB</span></span></label>
@@ -190,7 +208,7 @@
    <label class="field"><span>Name</span><input name="name" maxlength="200" required></label>
    <label class="field"><span>Übergeordneter Ordner</span><select name="parent"></select></label>
   </div>
-  <div class="dialog-foot"><button id="archive-folder" type="button" class="btn btn-outline hidden"><svg class="icon"><use href="#i-archive"/></svg><span>Ordner archivieren</span></button><span class="dialog-foot-spacer"></span><button type="button" class="btn btn-outline" data-close>Abbrechen</button><button type="submit" class="btn btn-primary">Speichern</button></div>
+  <div class="dialog-foot"><button id="archive-folder" type="button" class="btn btn-outline hidden"><svg class="icon"><use href="#i-archive"/></svg><span>Ordner archivieren</span></button><button id="delete-folder" type="button" class="btn btn-outline btn-danger hidden"><svg class="icon"><use href="#i-trash"/></svg><span>Leeren Ordner löschen</span></button><span class="dialog-foot-spacer"></span><button type="button" class="btn btn-outline" data-close>Abbrechen</button><button type="submit" class="btn btn-primary">Speichern</button></div>
  </form>
 </dialog>
 
@@ -200,10 +218,10 @@
  <div class="dialog-head"><div><div class="eyebrow">Zusammen arbeiten</div><h2>Projektfreigaben</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Schließen"><svg class="icon"><use href="#i-close"/></svg></button></div>
  <div class="dialog-body">
   <div id="share-create" class="share-create">
-   <p id="share-scope" class="share-scope"></p>
+   <label class="field"><span>Projekt</span><select id="share-folder"></select></label>
    <p class="hint">Der Link gilt für dieses Projekt und seine Unterordner. Gültig für 30 Tage; jederzeit widerrufbar.</p>
    <div class="share-row-create">
-    <label class="field"><span>Berechtigung</span><select id="share-role"><option value="view">Ansehen und herunterladen</option><option value="edit">Zusätzlich hochladen und bearbeiten</option></select></label>
+    <label class="field"><span>Berechtigung</span><select id="share-role"><option value="view">Kunden · Orte ansehen und navigieren</option><option value="edit">Administratoren · hochladen, Namen und Zuordnung bearbeiten</option></select></label>
     <button id="create-share" class="btn btn-primary" type="button" data-busy="Wird erstellt …"><svg class="icon"><use href="#i-link"/></svg><span>Freigabelink erstellen</span></button>
    </div>
    <div id="share-link-wrap" class="share-link hidden">
@@ -235,6 +253,20 @@
   </div>
   <div class="dialog-foot"><button id="delete-point" type="button" class="btn btn-outline btn-danger hidden"><svg class="icon"><use href="#i-trash"/></svg><span>Punkt löschen</span></button><span class="dialog-foot-spacer"></span><button type="button" class="btn btn-outline" data-close>Abbrechen</button><button type="submit" class="btn btn-primary">Speichern</button></div>
  </form>
+</dialog>
+
+<dialog id="move-dialog" class="dialog dialog-sm">
+ <form id="move-form" method="dialog">
+  <div class="dialog-head"><div><div class="eyebrow">Zuordnung</div><h2>Missionen verschieben</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Schließen"><svg class="icon"><use href="#i-close"/></svg></button></div>
+  <div class="dialog-body"><p id="move-summary" class="confirm-text"></p><label class="field"><span>Zielordner</span><select id="move-folder"></select></label></div>
+  <div class="dialog-foot"><button type="button" class="btn btn-outline" data-close>Abbrechen</button><button class="btn btn-primary" type="submit" data-busy="Wird verschoben …"><svg class="icon"><use href="#i-move"/></svg><span>Verschieben</span></button></div>
+ </form>
+</dialog>
+
+<dialog id="location-dialog" class="dialog dialog-location" aria-labelledby="location-heading">
+ <div class="dialog-head"><div><div class="eyebrow">Standort &amp; Luftraum</div><h2 id="location-heading">Standortdetails</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Standortdetails schließen"><svg class="icon"><use href="#i-close"/></svg></button></div>
+ <div id="location-body" class="dialog-body"></div>
+ <div class="dialog-foot"><button id="location-plan-point" type="button" class="btn btn-outline hidden"><svg class="icon"><use href="#i-crosshair"/></svg><span>Planungspunkt anlegen</span></button><span class="dialog-foot-spacer"></span><button type="button" class="btn btn-primary" data-close>Schließen</button></div>
 </dialog>
 
 <dialog id="confirm-dialog" class="dialog dialog-sm">

@@ -6,12 +6,15 @@ Private Web-Bibliothek für DJI-WPML-Missionen aus Litchi Hub oder Map Creator s
 
 ## Funktionen
 
-- Projekte und Unterordner mit Pfadnavigation, Suche (Tastenkürzel `/`), Typfilter (KMZ, CSV, Litchi, Punkte), Sortierung, Notizen, Archivieren und Wiederherstellen.
-- DJI-KMZ, Litchi-CSV und native LCHM/LCHZ mit unveränderter Originaldatei und SHA-256-Prüfsumme; getrennte Versionen mit Konflikterkennung.
+- Projekte und Unterordner mit Pfadnavigation, Suche (Tastenkürzel `/`), Typfilter (KMZ, CSV, Litchi, MPROJ, Punkte), Sortierung, Notizen, Archivieren und Wiederherstellen; leere Ordner löschen.
+- Mehrfachauswahl: Missionen gemeinsam in einen Ordner verschieben oder per Ziehen auf einen Projektordner in der Seitenleiste.
+- DJI-KMZ, Litchi-CSV, native LCHM/LCHZ und Map-Creator-Projekte (MPROJ) mit unveränderter Originaldatei und SHA-256-Prüfsumme; getrennte Versionen mit Konflikterkennung. Projektdateien lassen sich einer KMZ-Mission zuordnen und landen mit im Archivpaket.
+- Je Mission ein Punkt für die Projektkarte mit Navigationslinks (Google Maps, Apple Maps, KML für Google Earth) und optionalem Litchi-Hub-Link.
+- Kartenpanel mit Hintergrundkarte, Straßen-Overlay, Adresssuche (Photon, nur auf Absenden) und österreichischen Geozonen (Austro Control ED-269); Standortansicht mit Zonenstatus, Wetterprognose (GeoSphere Austria) und Geländehöhe (EU-DEM). Keine Flugfreigabe.
 - Routen und gespeicherte Missionshöhen aus `wpmz/waylines.wpml`; mehrere Flugrouten werden getrennt dargestellt.
 - basemap.at und österreichisches Luftbild, OpenStreetMap und Esri-Satellit als weitere Kartenebenen.
 - Originaldatei (KMZ/CSV/LCHM/LCHZ) und ZIP-Archiv mit Vorschau, Manifest und Prüfsummen herunterladen.
-- Widerrufbare Projektfreigaben für Lesen/Download oder Bearbeiten, gültig für 30 Tage inklusive Unterordnern.
+- Widerrufbare Projektfreigaben, gültig für 30 Tage inklusive Unterordnern: Kunden sehen nur freigegebene Standorte mit Navigation, Administratoren können hochladen und bearbeiten.
 - Wiederverwendbare Planungspunkte mit Höhe, Höhenbezug, Blickrichtung, Gimbalwinkel und gewünschter Panoramaaufnahme.
 
 ![Missionsdetails mit Route, Höhenprofil und Dateifakten; synthetische Daten, Kartenkacheln in dieser Aufnahme nicht geladen](docs/screenshots/mission-basemap.png)

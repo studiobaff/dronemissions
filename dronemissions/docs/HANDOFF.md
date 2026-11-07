@@ -1,6 +1,6 @@
 # Übergabe: Oberfläche, Gestaltung und offene Punkte
 
-Stand: 7. November 2026, Branch `claude/drone-missions-ui-handoff-4nsj6e`.
+Stand: 7. November 2026, Branch `claude/drone-missions-ui-handoff-4nsj6e`. Enthält den Merge des lokalen Stands des Eigentümers (Branch `lokaler-stand`: Geozonen, Adresssuche, Standortansicht, Mehrfachauswahl, Projektdateien, MPROJ, Kundenfreigaben, Ordner löschen, Bridge-Quellcode).
 
 Diese Datei ist die Übergabe für die nächste Sitzung, egal ob Mensch oder Agent. Sie beschreibt, was an der Web-Oberfläche geändert wurde, nach welchen Regeln, wie geprüft wird, und was offen ist. Die ursprüngliche Übergabe-ZIP (`.local/claude-ui-handoff/`) liegt nur lokal auf dem Mac des Eigentümers und ist nicht im Repository; ihre Inhalte konnten in dieser Sitzung nicht gelesen werden.
 
@@ -13,6 +13,8 @@ Nur die drei Oberflächendateien in `public/` wurden überarbeitet. `api.php`, `
 | `public/view.html` | Unicode-Zeichen als Icons, einzeilig | SVG-Sprite mit 35 Strich-Icons, Topbar und Schublade für Mobil, Filterchips, Sortierung, Bestätigungsdialog, Ergebniszeile, Fortschrittsbalken |
 | `public/style.css` | Minifiziert, Schriftgrößen bis 8 px, feste Pixelmaße | Design-Tokens (Farbe, Radius, Schatten, Easing, Dauer), Bausteine `.btn`, `.field`, `.badge`, `.chip`, `.segmented`, `.notice`, `.dialog`; kleinste Schrift 11 px, Eingabefelder 16 px; `100dvh`, sichere Ränder, `prefers-reduced-motion`, `prefers-reduced-transparency`, `prefers-contrast` |
 | `public/app.js` | Minifiziert, `confirm()`, keine Ladeanzeige | Lesbar gegliedert; Pfadnavigation (Breadcrumb), Filter und Sortierung, Ein-/Mehrzahl, relative Datumsangaben bis sieben Tage, Skeleton beim ersten Laden, Fortschrittsbalken bei jeder Anfrage, Schaltflächen mit Ladezustand, eigener Bestätigungsdialog, Höhenprofil mit Hover-Fadenkreuz und Tooltip, Prüfsumme kopieren, Datei-Drop-Zonen, Tastenkürzel `/` für die Suche |
+
+Aus dem lokalen Stand des Eigentümers übernommen und in die neue Oberfläche eingebaut: Mehrfachauswahl mit Verschieben (Dialog und Ziehen auf Ordner), „Ohne Projekt“ als Ansicht, Unterordner ein-/ausblenden, MPROJ-Upload und Zuordnung von Projektdateien zu KMZ-Missionen, Punkt für die Projektkarte und Litchi-Hub-Link je Mission, Navigationslinks (Google Maps, Apple Maps, KML), Kundenansicht für Lesefreigaben (nur Standorte und Navigation), leere Ordner löschen, einklappbare Seitenleiste, Kartenpanel mit Hintergrundkarte, Adresssuche und Geozonen (`zones.js`, unverändert übernommen und über die Klassennamen neu gestaltet), Standortansicht mit Zonen, Wetter und Geländehöhe. Dazu `dm_migrate()` in `lib.php`, damit bestehende Datenbanken die neuen Spalten automatisch bekommen.
 
 Neue, kleine Funktionen (keine API-Änderung nötig): Typfilter (KMZ, CSV, Litchi, Punkte), Sortierung (zuletzt geändert, Name, längste Route), Ergebniszeile, Zähler für Planungspunkte, Größenangabe und Änderungsdatum in den Dateifakten, geschätzte Flugzeit aus `estimatedSeconds`, eigener Leer-Zustand für „keine Treffer“ und „Archiv leer“.
 
@@ -57,7 +59,7 @@ Nicht geprüft, weil in der Cloud-Umgebung nicht möglich: echte Kartenkacheln (
 
 ## Offene Punkte Bridge
 
-Die Bridge ist eine eigenständige Desktop-App (PySide6) mit ADB-Übertragung auf Android-Controller, iPad/iPhone-Import, Titelvorschau und Build-Skript. Sie ist installiert als `/Applications/Drone Missions Bridge.app` und der Quellcode liegt lokal unter `~/Documents/missionplaner/bridge/` (Dateien laut Eigentümer: `desktop.py`, `core.py`, `ios.py`, `preview.py`, `build_desktop.py`, Tests). **Der Ordner ist nicht in Git**, deshalb konnte die Bridge in dieser Sitzung weder gelesen noch geändert werden.
+Die Bridge ist eine eigenständige Desktop-App (PySide6, GPL-3.0-or-later) mit ADB-Übertragung auf Android-Controller, iPad/iPhone-Import über pymobiledevice3, Titelvorschau und Build-Skript. Der Quellcode liegt jetzt im Repository unter `bridge/` (`desktop.py`, `core.py`, `ios.py`, `preview.py`, `map_preview.py`, `cli.py`, `build_desktop.py`, Tests, `INVESTIGATION.md` mit dem Stand der Gerätetests). Installiert ist sie als `/Applications/Drone Missions Bridge.app`. Die Oberfläche wurde in dieser Sitzung noch nicht angefasst.
 
 Anforderungen des Eigentümers für die Bridge-Oberfläche (unverändert übernommen):
 
@@ -67,7 +69,11 @@ Anforderungen des Eigentümers für die Bridge-Oberfläche (unverändert überno
 - Deutlich größere Vorschaubilder.
 - Klare Aktionen „Neu anlegen“ und „Ersetzen“.
 
-Nächster Schritt: `bridge/` ins Repository aufnehmen (eigener Commit auf diesem Branch oder ein eigenes Repository), dann die Oberfläche nach denselben Gestaltungsregeln wie oben umbauen. Erst danach den Hinweis „USB-Übertragung über die Bridge-App“ in der Web-UI um einen echten Download- oder Kopplungsweg ergänzen.
+Nächster Schritt: `bridge/desktop.py` lesen (drei Schritte Gerät, Mission, Übertragen) und die Oberfläche nach denselben Gestaltungsregeln wie oben umbauen, ohne `core.py` und `ios.py` zu verändern. Vorher `python3 -m unittest discover -s bridge/tests -v` laufen lassen und danach erneut. Gerätetests kann nur der Eigentümer am Mac mit angeschlossenem iPad oder RC Pro 2 machen. Erst danach den Hinweis „USB-Übertragung über die Bridge-App“ in der Web-UI um einen echten Download- oder Kopplungsweg ergänzen.
+
+## Server-Update
+
+Siehe `docs/UPDATE.md`: Nur `public/` wird auf den Server kopiert, private Daten bleiben unberührt, das Schema wird automatisch ergänzt.
 
 ## Umgebung
 

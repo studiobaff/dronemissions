@@ -1,0 +1,10 @@
+# Desktop-Abhängigkeiten
+
+Der ADB-Kern (`core.py`, `cli.py`) verwendet Python-Standardbibliotheken. ADB wird vom Benutzer separat bereitgestellt; keine Bibliothek des DJI-KMZ-Injectors wird in der Bridge gebündelt.
+
+Die Desktop-Oberfläche verwendet PySide6 6.8.3 / Qt 6.8.3 und Shiboken6 aus den offiziellen PyPI-Paketen. Diese Komponenten werden dynamisch gebunden; die jeweiligen LGPLv3-/GPLv3- bzw. kommerziellen Lizenzoptionen der Qt Company gelten für diese Abhängigkeiten. Lizenztexte liegen unter `licenses/`. Bezugsquellen: https://pypi.org/project/PySide6/6.8.3/ und https://code.qt.io/cgit/pyside/pyside-setup.git/ sowie https://code.qt.io/cgit/qt/qtbase.git/ (Version v6.8.3). Geänderte Bibliotheken dürfen unter Einhaltung ihrer Lizenzbedingungen ausgetauscht und die Anwendung zum Debuggen solcher Änderungen untersucht werden. Nach Austausch von Mac-Bibliotheken ist gegebenenfalls eine neue lokale Ad-hoc-Signatur erforderlich.
+
+Python wird unter der PSF-Lizenz bereitgestellt. PyInstaller 6.22.3 wird als Buildwerkzeug mit seiner Bootloader-Ausnahme verwendet. Die Mac-Anwendung ist derzeit nur lokal ad-hoc signiert, nicht als notarisiertes Produktionsrelease verteilt. Windows-Pakete müssen unter Windows gebaut und separat getestet werden.
+
+
+Die Bridge-Oberfläche und der iOS-Adapter werden unter GPL-3.0-or-later bereitgestellt (siehe LICENSE). Der iOS-USB-Adapter verwendet pymobiledevice3 11.50.0 (GPL-3.0-or-later), unverändert aus PyPI: https://pypi.org/project/pymobiledevice3/11.50.0/ ; Quellcode https://github.com/doronz88/pymobiledevice3 . Lizenz und Abhängigkeiten werden dem lokalen Build beigelegt. Ein öffentliches Binärrelease benötigt den dazu passenden vollständigen Quellstand und Lizenzhinweise.

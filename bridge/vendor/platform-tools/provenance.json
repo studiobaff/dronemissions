@@ -1,0 +1,5 @@
+{
+  "source": "https://dl.google.com/android/repository/platform-tools-latest-darwin.zip",
+  "archiveSha256": "ee39ad5967e95c2a07f04dbcbde96b1a0c916ba376096db5d2f498b7727a5d1d",
+  "adbSha256": "1811e253b21b12cbfda7201ebaf86c10e7ddcb5c606a7a81f7c82b4c429c2d3b"
+}

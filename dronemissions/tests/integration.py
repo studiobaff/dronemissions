@@ -69,12 +69,21 @@ def main():
     c.call('upload',{'folder':sub,'name':'Bad'},expected=400,files={'kmz':('broken.kmz',b'broken')})
     point={'folder':sub,'name':'Demo · Panorama','lat':48.001,'lng':16.002,'settings':{'height':60,'heading':0,'gimbal':-90,'heightMode':'relativeToStartPoint','capture':'sphere'}}
     pointid=c.call('point',point)['id']; c.call('point',{**point,'id':pointid,'revision':0},expected=409)
+    current=next(x for x in c.call('library')['missions'] if x['id']==m)
+    for bad in [-1,5,True,'2']:
+        c.call('mission',{'id':m,'revision':current['revision'],'overviewWaypoint':bad},expected=400)
+    c.call('mission',{'id':m,'revision':current['revision'],'overviewWaypoint':2,'litchiURL':'https://hub.flylitchi.com/?m=demo123'})
     view=c.call('share',{'folder':root,'role':'view'}); edit=c.call('share',{'folder':root,'role':'edit'})
     v=Client(a.base);v.call('share-login',{'token':view['token']}); visible=v.call('library'); assert len(visible['folders'])==2 and len(visible['missions'])==1 and len(visible['points'])==1
     assert other not in json.dumps(visible)
     v.call('upload',{'folder':sub,'name':'Blocked'},expected=403,files={'kmz':('demo.kmz',raw)});v.call('point',point,expected=403);v.call('folder',{'name':'No','parent':root},expected=403);v.call('shares',expected=403);v.call('settings',expected=403);v.call('settings',{'authorName':'Blocked'},expected=403);v.call('share',{'folder':root},expected=403);v.call('folder',{'id':other,'name':'Leak'},expected=403)
-    assert v.call('kmz&id='+m)==raw2
-    c.call('folder-archive',{'id':root,'archived':True});nested=c.call('share',{'folder':sub,'role':'view'});n=Client(a.base);n.call('share-login',{'token':nested['token']});assert next(f for f in n.call('library')['folders'] if f['id']==sub)['inheritedArchived'];c.call('revoke',{'id':nested['id']});c.call('folder-archive',{'id':root,'archived':False})
+    for endpoint in ['kmz','original','package','versions']:
+        v.call(endpoint+'&id='+m,expected=403)
+    public=visible['missions'][0];assert len(public['details']['points'])==1 and public['details']['routes']==[] and public['overviewPoint']=={'lat':48.0,'lng':16.004}
+    assert public['notes']=='' and public['filename']=='' and 'sha256' not in public
+    assert b'16.004,48' in v.call('location&id='+m)
+    assert b'<polyline' not in v.call('preview&id='+m)
+    c.call('folder-archive',{'id':root,'archived':True});nested=c.call('share',{'folder':sub,'role':'edit'});n=Client(a.base);n.call('share-login',{'token':nested['token']});assert next(f for f in n.call('library')['folders'] if f['id']==sub)['inheritedArchived'];c.call('revoke',{'id':nested['id']});c.call('folder-archive',{'id':root,'archived':False})
     e=Client(a.base);e.call('share-login',{'token':edit['token']});e.call('settings',{'authorName':'Blocked'},expected=403);e.call('folder',{'name':'Editor-Unterordner','parent':sub});e.call('folder',{'name':'Escape','parent':other},expected=403);e.call('mission',{'id':m,'revision':2,'folder':other},expected=403);e.call('folder',{'id':root,'name':'Escape','parent':sub},expected=400)
     c.call('revoke',{'id':view['id']});v.call('library',expected=401);v.call('share-login',{'token':view['token']},expected=403)
     c.call('folder-archive',{'id':root,'archived':True});assert next(f for f in c.call('library')['folders'] if f['id']==root)['archived']==1
@@ -83,6 +92,25 @@ def main():
     c.call('mission',{'id':m,'revision':mission['revision'],'notes':'Synthetische Demo. Keine reale Flugplanung.'})
     c.call('mission',{'id':m,'revision':mission['revision'],'name':'Stale'},expected=409)
     c.call('revoke',{'id':edit['id']});e.call('library',expected=401)
+    native_project=json.dumps({'version':1,'type':'polygon','polygon':[[48,16],[48.001,16],[48.001,16.001]],'settings':{'altitude':60}}).encode()
+    project=c.call('upload',{'folder':sub,'name':'Map Creator Demo'},files={'kmz':('demo.mproj',native_project)})['id']
+    assert c.call('original&id='+project)==native_project
+    proj=next(x for x in c.call('library')['missions'] if x['id']==project);assert proj['details']['sourceFormat']=='mapcreator-project' and proj['details']['points']==[]
+    c.call('mission',{'id':project,'revision':proj['revision'],'overviewWaypoint':0},expected=400)
+    target=next(x for x in c.call('library')['missions'] if x['id']==m)
+    c.call('attach-source',{'target':m,'source':project,'targetRevision':0,'sourceRevision':proj['revision']},expected=409)
+    assert not next(x for x in c.call('library')['missions'] if x['id']==project)['archived']
+    c.call('attach-source',{'target':m,'source':project,'targetRevision':target['revision'],'sourceRevision':proj['revision']})
+    attached=next(x for x in c.call('library')['missions'] if x['id']==m)['attachments'];assert len(attached)==1 and attached[0]['format']=='mproj'
+    assert c.call('attachment&id='+m+'&version='+attached[0]['id'])==native_project
+    assert c.call('original&id='+m)==raw2
+    with zipfile.ZipFile(io.BytesIO(c.call('package&id='+m))) as bundle:
+        assert bundle.read('sources/1-demo.mproj')==native_project
+        assert json.loads(bundle.read('manifest.json'))['files']['sources/1-demo.mproj']==hashlib.sha256(native_project).hexdigest()
+    viewer_link=c.call('share',{'folder':root,'role':'view'});viewer=Client(a.base);viewer.call('share-login',{'token':viewer_link['token']})
+    viewer.call('attachment&id='+m+'&version='+attached[0]['id'],expected=403)
+    assert 'attachments' not in next(x for x in viewer.call('library')['missions'] if x['id']==m)
+    c.call('revoke',{'id':viewer_link['id']})
     csv=b'latitude,longitude,altitude(m),heading(deg),speed(m/s),altitudemode\r\n48,16,50,90,5,0\r\n48.001,16.001,60,180,5,0\r\n'
     csv_id=c.call('upload',{'folder':sub,'name':'Demo · Litchi CSV'},files={'kmz':('legacy.csv',csv)})['id']
     assert c.call('original&id='+csv_id)==csv
@@ -103,8 +131,42 @@ def main():
         assert b'Litchi Original' in c.call('preview&id='+native_id)
         with zipfile.ZipFile(io.BytesIO(c.call('package&id='+native_id))) as z:assert z.read('mission.'+ext)==native
         c.call('upload',{'folder':sub,'name':'Bad'},expected=400,files={'kmz':('broken.'+ext,b'wrong-header')})
+    # Bulk changes are atomic, revision checked, and constrained on both source and destination.
+    bulk=[]
+    for i in range(10):
+        bulk.append(c.call('upload',{'folder':sub,'name':f'Auswahl Demo {i+1:02}'},files={'kmz':('demo.kmz',raw)})['id'])
+    rows=[x for x in c.call('library')['missions'] if x['id'] in bulk]
+    batch=[{'id':x['id'],'revision':x['revision']} for x in rows]
+    c.call('missions-move',{'folder':other,'missions':batch[:-1]+[{**batch[-1],'revision':0}]},expected=409)
+    assert all(x['folder']==sub for x in c.call('library')['missions'] if x['id'] in bulk)
+    c.call('missions-move',{'folder':other,'missions':batch+batch[:1]},expected=400)
+    readonly=c.call('share',{'folder':root,'role':'view'});reader=Client(a.base);reader.call('share-login',{'token':readonly['token']})
+    reader.call('missions-move',{'folder':sub,'missions':batch},expected=403)
+    editable=c.call('share',{'folder':root,'role':'edit'});editor=Client(a.base);editor.call('share-login',{'token':editable['token']})
+    editor.call('missions-move',{'folder':other,'missions':batch},expected=403)
+    assert c.call('missions-move',{'folder':other,'missions':batch})['moved']==10
+    rows=[x for x in c.call('library')['missions'] if x['id'] in bulk]
+    assert all(x['folder']==other for x in rows)
+    batch=[{'id':x['id'],'revision':x['revision']} for x in rows]
+    editor.call('missions-move',{'folder':sub,'missions':batch},expected=403)
+    c.call('missions-move',{'folder':None,'missions':batch})
+    for mid in bulk:assert c.call('original&id='+mid)==raw
+    c.call('revoke',{'id':readonly['id']});c.call('revoke',{'id':editable['id']})
+    print('PASS: ten-mission bulk move, stale/duplicate atomic rejection, source/destination scopes, viewer denial, exact originals')
     c.call('settings',{'authorName':''})
     if a.fixture_dir:
         a.fixture_dir.mkdir(parents=True,exist_ok=True);(a.fixture_dir/'demo.kmz').write_bytes(raw)
+    # Empty project deletion never removes mission data and revokes only its own links.
+    empty=c.call('folder',{'name':'Empty deletion demo'})['id']
+    child=c.call('folder',{'name':'Child deletion demo','parent':empty})['id']
+    c.call('folder-delete',{'id':empty,'name':'Empty deletion demo','parent':None},expected=409)
+    c.call('folder-delete',{'id':child,'name':'Stale name','parent':empty},expected=409)
+    editlink=c.call('share',{'folder':empty,'role':'edit'});editor=Client(a.base);editor.call('share-login',{'token':editlink['token']})
+    editor.call('folder-delete',{'id':child,'name':'Child deletion demo','parent':empty},expected=403)
+    c.call('folder-delete',{'id':child,'name':'Child deletion demo','parent':empty})
+    c.call('folder-delete',{'id':empty,'name':'Empty deletion demo','parent':None});editor.call('library',expected=401)
+    c.call('folder-delete',{'id':sub,'name':'Routen','parent':root},expected=409)
+    assert c.call('original&id='+m)==raw2
+    print('PASS: empty folder deletion, nonempty/stale rejection, owner-only action, link revocation, originals retained')
     print('PASS: authentication, folders/cycles, parsing, versions/conflicts, exact KMZ, package hashes, previews, points/conflicts, read/edit scopes, revocation, archive and metadata conflicts')
 if __name__=='__main__': main()
