@@ -62,6 +62,68 @@ def inspect_kmz(raw:bytes)->dict:
    if b['speed'] and b['speed']>0:seconds+=d/b['speed']
  return {'sha256':digest(raw),'bytes':len(raw),'waypoints':len(points),'points':points,'segments':segments,'distance':round(distance,2),'estimatedSeconds':round(seconds),'droneEnum':value(template,'droneEnumValue'),'droneSubEnum':value(template,'droneSubEnumValue'),'author':value(template,'author',''),'name':value(template,'name','')}
 
+
+def _xml_namespaces(raw:bytes)->dict:
+ found={}
+ for event,(prefix,uri) in ET.iterparse(io.BytesIO(raw),events=('start-ns',)):found.setdefault(prefix,uri)
+ return found
+def _canonical(element,skip=('waypointTurnParam',))->str:
+ copy=ET.fromstring(ET.tostring(element))
+ for child in list(copy):
+  if local_name(child.tag) in skip:copy.remove(child)
+ return ET.canonicalize(ET.tostring(copy,encoding='unicode'),strip_text=True)
+def sanitize_kmz(raw:bytes):
+ """Merge the Map-Creator quirk of a duplicated final waypoint that differs only in its turn mode.
+
+ Returns (cleaned_bytes, report). Everything else that inspect_kmz rejects stays rejected; this never renumbers waypoints,
+ so action groups keep their index references. The stopping final placemark is kept, the pass-through twin is dropped.
+ """
+ if len(raw)>16*1024*1024:raise BridgeError('KMZ ist größer als 16 MB.')
+ try:
+  with zipfile.ZipFile(io.BytesIO(raw)) as z:
+   names=z.namelist()
+   if 'wpmz/waylines.wpml' not in names:raise BridgeError('DJI-WPML-Datei fehlt: wpmz/waylines.wpml')
+   wayline=z.read('wpmz/waylines.wpml')
+ except zipfile.BadZipFile as e:raise BridgeError('Ungültige KMZ-Datei: '+str(e)) from e
+ if len(wayline)>8*1024*1024 or re.search(br'<!\s*(DOCTYPE|ENTITY)',wayline,re.I):raise BridgeError('Unzulässige XML-Definition.')
+ for prefix,uri in _xml_namespaces(wayline).items():ET.register_namespace(prefix,uri)
+ try:root=ET.fromstring(wayline)
+ except ET.ParseError as e:raise BridgeError('Ungültige KMZ-Datei: '+str(e)) from e
+ merged=[]
+ for folder in root.iter():
+  if local_name(folder.tag)!='Folder':continue
+  placemarks=[p for p in folder if local_name(p.tag)=='Placemark' and value(p,'index') is not None]
+  if len(placemarks)<2:continue
+  last,previous=placemarks[-1],placemarks[-2];index=value(last,'index')
+  if index is None or value(previous,'index')!=index or not index.isdigit():continue
+  others=[value(p,'index') for p in placemarks[:-2]]
+  if index in others:continue  # mehr als zwei Treffer: bleibt ein Fehler von inspect_kmz
+  if _canonical(previous)!=_canonical(last):continue  # Unterschiede außerhalb des Abbiegemodus: bleibt ein Fehler
+  stop_mode=value(last,'waypointTurnMode','');pass_mode=value(previous,'waypointTurnMode','')
+  if 'Stop' not in stop_mode:
+   if 'Stop' in pass_mode:last,previous=previous,last;stop_mode,pass_mode=pass_mode,stop_mode  # den Stopp behalten
+   else:continue
+  folder.remove(previous);merged.append({'index':int(index),'kept':stop_mode,'dropped':pass_mode})
+ if not merged:return raw,None
+ cleaned=b'<?xml version="1.0" encoding="UTF-8"?>\n'+ET.tostring(root,encoding='utf-8')
+ out=io.BytesIO()
+ with zipfile.ZipFile(io.BytesIO(raw)) as src,zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as dst:
+  for info in src.infolist():dst.writestr(info.filename,cleaned if info.filename=='wpmz/waylines.wpml' else src.read(info.filename))
+ result=out.getvalue();inspect_kmz(result)  # muss jetzt die strenge Prüfung bestehen
+ return result,{'merged':merged,'originalSha256':digest(raw),'sha256':digest(result)}
+def prepare_source(path:Path,work:Path)->dict:
+ """Original unverändert lassen; bei dem bekannten Map-Creator-Duplikat eine bereinigte Übertragungskopie schreiben."""
+ path=Path(path);raw=path.read_bytes()
+ try:inspect_kmz(raw);return {'path':path,'original':path,'cleaned':False,'report':None}
+ except BridgeError as original_error:
+  if 'Wegpunktnummer' not in str(original_error):raise
+  cleaned,report=sanitize_kmz(raw)
+  if report is None:raise original_error
+  work=Path(work);work.mkdir(parents=True,exist_ok=True);copy=work/(path.stem+' (bereinigt).kmz');copy.write_bytes(cleaned)
+  if digest(copy.read_bytes())!=report['sha256']:copy.unlink(missing_ok=True);raise BridgeError('Bereinigte Kopie konnte nicht fehlerfrei gespeichert werden.')
+  atomic_json(work/(path.stem+' (bereinigt).json'),{'format':'dronemissions-sanitized-copy/1','source':str(path.resolve()),**report,'created':datetime.now(timezone.utc).isoformat()})
+  return {'path':copy,'original':path,'cleaned':True,'report':report}
+
 @dataclass
 class Adb:
  executable:str

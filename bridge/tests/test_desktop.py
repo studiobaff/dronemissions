@@ -3,7 +3,7 @@ import os,sys,tempfile,time,unittest
 from pathlib import Path
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from test_core import fixture
+from test_core import fixture,helix_fixture
 try:
     from PySide6.QtWidgets import QApplication
     from desktop import Window,TAB_TRANSFER
@@ -73,5 +73,13 @@ class Tests(unittest.TestCase):
             self.app.processEvents()
             if time.monotonic()>deadline:self.fail('Download did not complete')
         self.assertEqual(w.tabs.currentIndex(),TAB_TRANSFER);self.assertEqual(w.name.text(),'Rundflug');self.assertEqual(w.source_path.read_bytes(),kmz);self.assertIn('Webarchiv',w.source_meta.text())
+
+    def test_set_source_uses_a_cleaned_copy_for_the_helix_case(self):
+        w=self.window;self.select('ios')
+        with tempfile.TemporaryDirectory() as t:
+            source=Path(t)/'Double Helix.kmz';raw=helix_fixture();source.write_bytes(raw);w.set_source(source)
+            self.assertEqual(w.original_source,source);self.assertNotEqual(w.source_path,source);self.assertEqual(w.source_path.name,'Double Helix (bereinigt).kmz');self.assertEqual(source.read_bytes(),raw)
+            self.assertIn('Übertragungskopie',w.source_meta.text());self.assertEqual(w.name.text(),'Double Helix')
+            w.prepare();self.wait_review();self.assertEqual(Path(w.transfer['source']),w.source_path.resolve());self.assertEqual(Path(w.transfer['originalSource']),source.resolve());self.assertEqual(w.transfer['kmz']['waypoints'],3)
 
 if __name__=='__main__':unittest.main()

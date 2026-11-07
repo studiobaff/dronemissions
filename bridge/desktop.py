@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBo
  QLabel,QPushButton,QComboBox,QLineEdit,QFileDialog,QListWidget,QListWidgetItem,QPlainTextEdit,
  QMessageBox,QCheckBox,QStackedWidget,QFrame,QProgressBar,QTabWidget,QButtonGroup,QSizePolicy,QScrollArea)
 from PySide6.QtSvg import QSvgRenderer
-from core import Adb,devices,plan,apply,atomic_json,BridgeError,inspect_kmz,digest,BASE
+from core import Adb,devices,plan,apply,atomic_json,BridgeError,inspect_kmz,digest,BASE,prepare_source
 from preview import render_preview
 from archive import ArchiveClient,safe_filename
 import ios
@@ -80,7 +80,7 @@ class Window(QMainWindow):
   super().__init__();self.setWindowTitle(f'Drone Missions Bridge · {VERSION}');self.resize(1180,820);self.setMinimumSize(980,700)
   self.settings=QSettings('studiobaff','DroneMissionsBridge');self.root=Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation));self.root.mkdir(parents=True,exist_ok=True)
   self.transfer=None;self.rows=[];self.registry={};self.job=None;self.source_path=None;self.background_path=None;self.mode='new';self.prepared=None
-  self.archive=None;self.archive_rows=[];self.archive_widgets=[];self.client_factory=ArchiveClient
+  self.archive=None;self.archive_rows=[];self.archive_widgets=[];self.client_factory=ArchiveClient;self.original_source=None
   try:self.registry=json.loads((self.root/'names.json').read_text())
   except (OSError,ValueError):pass
   self.body=QWidget();outer=QVBoxLayout(self.body);outer.setContentsMargins(24,18,24,18);outer.setSpacing(14);self.setCentralWidget(self.body)
@@ -271,8 +271,13 @@ class Window(QMainWindow):
   path,_=QFileDialog.getOpenFileName(self,'ADB auswählen')
   if path:self.adb.setText(path);self.settings.setValue('adb',path)
  def set_source(self,path):
-  self.source_path=Path(path);self.source_label.setText(self.source_path.name);self.source_label.setToolTip(str(self.source_path));self.name.setText(self.source_path.stem);self.clear_background();self.invalidate()
-  try:details=inspect_kmz(self.source_path.read_bytes());self.source_meta.setText(f'{details["waypoints"]} Wegpunkte · {details["distance"]/1000:.2f} km · {len(details["segments"])} Flugroute(n)')
+  original=Path(path);self.original_source=original;self.source_path=original;self.source_label.setText(original.name);self.source_label.setToolTip(str(original));self.name.setText(original.stem);self.clear_background();self.invalidate()
+  try:
+   prepared=prepare_source(original,self.root/'cleaned');self.source_path=prepared['path'];details=inspect_kmz(self.source_path.read_bytes())
+   text=f'{details["waypoints"]} Wegpunkte · {details["distance"]/1000:.2f} km · {len(details["segments"])} Flugroute(n)'
+   if prepared['cleaned']:
+    merged=', '.join(str(m['index']+1) for m in prepared['report']['merged']);text+=f' · Übertragungskopie: doppelter Schlusspunkt {merged} zusammengeführt (Stopp erhalten), Original unverändert';self.log_line(f'Übertragungskopie angelegt: {self.source_path} (Original {original})')
+   self.source_meta.setText(text)
   except Exception as e:self.source_meta.setText('Datei kann nicht gelesen werden: '+str(e))
   for folder in [self.source_path.parent/'Preview',self.source_path.parent/'preview',self.source_path.parent]:
    thumb=folder/(self.source_path.stem+'.jpg')
@@ -397,12 +402,12 @@ class Window(QMainWindow):
     if m.get('localState')!='local':raise BridgeError('Nur lokal vorhandene Missionen lassen sich ersetzen. Cloud-Mission zuerst in DJI Fly herunterladen.')
     target=m['uuid'];target_name='Ersetzt: '+self.row_label(r,m,self.list.currentRow())
    else:target_name='Neue Mission auf '+r['name']
-   prepared={'device':r,'source':str(source.resolve()),'sourceSha256':digest(raw),'name':name,'preview':str(preview),'previewSha256':digest(preview.read_bytes()),'kmz':details,'mode':'ios-replace' if target else 'ios-new','replace':target}
+   prepared={'device':r,'source':str(source.resolve()),'originalSource':str(self.original_source.resolve()) if self.original_source else None,'sourceSha256':digest(raw),'name':name,'preview':str(preview),'previewSha256':digest(preview.read_bytes()),'kmz':details,'mode':'ios-replace' if target else 'ios-new','replace':target}
   except Exception as e:self.error(str(e));return
   mode=self.mode
   def prepare_plan():
    if r['kind']=='ios':return prepared
-   result=plan(self.adb_for(r),source,name,preview,target);result['device']=r;return result
+   result=plan(self.adb_for(r),source,name,preview,target);result['device']=r;result['originalSource']=str(self.original_source.resolve()) if self.original_source else None;return result
   def done(p):
    self.transfer=p;pixmap=QPixmap(str(preview))
    self.image.setPixmap(pixmap.scaled(self.image.size(),Qt.KeepAspectRatio,Qt.SmoothTransformation));self.review_image.setPixmap(pixmap.scaled(self.review_image.size(),Qt.KeepAspectRatio,Qt.SmoothTransformation))
