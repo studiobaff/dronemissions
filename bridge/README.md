@@ -20,6 +20,8 @@ Die Vorschau wird vor dem ersten Import erzeugt. DJI Fly kann sie beim Speichern
 
 ## Android / RC Pro 2
 
+Die Bridge bringt ein eigenes ADB mit (`vendor/platform-tools`, Android Platform-Tools 37.0.1 für macOS, Prüfsumme in `provenance.json`, Lizenz in `NOTICE.txt`) und nutzt es nur, wenn die Prüfsumme stimmt. Ein eigener Pfad lässt sich unter „Protokoll & Einstellungen“ wählen; „Eingebautes ADB“ setzt zurück. Für einen Windows-Build muss der Ordner vorher durch die Windows-Platform-Tools mit passender `provenance.json` ersetzt werden.
+
 Zielgerät ausdrücklich auswählen, Missionen lesen und einen entbehrlichen lokalen Testeintrag wählen. Der bestehende Missionsbestand wird vollständig gesichert. Übertragen wird eine geprüfte KMZ plus Titelvorschau; der DJI-Fly-Listenname kann derzeit nicht direkt gesetzt werden. Bei den Gerätetests war nach dem Austausch ein RC-Neustart erforderlich, bevor Speichern und das Erzeugen einer neuen Vorschau funktionierten. Es gibt deshalb keine Erfolgsmeldung allein aufgrund des Dateikopiervorgangs.
 
 Das experimentelle Anlegen einer unregistrierten Android-UUID wird in der Oberfläche nicht mehr angeboten. Keine automatische Cloud-Synchronisation oder Löschung.
@@ -32,7 +34,7 @@ Der Tab „Webarchiv“ meldet sich mit dem Zugangsschlüssel des Eigentümers a
 
 Python 3.9+, Abhängigkeiten aus requirements-desktop.txt installieren, dann `python bridge/build_desktop.py`. Windows muss unter Windows gebaut und getestet werden; ein Windows-Paket wurde hier nicht gebaut. Der lokale Mac-Build ist ad-hoc signiert und nicht notarisiert.
 
-Tests: `python3 -m unittest discover -s bridge/tests -v` (31 Tests, offscreen ohne Gerät; `test_archive.py` nutzt einen lokalen Nachbau der Archiv-API). Die automatisierten Testdaten sind synthetisch. Die iOS-Tests prüfen unter anderem die Wiederherstellung nach einer unklaren Datenbank-Umbenennung und das unveränderte Erhalten bestehender Datensätze.
+Tests: `python3 -m unittest discover -s bridge/tests -v` (32 Tests, offscreen ohne Gerät; `test_archive.py` nutzt einen lokalen Nachbau der Archiv-API). Die automatisierten Testdaten sind synthetisch. Die iOS-Tests prüfen unter anderem die Wiederherstellung nach einer unklaren Datenbank-Umbenennung und das unveränderte Erhalten bestehender Datensätze.
 
 GPL-3.0-or-later; siehe LICENSE und THIRD_PARTY.md. Öffentliche Binärreleases benötigen den passenden vollständigen Quellstand und Lizenzunterlagen.
 
