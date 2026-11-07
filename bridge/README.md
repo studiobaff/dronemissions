@@ -49,3 +49,9 @@ Map Creator schreibt bei manchen Exporten den letzten Wegpunkt zweimal mit derse
 ## Windows 11
 
 Der Code ist plattformunabhängig (PySide6). Das Paket muss auf einem Windows-Rechner mit demselben `build_desktop.py` gebaut werden; PyInstaller baut nicht quer. Zusätzlich nötig: die Windows-Version der Android Platform-Tools (ADB) und für iPad/iPhone die Apple-USB-Treiber (iTunes oder die Apple-Devices-App), damit pymobiledevice3 das Gerät sieht. Ein Windows-Paket wurde noch nicht gebaut oder getestet.
+
+## Automatische 3D-Titelvorschau
+
+Die automatische Vorschau zeigt eine schräge Projektion aus lokalen Meterkoordinaten und gespeicherten Wegpunkthöhen. Horizontale Strecken und Höhen verwenden denselben Maßstab; die Höhen werden nicht übertrieben. Unterschiedliche oder unbekannte Höhenbezüge sowie fehlende Höhen führen zu einer ausdrücklich beschrifteten Draufsicht. Die Grafik zeigt die geplante Route, kein Geländemodell und keine Hindernisse. Der Missionsname bleibt im unteren Titelband, der Wolkenbereich oben links bleibt frei.
+
+Ein eigenes Bild kann weiterhin ausdrücklich gewählt werden. Benachbarte JPEG-Dateien werden nicht mehr automatisch bevorzugt, damit alte 2D-Vorschaubilder die neue 3D-Ansicht nicht verdecken. Die Missions-KMZ wird durch die Darstellung nicht verändert.
