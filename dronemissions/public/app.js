@@ -138,7 +138,7 @@ function renderSidebar() {
 function renderHeader() {
  $('#new-project').classList.toggle('hidden', !canEdit()); $('#add-folder').classList.toggle('hidden', !canEdit());
  $('#upload').classList.toggle('hidden', !canEdit()); $('#upload-compact').classList.toggle('hidden', !canEdit()); $('#empty-upload').classList.toggle('hidden', !canEdit());
- $('#manage-shares').classList.toggle('hidden', !isOwner()); $('#settings').classList.toggle('hidden', !isOwner());
+ $('#manage-shares').classList.toggle('hidden', !isOwner()); $('#settings').classList.toggle('hidden', !isOwner()); $('#bridge').classList.toggle('hidden', !canEdit());
  $('#share-project').classList.toggle('hidden', !folder || !isOwner()); $('#folder-options').classList.toggle('hidden', !folder || !canEdit()); $('#add-point').classList.toggle('hidden', !folder || !canEdit());
  $('#subfolders-control').classList.toggle('hidden', !folder); $('#selection-tools').classList.toggle('hidden', !canEdit() || showMap);
  $('#sort').closest('.sort').classList.toggle('hidden', !canEdit());
@@ -485,6 +485,14 @@ $('#delete-folder').onclick = async () => {
 };
 $('#point-form').onsubmit = e => { e.preventDefault(); run(async () => { const f = e.target.elements; const settings = { height: Number(f.height.value), heightMode: f.heightMode.value, heading: Number(f.heading.value), gimbal: Number(f.gimbal.value), capture: f.capture.value }; await api('point', { id: editPoint?.id, revision: editPoint?.revision, folder: editPoint?.folder || folder, name: f.name.value, notes: f.notes.value, lat: Number(f.lat.value), lng: Number(f.lng.value), settings }); $('#point-dialog').close(); await refresh(); toast('Panorama-Standort gespeichert. Noch keine ausführbare Flugmission.'); }, $('button[type=submit]', e.target)); };
 $('#delete-point').onclick = async () => { if (await confirmDialog('Planungspunkt löschen?', `„${editPoint.name}“ wird endgültig entfernt. Dieser Schritt lässt sich nicht rückgängig machen.`, 'Endgültig löschen', true)) run(async () => { await api('point-delete', { id: editPoint.id, revision: editPoint.revision }); $('#point-dialog').close(); await refresh(); toast('Planungspunkt gelöscht.'); }); };
+async function openBridge() {
+ const dlg = $('#bridge-dialog'); if (!dlg.open) dlg.showModal();
+ $('#bridge-files').innerHTML = '<p class="hint">Pakete werden geladen …</p>';
+ const d = await api('bridge'); $('#bridge-url').textContent = `Archiv-Adresse: ${d.archiveURL}`;
+ const label = { macos: 'macOS', windows: 'Windows', other: 'Paket' };
+ $('#bridge-files').innerHTML = d.files.length ? d.files.map(f => `<div class="bridge-file">${icon('i-download')}<div><strong>${esc(f.name)}</strong><small>${esc(label[f.platform] || 'Paket')} · ${fmtBytes(Number(f.bytes))} · ${esc(fmtDate(f.modified))}</small><span class="mono">SHA-256 ${esc(f.sha256)}</span></div><a class="btn btn-primary btn-sm" href="api.php?action=bridge-file&name=${encodeURIComponent(f.name)}">${icon('i-download')}<span>Herunterladen</span></a></div>`).join('') : `<p class="notice">${icon('i-info')}<span>Noch kein App-Paket hinterlegt. Der Eigentümer legt gebaute Pakete (ZIP, DMG, EXE, MSI) im privaten Ordner „${esc(d.folder)}“ auf dem Server ab; sie erscheinen dann hier mit Prüfsumme.</span></p>`;
+}
+$('#bridge').onclick = () => run(openBridge);
 $('#share-project').onclick = () => run(() => openShares()); $('#manage-shares').onclick = () => run(() => openShares());
 $('#create-share').onclick = e => run(async () => { const target = $('#share-folder').value; if (!target) throw Error('Bitte zuerst ein Projekt auswählen.'); const d = await api('share', { folder: target, role: $('#share-role').value }); const u = new URL('./', location.href); u.hash = `share=${d.token}`; $('#share-link').value = u.href; $('#share-link-wrap').classList.remove('hidden'); $('#share-link').focus(); $('#share-link').select(); await loadShareList(); toast('Freigabe erstellt. Der Link wird nur hier angezeigt.'); }, e.currentTarget);
 $('#copy-share').onclick = () => run(async () => { await navigator.clipboard.writeText($('#share-link').value); toast('Freigabelink kopiert.'); });
