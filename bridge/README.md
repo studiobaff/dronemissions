@@ -75,3 +75,9 @@ Ein eigenes Bild kann weiterhin ausdrücklich gewählt werden. Benachbarte JPEG-
 PySide6/Qt ist auf 6.10.3 aktualisiert. Qt 6.8.3 kann auf macOS beim Zurücksetzen von Listen nach Bedienungshilfe-Abfragen nativ in `QMacAccessibilityElement` abstürzen; upstream QTBUG-134784 ist seit 6.9.1 behoben. Quelle: https://qt-project.atlassian.net/browse/QTBUG-134784. Ein ähnlicher separater Fehler wird unter QTBUG-149612 verfolgt; die genaue Stabilität muss am Mac geprüft werden, ein grüner Offscreen-Test reicht dafür nicht. Bedienungshilfen werden nicht abgeschaltet.
 
 Der Knopf „Konfiguration laden“ öffnet jetzt denselben Dateidialog wie das Menü. Alte Test-Adressen (`example.com`/Loopback) werden außerhalb des Entwicklermodus korrigiert; Tests verwenden explizite temporäre INI-Dateien statt echter macOS-Präferenzen. Nach Import wird nur der zur Archiv-Adresse gespeicherte Schlüssel geladen, kein Schlüssel aus einem anderen Archiv übernommen. Die Konfigurationsdatei selbst enthält keinen Zugangsschlüssel.
+
+## Lokalfilter und Auswahl (0.4.2)
+
+Im Tab **Gerät & Missionen** blendet **Nur lokal vorhanden** reine Cloud-Einträge und mehrdeutige Dateien aus. Der Filter wird auf diesem Mac gespeichert und lässt sich mit der Namens-/Kennungssuche kombinieren. **Alle sichtbaren** markiert nur die aktuell gefilterten Zeilen. Bereits ausgewählte, später ausgeblendete Zeilen bleiben ausgewählt; die Anzahl steht ausdrücklich bei **ausgeblendet**.
+
+Checkboxen zeigen ein weißes Häkchen für **ausgewählt**, ein leeres Kästchen für **nicht ausgewählt** und bei **Alle sichtbaren** einen Strich für eine gemischte Auswahl. Es werden dafür echte QCheckBox-Steuerelemente mit weiterhin verfügbarer Tastatur-/Bedienungshilfe-Unterstützung verwendet. Filter und Auswahl ändern keine Missionsdateien.

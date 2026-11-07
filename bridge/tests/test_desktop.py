@@ -6,7 +6,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from test_core import fixture,helix_fixture
 try:
     from PySide6.QtWidgets import QApplication,QPushButton
-    from PySide6.QtCore import QSettings
+    from PySide6.QtCore import QSettings,Qt
     from desktop import Window,TAB_TRANSFER,TAB_ARCHIVE
     from PySide6.QtWidgets import QMessageBox
     import desktop as desktop_module
@@ -209,5 +209,26 @@ class Tests(unittest.TestCase):
             w.archive_import_config(str(good))
         self.assertIsNone(w.archive);self.assertEqual(w.archive_rows,[])
         self.assertEqual(w.archive_key.text(),'stored-key');self.assertTrue(w.archive_remember.isChecked());self.assertIn('Gespeicherter Schlüssel geladen',w.archive_note.text())
+
+    def test_local_filter_combines_with_search_and_visible_selection(self):
+        w=self.window;self.select('ios');r=w.current_device()
+        rows=[{'uuid':'a','name':'Alpha','localState':'local','waypoints':2,'preview':False},
+              {'uuid':'b','name':'Beta','localState':'cloud-or-missing','preview':False},
+              {'uuid':'c','name':'Gamma','localState':'local','waypoints':3,'preview':False}]
+        w.show_rows(r,rows);w.toggle_checked('b',True);w.device_local_only.setChecked(True)
+        self.assertEqual([m['uuid'] for _,m in w.visible_rows()],['a','c'])
+        self.assertIn('1 ausgeblendet',w.checked_label.text())
+        w.toggle_all_visible(True);self.assertEqual(w.checked,{'a','b','c'})
+        w.device_search.setText('gamma');self.assertEqual([m['uuid'] for _,m in w.visible_rows()],['c'])
+        w.toggle_all_visible(False);self.assertEqual(w.checked,{'a','b'})
+        w.device_search.setText('Beta');self.assertEqual(w.list.count(),0);self.assertFalse(w.list_empty.isHidden())
+        w.device_local_only.setChecked(False);self.assertEqual(w.list.count(),1)
+    def test_select_all_shows_partial_state_for_mixed_selection(self):
+        w=self.window;self.select('ios');w.show_rows(w.current_device(),[
+            {'uuid':'a','name':'Alpha','localState':'local','preview':False},
+            {'uuid':'b','name':'Beta','localState':'local','preview':False}])
+        w.toggle_checked('a',True);self.assertEqual(w.select_all.checkState(),Qt.PartiallyChecked)
+        w.toggle_checked('b',True);self.assertEqual(w.select_all.checkState(),Qt.Checked)
+        w.toggle_all_visible(False);self.assertEqual(w.select_all.checkState(),Qt.Unchecked)
 
 if __name__=='__main__':unittest.main()

@@ -19,7 +19,7 @@ from archive import ArchiveClient,safe_filename
 import credentials
 import ios
 
-VERSION='0.4.1'
+VERSION='0.4.2'
 THUMB=QSize(176,118)
 TAB_DEVICE,TAB_ARCHIVE,TAB_TRANSFER,TAB_LOG=0,1,2,3
 ARCHIVE_URL='https://service.studiobaff.com/dronemissions/'
@@ -129,7 +129,8 @@ class Window(QMainWindow):
   self.list_button=QPushButton('Missionen lesen');self.list_button.clicked.connect(self.list_missions);row.addWidget(self.list_button)
   self.backup_button=QPushButton('Gerät sichern');self.backup_button.setObjectName('quiet');self.backup_button.clicked.connect(self.backup);row.addWidget(self.backup_button);card.addLayout(row)
   tools=QHBoxLayout();self.device_search=QLineEdit();self.device_search.setPlaceholderText('Name oder Kennung suchen …');self.device_search.textChanged.connect(self.render_device_list);tools.addWidget(self.device_search,1)
-  self.select_all=QCheckBox('Alle sichtbaren');self.select_all.toggled.connect(self.toggle_all_visible);tools.addWidget(self.select_all)
+  self.device_local_only=QCheckBox('Nur lokal vorhanden');self.device_local_only.setToolTip('Nur Missionen mit heruntergeladener KMZ anzeigen; reine Cloud-Einträge ausblenden.');self.device_local_only.setChecked(self.settings.value('deviceLocalOnly',False,type=bool));self.device_local_only.toggled.connect(lambda value:(self.settings.setValue('deviceLocalOnly',value),self.render_device_list()));tools.addWidget(self.device_local_only)
+  self.select_all=QCheckBox('Alle sichtbaren');self.select_all.setTristate(True);self.select_all.toggled.connect(self.toggle_all_visible);tools.addWidget(self.select_all)
   self.checked_label=QLabel('0 ausgewählt');self.checked_label.setObjectName('muted');tools.addWidget(self.checked_label)
   self.save_web_button=QPushButton('Im Webarchiv sichern …');self.save_web_button.setEnabled(False);self.save_web_button.clicked.connect(self.save_to_archive);tools.addWidget(self.save_web_button);card.addLayout(tools)
   self.list=QListWidget();self.list.setObjectName('missions');self.list.setSelectionMode(QListWidget.SingleSelection);self.list.setSpacing(4);self.list.setUniformItemSizes(False);self.list.itemSelectionChanged.connect(self.changed_target);self.list.itemDoubleClicked.connect(lambda _:self.start_replace());card.addWidget(self.list,1)
@@ -383,19 +384,18 @@ class Window(QMainWindow):
   self.task('Missionen auf dem Gerät lesen …',read,lambda rows:self.show_rows(r,rows))
  def show_rows(self,r,rows):
   self.rows=rows;self.checked=set();self.render_device_list()
-  self.list_empty.setText('Keine Missionen auf dem Gerät gefunden.')
   self.list_note.setText(f'{len(rows)} Missionen auf {r["name"]}. Vergleiche Bild und Punktzahl mit DJI Fly.'+(' Der Listenname auf Android ist für die Bridge nicht lesbar.' if r['kind']=='android' else ''))
   self.status.setText(f'{len(rows)} Missionen gelesen.');self.changed_target()
  def visible_rows(self):
   q=self.device_search.text().strip().lower();r=self.current_device()
-  return [(i,m) for i,m in enumerate(self.rows) if not q or q in self.row_label(r,m,i).lower() or q in m['uuid'].lower()]
+  return [(i,m) for i,m in enumerate(self.rows) if (not self.device_local_only.isChecked() or m.get('localState')=='local') and (not q or q in self.row_label(r,m,i).lower() or q in m['uuid'].lower())]
  def render_device_list(self,*args):
   r=self.current_device();current=self.selected_row();self.list.clear();self.device_rows_widgets=[]
   for i,m in self.visible_rows():
    item=QListWidgetItem();item.setSizeHint(QSize(0,THUMB.height()+18));item.setToolTip('Kennung: '+m['uuid']);item.setData(Qt.UserRole,i);self.list.addItem(item)
    widget=MissionRow(self.row_label(r,m,i),m,m.get('image'),checked=m['uuid'] in self.checked,on_toggle=self.toggle_checked);self.list.setItemWidget(item,widget);self.device_rows_widgets.append((m,widget))
    if current and current['uuid']==m['uuid']:self.list.setCurrentItem(item)
-  self.list.setVisible(bool(self.rows));self.list_empty.setVisible(not self.rows);self.update_checked()
+  visible=bool(self.device_rows_widgets);self.list.setVisible(visible);self.list_empty.setVisible(not visible);self.list_empty.setText('Keine Mission passt zu Suche und Filter.' if self.rows else 'Keine Missionen auf dem Gerät gefunden.');self.update_checked()
  def selected_row(self):
   item=self.list.currentItem();i=item.data(Qt.UserRole) if item and item.isSelected() else None
   return self.rows[i] if isinstance(i,int) and 0<=i<len(self.rows) else None
@@ -411,9 +411,11 @@ class Window(QMainWindow):
   self.update_checked()
  def update_checked(self):
   local=[m for m in self.rows if m['uuid'] in self.checked and m.get('localState')=='local'];total=len([m for m in self.rows if m['uuid'] in self.checked])
-  self.checked_label.setText(f'{total} ausgewählt'+(f' · {len(local)} lokal' if total and len(local)!=total else ''))
+  visible_ids={m['uuid'] for _,m in self.visible_rows()};hidden=len(self.checked-visible_ids)
+  self.checked_label.setText(f'{total} ausgewählt'+(f' · {len(local)} lokal' if total and len(local)!=total else '')+(f' · {hidden} ausgeblendet' if hidden else ''))
   self.save_web_button.setEnabled(bool(local) and self.archive is not None);self.save_web_button.setToolTip('' if self.archive else 'Zuerst im Tab „Webarchiv“ anmelden.')
-  visible=self.visible_rows();self.select_all.blockSignals(True);self.select_all.setChecked(bool(visible) and all(m['uuid'] in self.checked for _,m in visible));self.select_all.blockSignals(False)
+  visible=self.visible_rows();count=sum(m['uuid'] in self.checked for _,m in visible);state=Qt.Checked if visible and count==len(visible) else Qt.PartiallyChecked if count else Qt.Unchecked
+  self.select_all.blockSignals(True);self.select_all.setCheckState(state);self.select_all.blockSignals(False)
  def rename_selected(self):
   m=self.selected_row()
   if not m:return
@@ -634,10 +636,14 @@ QListWidget#missions::item{border-bottom:1px solid #edf0ea;border-radius:6px}
 QListWidget#missions::item:selected{background:#dcebd3}QListWidget#missions::item:hover{background:#f1f5ed}
 QPlainTextEdit{background:white;border:1px solid #d7e0d4;border-radius:6px;font-family:Menlo,monospace;font-size:11px;padding:8px}
 QCheckBox{spacing:9px;font-size:12px}QCheckBox::indicator{width:19px;height:19px;border:1px solid #a8b9a3;border-radius:4px;background:white}
-QCheckBox::indicator:checked{background:#345e43;border:3px solid #a6c794}
+QCheckBox::indicator:checked{background:#254e3b;border:1px solid #254e3b;image:url("__CHECKMARK__")}
+QCheckBox::indicator:indeterminate{background:#254e3b;border:1px solid #254e3b;image:url("__CHECKPARTIAL__")}
+QCheckBox::indicator:disabled{border-color:#c7d0c6;background:#e5ebe2}
 QProgressBar{background:#e1e9dc;border:none;border-radius:2px}QProgressBar::chunk{background:#7b9f68}
 QScrollBar:vertical{background:transparent;width:10px}QScrollBar::handle:vertical{background:#cdd8c9;border-radius:5px;min-height:30px}
 '''
+STYLE=STYLE.replace('__CHECKMARK__',(Path(getattr(sys,'_MEIPASS',Path(__file__).resolve().parent))/'assets'/'checkmark.svg').as_posix()).replace('__CHECKPARTIAL__',(Path(getattr(sys,'_MEIPASS',Path(__file__).resolve().parent))/'assets'/'checkpartial.svg').as_posix())
+
 def main():
  if '--diagnose' in sys.argv:
   target=Path(sys.argv[sys.argv.index('--diagnose')+1]);rows=ios.run(ios.discover());result={'iosDevices':len(rows),'paired':sum(r['state']=='device' for r in rows)}
