@@ -146,11 +146,11 @@ class Window(QMainWindow):
   self.archive_note=QLabel('Mit dem Zugangsschlüssel anmelden. Der Schlüssel bleibt nur für diese Sitzung im Speicher.');self.archive_note.setObjectName('muted');self.archive_note.setWordWrap(True);text.addWidget(self.archive_note);row.addLayout(text,1);card.addLayout(row)
   grid=QGridLayout();grid.setHorizontalSpacing(10);grid.setVerticalSpacing(4)
   saved_url=self.settings.value('archiveURL','') or '';
-  if re.match(r'^https?://(127\.0\.0\.1|localhost|\[::1\])',saved_url) and not os.environ.get('DRONEMISSIONS_DEV'):saved_url=''
+  if re.match(r'^https?://(?:127\.0\.0\.1|localhost|\[::1\]|example\.(?:com|net|org))(?=[:/]|$)',saved_url,re.I) and not os.environ.get('DRONEMISSIONS_DEV'):saved_url='';self.settings.setValue('archiveURL',ARCHIVE_URL)
   grid.addWidget(QLabel('Archiv-Adresse'),0,0);self.archive_url=QLineEdit(saved_url or ARCHIVE_URL);self.archive_url.setPlaceholderText(ARCHIVE_URL);grid.addWidget(self.archive_url,1,0)
   grid.addWidget(QLabel('Zugangsschlüssel'),0,1);self.archive_key=QLineEdit();self.archive_key.setEchoMode(QLineEdit.Password);self.archive_key.setPlaceholderText('Nur für diese Sitzung');self.archive_key.returnPressed.connect(self.archive_login);grid.addWidget(self.archive_key,1,1)
   self.archive_login_button=QPushButton('Anmelden und Bibliothek laden');self.archive_login_button.clicked.connect(self.archive_login);grid.addWidget(self.archive_login_button,1,2)
-  config=QPushButton('Konfiguration laden …');config.setObjectName('quiet');config.setToolTip('Konfigurationsdatei aus dem Webarchiv (Bereich „Bridge“) einlesen: setzt die Archiv-Adresse.');config.clicked.connect(self.archive_import_config);grid.addWidget(config,1,3);grid.setColumnStretch(0,3);grid.setColumnStretch(1,2);card.addLayout(grid)
+  config=QPushButton('Konfiguration laden …');config.setObjectName('quiet');config.setToolTip('Konfigurationsdatei aus dem Webarchiv (Bereich „Bridge“) einlesen: setzt die Archiv-Adresse.');config.clicked.connect(lambda checked=False:self.archive_import_config());grid.addWidget(config,1,3);grid.setColumnStretch(0,3);grid.setColumnStretch(1,2);card.addLayout(grid)
   remember=QHBoxLayout();self.store_pref=self.settings.value('credentialStore','auto') or 'auto';stores=self.credential_store.available()
   self.archive_remember=QCheckBox('Schlüssel merken');self.archive_remember.setEnabled(bool(stores));remember.addWidget(self.archive_remember)
   remember.addWidget(QLabel('in'));self.archive_store=QComboBox();labels={'keychain':'macOS-Schlüsselbund','1password':'1Password','dpapi':'Windows (DPAPI)'}
@@ -252,7 +252,7 @@ class Window(QMainWindow):
   transfer=bar.addMenu('Übertragen');add(transfer,'Vorschau prüfen',self.prepare,'Ctrl+Return');add(transfer,'Jetzt übertragen',self.execute,'Ctrl+Shift+Return');transfer.addSeparator();add(transfer,'Modus: Neu anlegen',lambda:self.set_mode('new'));add(transfer,'Modus: Ersetzen',lambda:self.set_mode('replace'))
   ansicht=bar.addMenu('Ansicht')
   for i,title in enumerate(['Gerät & Missionen','Webarchiv','Übertragen','Protokoll & Einstellungen']):add(ansicht,title,lambda i=i:self.tabs.setCurrentIndex(i),f'Ctrl+{i+1}')
-  hilfe=bar.addMenu('Hilfe');add(hilfe,'Anleitung (README)',lambda:QDesktopServices.openUrl(QUrl('https://github.com/studiobaff/dronemissions/blob/main/bridge/README.md')));add(hilfe,'Über Drone Missions Bridge',self.about,None,QAction.AboutRole)
+  hilfe=bar.addMenu('Hilfe');add(hilfe,'Anleitung (README)',lambda:QDesktopServices.openUrl(QUrl('https://github.com/studiobaff/dronemissions/blob/main/dronemissions/docs/BRIDGE.md')));add(hilfe,'Über Drone Missions Bridge',self.about,None,QAction.AboutRole)
  def about(self):
   QMessageBox.about(self,'Über Drone Missions Bridge',f'<b>Drone Missions Bridge {VERSION}</b><br>Überträgt DJI-KMZ-Missionen aus dem Webarchiv per USB auf iPad, iPhone oder DJI-Fernsteuerung.<br><br>GPL-3.0-or-later · Lizenzen im Programmpaket.<br>Dateiprüfung ist keine Bestätigung eines nutzbaren Flugplans.')
 

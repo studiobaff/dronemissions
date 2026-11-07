@@ -5,7 +5,7 @@ os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from test_core import fixture,helix_fixture
 try:
-    from PySide6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication,QPushButton
     from PySide6.QtCore import QSettings
     from desktop import Window,TAB_TRANSFER,TAB_ARCHIVE
     from PySide6.QtWidgets import QMessageBox
@@ -32,7 +32,13 @@ class Tests(unittest.TestCase):
         def save(self,url,key,root=None,preference='auto'):self.data[url]=key;return True
         def load(self,url,root=None,preference='auto'):return self.data.get(url)
         def delete(self,url,root=None,preference='auto'):self.data.pop(url,None)
-    def setUp(self):self.window=Window(autosearch=False,credential_store=self.FakeStore())  # never the real keychain
+    def setUp(self):
+        from unittest.mock import patch
+        # Named QSettings on macOS can bypass the default format. Always provide
+        # an explicit temporary INI instance, before any Window is constructed.
+        settings=QSettings(str(Path(self.tmp.name)/'settings.ini'),QSettings.IniFormat);settings.clear()
+        guard=patch('desktop.QSettings',return_value=settings);guard.start();self.addCleanup(guard.stop)
+        self.window=Window(autosearch=False,credential_store=self.FakeStore())
     def tearDown(self):self.window.close();self.app.processEvents()
     def select(self,kind,serial='demo'):
         self.window.device.addItem('Demo',{'kind':kind,'serial':serial,'state':'device','name':'Demo'})
@@ -131,7 +137,7 @@ class Tests(unittest.TestCase):
             if time.monotonic()>deadline:self.fail('auto login did not complete')
         self.assertEqual(logins[-1],('https://example.com/dronemissions/','geheim'));w2.close()
     def test_loopback_archive_url_from_tests_is_not_restored(self):
-        QSettings('studiobaff','DroneMissionsBridge').setValue('archiveURL','http://127.0.0.1/dronemissions/')
+        self.window.settings.setValue('archiveURL','http://127.0.0.1/dronemissions/')
         w=Window(autosearch=False,credential_store=self.FakeStore());self.assertTrue(w.archive_url.text().startswith('https://'));w.close()
 
     def test_search_multiselect_and_save_to_archive(self):
@@ -177,5 +183,22 @@ class Tests(unittest.TestCase):
         self.assertTrue({'Datei','Gerät','Webarchiv','Übertragen','Ansicht','Hilfe'}<=set(titles))
         self.assertEqual(w.menu_actions['KMZ auswählen …'].shortcut().toString(),'Ctrl+O');self.assertEqual(w.menu_actions['Im Webarchiv sichern …'].shortcut().toString(),'Ctrl+S')
         w.menu_actions['Übertragen'].trigger();self.assertEqual(w.tabs.currentIndex(),TAB_TRANSFER);w.menu_actions['Modus: Ersetzen'].trigger();self.assertEqual(w.mode,'replace')
+
+
+    def test_config_button_opens_chooser_and_imports_file(self):
+        from unittest.mock import patch
+        w=self.window
+        with tempfile.TemporaryDirectory() as t:
+            good=Path(t)/'bridge.json';good.write_text('{"format":"dronemissions-bridge-config/1","archiveURL":"https://archive.test/dronemissions/"}')
+            button=next(b for b in w.findChildren(QPushButton) if b.text()=='Konfiguration laden …')
+            with patch('desktop.QFileDialog.getOpenFileName',return_value=(str(good),'')) as chooser:
+                button.click();chooser.assert_called_once()
+            self.assertEqual(w.archive_url.text(),'https://archive.test/dronemissions/')
+            self.assertEqual(w.settings.value('archiveURL'),w.archive_url.text())
+    def test_reserved_example_setting_is_repaired_on_start(self):
+        self.window.settings.setValue('archiveURL','https://example.com/dronemissions/')
+        w=Window(autosearch=False,credential_store=self.FakeStore())
+        self.assertEqual(w.archive_url.text(),'https://service.studiobaff.com/dronemissions/')
+        self.assertEqual(w.settings.value('archiveURL'),w.archive_url.text());w.close()
 
 if __name__=='__main__':unittest.main()
