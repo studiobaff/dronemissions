@@ -201,4 +201,13 @@ class Tests(unittest.TestCase):
         self.assertEqual(w.archive_url.text(),'https://service.studiobaff.com/dronemissions/')
         self.assertEqual(w.settings.value('archiveURL'),w.archive_url.text());w.close()
 
+    def test_config_import_restores_only_the_imported_archives_key(self):
+        w=self.window;w.archive_key.setText('old-archive-key');w.archive=object()
+        w.credential_store.data['https://archive.test/dronemissions/']='stored-key'
+        with tempfile.TemporaryDirectory() as t:
+            good=Path(t)/'bridge.json';good.write_text('{"format":"dronemissions-bridge-config/1","archiveURL":"https://archive.test/dronemissions/"}')
+            w.archive_import_config(str(good))
+        self.assertIsNone(w.archive);self.assertEqual(w.archive_rows,[])
+        self.assertEqual(w.archive_key.text(),'stored-key');self.assertTrue(w.archive_remember.isChecked());self.assertIn('Gespeicherter Schlüssel geladen',w.archive_note.text())
+
 if __name__=='__main__':unittest.main()

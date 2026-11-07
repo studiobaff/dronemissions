@@ -507,7 +507,12 @@ class Window(QMainWindow):
    from archive import normalize_url;url=normalize_url(data['archiveURL'])
   except BridgeError as e:self.error(str(e));return
   except (OSError,ValueError) as e:self.error('Konfiguration kann nicht gelesen werden: '+str(e));return
-  self.archive_url.setText(url);self.settings.setValue('archiveURL',url);self.archive_note.setText(f'Archiv-Adresse aus der Konfiguration übernommen{(" · "+data["authorName"]) if data.get("authorName") else ""}. Jetzt mit dem Zugangsschlüssel anmelden.');self.archive_key.setFocus();self.log_line('Konfiguration geladen: '+url)
+  self.archive_url.setText(url);self.settings.setValue('archiveURL',url)
+  # A configuration selects an archive, not credentials. Do not retain another
+  # archive's client/key; restore only the credential bound to the imported URL.
+  self.archive=None;self.archive_rows=[];self.archive_auto=False;self.archive_key.clear();self.archive_remember.setChecked(False);self.archive_forget.setEnabled(False);self.archive_filter();self.archive_restore_key()
+  hint=' Gespeicherter Schlüssel geladen. Jetzt anmelden.' if self.archive_key.text() else ' Jetzt mit dem Zugangsschlüssel anmelden; die Konfiguration enthält keinen Schlüssel.'
+  self.archive_note.setText(f'Archiv-Adresse aus der Konfiguration übernommen{(" · "+data["authorName"]) if data.get("authorName") else ""}.'+hint);self.status.setText('Konfiguration geladen: '+url);self.archive_key.setFocus();self.log_line('Konfiguration geladen: '+url)
  def archive_visible(self):
   q=self.archive_search.text().strip().lower();kmz=self.archive_kmz_only.isChecked();archived=self.archive_archived.isChecked()
   return [m for m in self.archive_rows if (not kmz or m['transferable']) and (archived or not m['archived']) and q in f"{m['name']} {m['folder']} {m['filename']}".lower()]
