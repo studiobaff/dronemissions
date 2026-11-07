@@ -57,3 +57,9 @@ Zugangsschlüssel werden mit PHP `password_hash` gespeichert. Eigentümersitzung
 Kartenkacheln werden direkt von den jeweiligen Anbietern geladen; diese erhalten dabei IP-Adresse und angefragte Kartenausschnitte. Es werden keine kompletten KMZ-Dateien an Kartenanbieter gesendet. Quellen: [basemap.at](https://basemap.at/#lizenz), [OpenStreetMap](https://www.openstreetmap.org/copyright), [Esri](https://www.esri.com/). Leaflet 1.9.4 ist lokal eingebunden; Lizenz siehe `public/vendor/leaflet-LICENSE`.
 
 Alle Beispiele und Screenshots verwenden synthetische Missionen. Kundendaten, Zugangsschlüssel und Serverkonfiguration gehören nicht in dieses Repository.
+
+## Bridge-App
+
+Die Mac-Bridge ist nach Anmeldung über den Dialog **Bridge** samt SHA-256-Prüfsumme und Archiv-Konfiguration verfügbar. Sie überträgt DJI-KMZ-Dateien per USB und bietet 3D-/Luftbild-/eigene Titelbilder. Bedienung, Menüleiste, Zugangsschlüsselspeicher und bekannte Grenzen: [Bridge bedienen](docs/BRIDGE.md).
+
+Das Browser-Favicon und das Symbol für gespeicherte Webseiten verwenden dasselbe Routen-Icon wie die Bridge-App.
