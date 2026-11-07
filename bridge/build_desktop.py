@@ -10,3 +10,12 @@ icon=root/'assets'/('icon.ico' if sys.platform=='win32' else 'icon.icns')
 if icon.is_file():command+=['--icon',str(icon),'--add-data',str(root/'assets')+os.pathsep+'assets']
 for module in excluded:command+=['--exclude-module',module]
 subprocess.run(command+[str(root/'desktop.py')],check=True)
+
+# The installed bundle is ad-hoc signed after staging. Record a useful version
+# in macOS crash reports instead of PyInstaller's default 0.0.0.
+if sys.platform=='darwin':
+ import plistlib
+ info=root.parent/'outputs'/'Drone Missions Bridge.app'/'Contents'/'Info.plist'
+ with info.open('rb') as stream:metadata=plistlib.load(stream)
+ metadata.update(CFBundleShortVersionString='0.4.1',CFBundleVersion='20261108.1',UIDesignRequiresCompatibility=True)
+ with info.open('wb') as stream:plistlib.dump(metadata,stream)

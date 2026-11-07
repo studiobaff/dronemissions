@@ -19,7 +19,7 @@ from archive import ArchiveClient,safe_filename
 import credentials
 import ios
 
-VERSION='0.4'
+VERSION='0.4.1'
 THUMB=QSize(176,118)
 TAB_DEVICE,TAB_ARCHIVE,TAB_TRANSFER,TAB_LOG=0,1,2,3
 ARCHIVE_URL='https://service.studiobaff.com/dronemissions/'
