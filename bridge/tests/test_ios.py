@@ -31,6 +31,17 @@ class Afc:
         if self.fail_rename:self.fail_rename=False;raise OSError('rename result lost')
 
 class Tests(unittest.TestCase):
+    def test_listing_reads_distance_date_and_hash_without_cloud_download(self):
+        from core import digest
+        with tempfile.TemporaryDirectory() as t:
+            p=Path(t);db=database(p/'db.sqlite');afc=Afc(db)
+            afc.content[ios.BASE+'/original/original.kmz']=fixture()
+            @asynccontextmanager
+            async def fake_connect(serial):yield afc,'container','test-version'
+            with patch.object(ios,'connect',fake_connect):rows=asyncio.run(ios.list_missions('demo',p/'reads'))
+            self.assertEqual(rows[0]['sha256'],digest(fixture()));self.assertEqual(rows[0]['updated'],'1')
+            self.assertEqual(afc.content[ios.DB],db)
+
     def test_new_row_preserves_original(self):
         with tempfile.TemporaryDirectory() as t:
             p=Path(t);original=database(p/'original.db')

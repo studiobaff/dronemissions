@@ -231,4 +231,16 @@ class Tests(unittest.TestCase):
         w.toggle_checked('b',True);self.assertEqual(w.select_all.checkState(),Qt.Checked)
         w.toggle_all_visible(False);self.assertEqual(w.select_all.checkState(),Qt.Unchecked)
 
+    def test_cloud_and_unsaved_filters_do_not_fabricate_cloud_backup_status(self):
+        w=self.window;self.select('ios');rows=[{'uuid':'local','name':'Beta','localState':'local','sha256':'new','preview':False},{'uuid':'cloud','name':'Alpha','localState':'cloud-or-missing','preview':False},{'uuid':'saved','name':'Gamma','localState':'local','sha256':'saved','preview':False}]
+        w.show_rows(w.current_device(),rows);w.device_local_only.setChecked(True);w.device_cloud_only.setChecked(True)
+        self.assertFalse(w.device_local_only.isChecked());self.assertEqual([m['uuid'] for _,m in w.visible_rows()],['cloud'])
+        self.assertFalse(w.device_unsaved_only.isEnabled())
+        w.archive=object();w.archive_rows=[{'sha256':'saved'}];w.render_device_list();w.device_unsaved_only.setChecked(True)
+        self.assertFalse(w.device_cloud_only.isChecked());self.assertEqual([m['uuid'] for _,m in w.visible_rows()],['local'])
+        w.device_unsaved_only.setChecked(False);w.device_local_only.setChecked(False)
+        w.device_sort.setCurrentIndex(w.device_sort.findData('name-asc'))
+        self.assertEqual([m['uuid'] for _,m in w.visible_rows()],['cloud','local','saved'])
+        w.list.setCurrentRow(0);self.assertEqual(w.selected_row()['uuid'],'cloud');self.assertTrue(w.cloud_download_button.isEnabled())
+
 if __name__=='__main__':unittest.main()

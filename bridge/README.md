@@ -81,3 +81,11 @@ Der Knopf „Konfiguration laden“ öffnet jetzt denselben Dateidialog wie das 
 Im Tab **Gerät & Missionen** blendet **Nur lokal vorhanden** reine Cloud-Einträge und mehrdeutige Dateien aus. Der Filter wird auf diesem Mac gespeichert und lässt sich mit der Namens-/Kennungssuche kombinieren. **Alle sichtbaren** markiert nur die aktuell gefilterten Zeilen. Bereits ausgewählte, später ausgeblendete Zeilen bleiben ausgewählt; die Anzahl steht ausdrücklich bei **ausgeblendet**.
 
 Checkboxen zeigen ein weißes Häkchen für **ausgewählt**, ein leeres Kästchen für **nicht ausgewählt** und bei **Alle sichtbaren** einen Strich für eine gemischte Auswahl. Es werden dafür echte QCheckBox-Steuerelemente mit weiterhin verfügbarer Tastatur-/Bedienungshilfe-Unterstützung verwendet. Filter und Auswahl ändern keine Missionsdateien.
+
+## Sortierung, Cloud und Archivstatus (0.4.3)
+
+Die Geräteliste lässt sich nach Name, Änderungsdatum, Streckenlänge und Wegpunktzahl in beide Richtungen sortieren. Fehlende Werte stehen immer zuletzt. Auf dem iPad stammen Datum und Strecke aus der Missionsdatenbank, auf Android aus der lokalen KMZ und dem Dateidatum, soweit zugänglich. Die ursprüngliche Geräte-Reihenfolge bleibt wählbar.
+
+**Nur Cloud** zeigt Missions-Einträge ohne lokale KMZ. Nach Auswahl erklärt **Download in DJI Fly**, wie die Datei auf dem Gerät heruntergeladen wird. Ein eigener DJI-Cloud-Download ist nicht implementiert. Nach Download erneut **Missionen lesen**. Cloud-Missionen werden ohne Datei nicht als „ungesichert“ oder „gesichert“ eingestuft.
+
+Für **Nicht im Webarchiv** zuerst im Webarchiv anmelden und die Geräteliste lesen. Ein identischer SHA-256 der aktuellen lokalen KMZ im geladenen Archivbestand ergibt **Im Webarchiv: identische KMZ**. Namen sind kein Sicherungsnachweis. Der Vergleich berücksichtigt den geladenen Versionsstand, nicht alle historischen Archivversionen, und ersetzt keine vollständige Geräte-Sicherung. Der Prüfstand gilt zum Zeitpunkt des Lesens; nach Änderungen erneut lesen/anmelden. Für die iPad-Liste werden höchstens 64 MiB lokale KMZ (je höchstens 16 MiB) eingelesen; nicht lesbare oder außerhalb des Budgets liegende Dateien bleiben **nicht geprüft**.

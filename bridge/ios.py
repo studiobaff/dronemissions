@@ -140,11 +140,21 @@ async def list_missions(serial,work):
         try:
             validate_db(p)
             with sqlite3.connect(p) as c:
-                rows=c.execute('SELECT missionId,name,waypointCount FROM kmzTable WHERE deleteTime=-1 ORDER BY updateTime DESC').fetchall()
+                rows=c.execute('SELECT missionId,name,waypointCount,mileage,updateTime FROM kmzTable WHERE deleteTime=-1 ORDER BY updateTime DESC').fetchall()
             found=set(await files(afc))
-            return [{'uuid':uid,'name':name,'waypoints':count,
-                     'localState':'local' if f'{BASE}/{uid}/{uid}.kmz' in found else 'cloud-or-missing',
-                     'preview':f'{BASE}/map_preview/{uid}/{uid}.jpg' in found} for uid,name,count in rows]
+            result=[];total=0
+            for uid,name,count,distance,updated in rows:
+                path=f'{BASE}/{uid}/{uid}.kmz';local=path in found
+                mission={'uuid':uid,'name':name,'waypoints':count,'distance':distance,'updated':updated,'localState':'local' if local else 'cloud-or-missing','preview':f'{BASE}/map_preview/{uid}/{uid}.jpg' in found}
+                if local:
+                    try:
+                        stat=await afc.stat(path);size=int(stat.get('st_size',0))
+                        if size<=16*1024*1024 and total+size<=64*1024*1024:
+                            raw=await afc.get_file_contents(path);total+=len(raw)
+                            if len(raw)<=16*1024*1024:mission['sha256']=digest(raw)
+                    except Exception:pass  # unreadable or budget-exceeding files stay unverified
+                result.append(mission)
+            return result
         finally: p.unlink(missing_ok=True)
 
 async def read_mission(serial,uid):
