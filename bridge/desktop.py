@@ -97,7 +97,7 @@ class Window(QMainWindow):
   header=QHBoxLayout();header.setSpacing(12)
   title=QLabel('Drone Missions Bridge');title.setObjectName('windowTitle');header.addWidget(title)
   header.addSpacing(18);header.addWidget(QLabel('Gerät'))
-  self.device=QComboBox();self.device.setMinimumHeight(40);self.device.setMinimumWidth(320);self.device.currentIndexChanged.connect(self.changed_device);header.addWidget(self.device,1)
+  self.device=QComboBox();self.device.setMinimumHeight(40);self.device.setMinimumWidth(260);self.device.currentIndexChanged.connect(self.changed_device);header.addWidget(self.device,1)
   self.refresh_button=QPushButton('Neu suchen');self.refresh_button.clicked.connect(self.refresh_devices);header.addWidget(self.refresh_button)
   archive=QPushButton('Webarchiv im Browser ↗');archive.setObjectName('quiet');archive.clicked.connect(lambda:QDesktopServices.openUrl(QUrl(self.archive_url.text().strip() or ARCHIVE_URL)));header.addWidget(archive)
   outer.addLayout(header)
@@ -428,14 +428,14 @@ class Window(QMainWindow):
   self.task('Mission sichern, übertragen und zurücklesen …',lambda:ios.run(ios.apply_new(r['serial'],Path(p['source']),p['name'],Path(p['preview']),dest,fly_closed=True,replace=p.get('replace'))) if r['kind']=='ios' else apply(self.adb_for(r),p,dest),done)
 
 STYLE='''
-QWidget{background:#f4f6f2;color:#173c31;font-family:"Helvetica Neue","Segoe UI";font-size:13px}
+QWidget{background:#f4f6f2;color:#173c31;font-family:"Helvetica Neue","Segoe UI";font-size:13px}QMainWindow,QDialog,QMessageBox{background:#f4f6f2}QToolTip{background:#173c31;color:white;border:none;padding:6px}QComboBox QAbstractItemView{background:white;color:#173c31;selection-background-color:#dcebd3;selection-color:#173c31}
 QLabel#windowTitle{font-size:22px;font-weight:650;background:transparent}QLabel#pageTitle{font-size:20px;font-weight:600;background:transparent}
 QLabel#eyebrow{font-size:11px;font-weight:650;letter-spacing:1px;color:#6e7c75;background:transparent}
 QLabel#sectionTitle,QLabel#fileName{font-weight:600;background:transparent}QLabel#muted{color:#6e7c75;font-size:12px;background:transparent}
 QLabel#rowTitle{font-size:15px;font-weight:600;background:transparent}QLabel#ident{color:#95a19a;font-size:11px;background:transparent}
 QLabel#thumb{background:#1b332b;border-radius:8px}QLabel#emptyList{color:#85918b;font-size:14px;background:transparent}
-QTabWidget::pane{border:none;background:transparent}QTabBar::tab{background:transparent;color:#85918b;padding:10px 18px;border-bottom:2px solid #dbe2db;font-size:14px}
-QTabBar::tab:selected{color:#173c31;font-weight:650;border-bottom:3px solid #54856a}QTabBar::tab:hover{color:#173c31}
+QTabWidget::pane{border:none;background:#f4f6f2}QTabWidget::tab-bar{alignment:left}QTabBar{background:#f4f6f2;border-bottom:1px solid #dbe2db}QTabBar::tab{background:#f4f6f2;color:#6e7c75;padding:10px 18px;margin-right:4px;border-bottom:2px solid transparent;font-size:14px}
+QTabBar::tab:selected{color:#173c31;font-weight:650;border-bottom:3px solid #54856a}QTabBar::tab:hover{color:#173c31;background:#edf2e9}
 QFrame#card{background:white;border:1px solid #dce3dc;border-radius:12px}QFrame#card QWidget{background:white}QFrame#card QLabel{background:transparent}
 QFrame#card QPushButton{background:#edf2e9}QFrame#card QPushButton#quiet{background:transparent}QFrame#card QPushButton#primary{background:#254e3b}QFrame#card QPushButton#primary:hover{background:#35644d}QFrame#card QPushButton#primary:disabled{background:#e7ece5}QFrame#card QPushButton#segment{background:#f1f5ed}QFrame#card QPushButton#segment:checked{background:#254e3b}
 QFrame#card QListWidget#missions QWidget{background:transparent}QFrame#card QLabel#thumb,QFrame#card QLabel#preview{background:#1b332b}QFrame#card QLabel#hintBox{background:#edf3e9}QFrame#card QLineEdit,QFrame#card QPlainTextEdit{background:white}
@@ -463,5 +463,5 @@ def main():
   target=Path(sys.argv[sys.argv.index('--diagnose')+1]);rows=ios.run(ios.discover());result={'iosDevices':len(rows),'paired':sum(r['state']=='device' for r in rows)}
   if rows and rows[0]['state']=='device':result['readableMissions']=len(ios.run(ios.list_missions(rows[0]['serial'],target.parent/'diagnostic-reads')))
   atomic_json(target,result);return
- app=QApplication(sys.argv);app.setOrganizationName('studiobaff');app.setApplicationName('Drone Missions Bridge');app.setStyleSheet(STYLE);window=Window();window.show();sys.exit(app.exec())
+ app=QApplication(sys.argv);app.setOrganizationName('studiobaff');app.setApplicationName('Drone Missions Bridge');app.setStyle('Fusion');app.setStyleSheet(STYLE);window=Window();window.show();sys.exit(app.exec())
 if __name__=='__main__':main()
