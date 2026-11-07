@@ -6,7 +6,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from test_core import fixture,helix_fixture
 try:
     from PySide6.QtWidgets import QApplication
-    from desktop import Window,TAB_TRANSFER
+    from PySide6.QtCore import QSettings
+    from desktop import Window,TAB_TRANSFER,TAB_ARCHIVE
     HAS_QT=True
 except ImportError:
     HAS_QT=False
@@ -16,8 +17,19 @@ UID='12345678-1234-1234-1234-123456789ABC'
 @unittest.skipUnless(HAS_QT,'Desktop dependencies not installed')
 class Tests(unittest.TestCase):
     @classmethod
-    def setUpClass(cls):cls.app=QApplication.instance() or QApplication([])
-    def setUp(self):self.window=Window(autosearch=False)
+    def setUpClass(cls):
+        # Tests must never touch the user's real settings or keychain.
+        cls.tmp=tempfile.TemporaryDirectory();QSettings.setDefaultFormat(QSettings.IniFormat);QSettings.setPath(QSettings.IniFormat,QSettings.UserScope,cls.tmp.name)
+        cls.app=QApplication.instance() or QApplication([])
+    @classmethod
+    def tearDownClass(cls):cls.tmp.cleanup()
+    class FakeStore:
+        def __init__(self,kind='keychain'):self.kind=kind;self.data={}
+        def backend(self):return self.kind
+        def save(self,url,key,root=None):self.data[url]=key;return True
+        def load(self,url,root=None):return self.data.get(url)
+        def delete(self,url,root=None):self.data.pop(url,None)
+    def setUp(self):self.window=Window(autosearch=False);self.window.credential_store=self.FakeStore()
     def tearDown(self):self.window.close();self.app.processEvents()
     def select(self,kind,serial='demo'):
         self.window.device.addItem('Demo',{'kind':kind,'serial':serial,'state':'device','name':'Demo'})
@@ -91,5 +103,32 @@ class Tests(unittest.TestCase):
             from unittest.mock import patch
             with patch('desktop.QMessageBox.warning'):w.archive_import_config(str(bad))
             self.assertEqual(w.archive_url.text(),'https://example.com/dronemissions/')
+
+    def test_remembered_key_is_stored_in_the_credential_store_and_logs_in_automatically(self):
+        w=self.window;store=w.credential_store;logins=[]
+        class FakeClient:
+            role='owner'
+            def __init__(self,url):self.url=url
+            def login(self,key):logins.append((self.url,key))
+            def library(self):return []
+            def preview(self,m):return b'',''
+        w.client_factory=FakeClient;w.archive_url.setText('https://example.com/dronemissions/');w.archive_key.setText('geheim');w.archive_remember.setChecked(True);w.archive_login()
+        deadline=time.monotonic()+10
+        while w.job and w.job.isRunning() or w.archive is None:
+            self.app.processEvents()
+            if time.monotonic()>deadline:self.fail('login did not complete')
+        self.app.processEvents();self.assertEqual(store.data,{'https://example.com/dronemissions/':'geheim'});self.assertTrue(w.archive_forget.isEnabled())
+        w.archive_forget_key();self.assertEqual(store.data,{});self.assertEqual(w.archive_key.text(),'')
+        # A stored key is restored on start and used when the tab opens.
+        store.data['https://example.com/dronemissions/']='geheim';w2=Window(autosearch=False);w2.credential_store=store;w2.client_factory=FakeClient;w2.archive_url.setText('https://example.com/dronemissions/');w2.archive_restore_key()
+        self.assertEqual(w2.archive_key.text(),'geheim');self.assertTrue(w2.archive_auto);w2.tabs.setCurrentIndex(TAB_ARCHIVE)
+        deadline=time.monotonic()+10
+        while w2.job and w2.job.isRunning() or w2.archive is None:
+            self.app.processEvents()
+            if time.monotonic()>deadline:self.fail('auto login did not complete')
+        self.assertEqual(logins[-1],('https://example.com/dronemissions/','geheim'));w2.close()
+    def test_loopback_archive_url_from_tests_is_not_restored(self):
+        QSettings('studiobaff','DroneMissionsBridge').setValue('archiveURL','http://127.0.0.1/dronemissions/')
+        w=Window(autosearch=False);self.assertTrue(w.archive_url.text().startswith('https://'));w.close()
 
 if __name__=='__main__':unittest.main()

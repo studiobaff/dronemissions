@@ -3,7 +3,7 @@
 Die Gerätefunktionen (core.py, ios.py, preview.py, map_preview.py) sind unverändert; diese Datei ist nur Oberfläche.
 """
 from __future__ import annotations
-import json,re,shutil,sys,uuid
+import json,os,re,shutil,sys,uuid
 from datetime import datetime
 from pathlib import Path
 from PySide6.QtCore import QThread,Signal,QSettings,QStandardPaths,Qt,QUrl,QTimer,QSize
@@ -15,6 +15,7 @@ from PySide6.QtSvg import QSvgRenderer
 from core import Adb,devices,plan,apply,atomic_json,BridgeError,inspect_kmz,digest,BASE,prepare_source,bundled_adb
 from preview import render_preview
 from archive import ArchiveClient,safe_filename
+import credentials
 import ios
 
 VERSION='0.4'
@@ -80,7 +81,7 @@ class Window(QMainWindow):
   super().__init__();self.setWindowTitle(f'Drone Missions Bridge · {VERSION}');self.resize(1180,820);self.setMinimumSize(980,700)
   self.settings=QSettings('studiobaff','DroneMissionsBridge');self.root=Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation));self.root.mkdir(parents=True,exist_ok=True)
   self.transfer=None;self.rows=[];self.registry={};self.job=None;self.source_path=None;self.background_path=None;self.mode='new';self.prepared=None
-  self.archive=None;self.archive_rows=[];self.archive_widgets=[];self.client_factory=ArchiveClient;self.original_source=None
+  self.archive=None;self.archive_rows=[];self.archive_widgets=[];self.client_factory=ArchiveClient;self.credential_store=credentials;self.original_source=None;self.archive_auto=False
   try:self.registry=json.loads((self.root/'names.json').read_text())
   except (OSError,ValueError):pass
   self.body=QWidget();outer=QVBoxLayout(self.body);outer.setContentsMargins(24,18,24,18);outer.setSpacing(14);self.setCentralWidget(self.body)
@@ -90,6 +91,7 @@ class Window(QMainWindow):
   self.progress=QProgressBar();self.progress.setRange(0,0);self.progress.setFixedHeight(4);self.progress.setTextVisible(False);self.progress.hide();outer.addWidget(self.progress)
   self.status=QLabel('iPad oder Fernsteuerung per USB verbinden.');self.status.setObjectName('status');self.status.setWordWrap(True);outer.addWidget(self.status)
   self.set_mode('new');self.changed_device()
+  self.tabs.currentChanged.connect(lambda i:self.archive_login() if i==TAB_ARCHIVE and self.archive_auto and self.archive is None and not (self.job and self.job.isRunning()) else None)
   if autosearch:QTimer.singleShot(0,self.refresh_devices)
 
  # ---------- Aufbau ----------
@@ -128,10 +130,15 @@ class Window(QMainWindow):
   row=QHBoxLayout();text=QVBoxLayout();text.setSpacing(2);title=QLabel('Missionen aus dem Webarchiv');title.setObjectName('pageTitle');text.addWidget(title)
   self.archive_note=QLabel('Mit dem Zugangsschlüssel anmelden. Der Schlüssel bleibt nur für diese Sitzung im Speicher.');self.archive_note.setObjectName('muted');self.archive_note.setWordWrap(True);text.addWidget(self.archive_note);row.addLayout(text,1);card.addLayout(row)
   grid=QGridLayout();grid.setHorizontalSpacing(10);grid.setVerticalSpacing(4)
-  grid.addWidget(QLabel('Archiv-Adresse'),0,0);self.archive_url=QLineEdit(self.settings.value('archiveURL','') or ARCHIVE_URL);self.archive_url.setPlaceholderText(ARCHIVE_URL);grid.addWidget(self.archive_url,1,0)
+  saved_url=self.settings.value('archiveURL','') or '';
+  if re.match(r'^https?://(127\.0\.0\.1|localhost|\[::1\])',saved_url) and not os.environ.get('DRONEMISSIONS_DEV'):saved_url=''
+  grid.addWidget(QLabel('Archiv-Adresse'),0,0);self.archive_url=QLineEdit(saved_url or ARCHIVE_URL);self.archive_url.setPlaceholderText(ARCHIVE_URL);grid.addWidget(self.archive_url,1,0)
   grid.addWidget(QLabel('Zugangsschlüssel'),0,1);self.archive_key=QLineEdit();self.archive_key.setEchoMode(QLineEdit.Password);self.archive_key.setPlaceholderText('Nur für diese Sitzung');self.archive_key.returnPressed.connect(self.archive_login);grid.addWidget(self.archive_key,1,1)
   self.archive_login_button=QPushButton('Anmelden und Bibliothek laden');self.archive_login_button.clicked.connect(self.archive_login);grid.addWidget(self.archive_login_button,1,2)
   config=QPushButton('Konfiguration laden …');config.setObjectName('quiet');config.setToolTip('Konfigurationsdatei aus dem Webarchiv (Bereich „Bridge“) einlesen: setzt die Archiv-Adresse.');config.clicked.connect(self.archive_import_config);grid.addWidget(config,1,3);grid.setColumnStretch(0,3);grid.setColumnStretch(1,2);card.addLayout(grid)
+  remember=QHBoxLayout();store=self.credential_store.backend();self.archive_remember=QCheckBox({'keychain':'Schlüssel im macOS-Schlüsselbund merken','dpapi':'Schlüssel verschlüsselt für dieses Windows-Konto merken'}.get(store,'Schlüssel merken (auf diesem System nicht verfügbar)'));self.archive_remember.setEnabled(store is not None);remember.addWidget(self.archive_remember)
+  self.archive_forget=QPushButton('Schlüssel vergessen');self.archive_forget.setObjectName('quiet');self.archive_forget.setEnabled(False);self.archive_forget.clicked.connect(self.archive_forget_key);remember.addWidget(self.archive_forget);remember.addStretch();card.addLayout(remember)
+  self.archive_restore_key()
   tools=QHBoxLayout();self.archive_search=QLineEdit();self.archive_search.setPlaceholderText('Name, Projekt oder Dateiname suchen …');self.archive_search.textChanged.connect(self.archive_filter);tools.addWidget(self.archive_search,1)
   self.archive_kmz_only=QCheckBox('Nur DJI-KMZ (übertragbar)');self.archive_kmz_only.setChecked(True);self.archive_kmz_only.toggled.connect(self.archive_filter);tools.addWidget(self.archive_kmz_only)
   self.archive_archived=QCheckBox('Archivierte zeigen');self.archive_archived.toggled.connect(self.archive_filter);tools.addWidget(self.archive_archived);card.addLayout(tools)
@@ -339,13 +346,22 @@ class Window(QMainWindow):
 
  # ---------- Webarchiv ----------
  def archive_login(self):
-  url=self.archive_url.text().strip();key=self.archive_key.text()
+  url=self.archive_url.text().strip();key=self.archive_key.text();remember=self.archive_remember.isChecked();self.archive_auto=False
   def connect():
    client=self.client_factory(url);client.login(key);return client,client.library()
   def done(result):
-   client,rows=result;self.archive=client;self.settings.setValue('archiveURL',url);self.archive_key.clear();self.archive_rows=rows
+   client,rows=result;self.archive=client;self.settings.setValue('archiveURL',url);self.archive_rows=rows
+   if remember:
+    try:self.archive_forget.setEnabled(self.credential_store.save(url,key,self.root));self.log_line('Zugangsschlüssel im Schlüsselbund gespeichert.')
+    except Exception as e:self.log_line('Schlüssel konnte nicht gespeichert werden: '+str(e))
+   else:self.credential_store.delete(url,self.root);self.archive_key.clear();self.archive_forget.setEnabled(False)
    self.archive_note.setText(f'Angemeldet als {"Eigentümer" if client.role=="owner" else "Freigabe"} · {len(rows)} Missionen in der Bibliothek.');self.status.setText(f'{len(rows)} Missionen aus dem Webarchiv geladen.');self.archive_filter();self.archive_previews()
   self.task('Am Webarchiv anmelden und Bibliothek laden …',connect,done)
+ def archive_restore_key(self):
+  url=self.archive_url.text().strip();key=self.credential_store.load(url,self.root) if url else None
+  if key:self.archive_key.setText(key);self.archive_remember.setChecked(True);self.archive_forget.setEnabled(True);self.archive_auto=True;self.archive_note.setText('Zugangsschlüssel aus dem Schlüsselbund geladen. Die Bibliothek wird beim Öffnen des Tabs geladen.')
+ def archive_forget_key(self):
+  self.credential_store.delete(self.archive_url.text().strip(),self.root);self.archive_key.clear();self.archive_remember.setChecked(False);self.archive_forget.setEnabled(False);self.archive_auto=False;self.archive_note.setText('Gespeicherter Schlüssel entfernt. Für diese Sitzung erneut eingeben.');self.log_line('Gespeicherter Zugangsschlüssel entfernt.')
  def archive_import_config(self,path=None):
   if path is None:
    path,_=QFileDialog.getOpenFileName(self,'Bridge-Konfiguration auswählen','','Konfiguration (*.json)')
