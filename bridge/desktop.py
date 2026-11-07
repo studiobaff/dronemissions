@@ -7,13 +7,14 @@ import json,os,re,shutil,sys,uuid
 from datetime import datetime
 from pathlib import Path
 from PySide6.QtCore import QThread,Signal,QSettings,QStandardPaths,Qt,QUrl,QTimer,QSize
-from PySide6.QtGui import QDesktopServices,QPixmap,QPainter,QColor,QFont
+from PySide6.QtGui import QDesktopServices,QPixmap,QPainter,QColor,QFont,QIcon
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,
  QLabel,QPushButton,QComboBox,QLineEdit,QFileDialog,QListWidget,QListWidgetItem,QPlainTextEdit,
  QMessageBox,QCheckBox,QStackedWidget,QFrame,QProgressBar,QTabWidget,QButtonGroup,QSizePolicy,QScrollArea)
 from PySide6.QtSvg import QSvgRenderer
 from core import Adb,devices,plan,apply,atomic_json,BridgeError,inspect_kmz,digest,BASE,prepare_source,bundled_adb
 from preview import render_preview
+from map_preview import map_background
 from archive import ArchiveClient,safe_filename
 import credentials
 import ios
@@ -36,6 +37,12 @@ def android_name(description):
  if not model:return 'Android-Gerät'
  value=model.group(1)
  return {'DJI_RC_PRO_2':'DJI RC Pro 2','DJI_RC_PRO':'DJI RC Pro','DJI_RC_2':'DJI RC 2'}.get(value,value.replace('_',' '))
+
+def app_icon():
+ base=Path(getattr(sys,'_MEIPASS',Path(__file__).resolve().parent))
+ for candidate in [base/'assets'/'icon.png',Path(__file__).resolve().parent/'assets'/'icon.png']:
+  if candidate.is_file():return QIcon(str(candidate))
+ return QIcon()
 
 def placeholder(size,text):
  pixmap=QPixmap(size);pixmap.fill(QColor('#1b332b'));painter=QPainter(pixmap);painter.setPen(QColor('#a7c577'))
@@ -78,10 +85,10 @@ class MissionRow(QWidget):
 
 class Window(QMainWindow):
  def __init__(self,autosearch=True):
-  super().__init__();self.setWindowTitle(f'Drone Missions Bridge · {VERSION}');self.resize(1180,820);self.setMinimumSize(980,700)
+  super().__init__();self.setWindowTitle(f'Drone Missions Bridge · {VERSION}');self.setWindowIcon(app_icon());self.resize(1180,820);self.setMinimumSize(980,700)
   self.settings=QSettings('studiobaff','DroneMissionsBridge');self.root=Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation));self.root.mkdir(parents=True,exist_ok=True)
   self.transfer=None;self.rows=[];self.registry={};self.job=None;self.source_path=None;self.background_path=None;self.mode='new';self.prepared=None
-  self.archive=None;self.archive_rows=[];self.archive_widgets=[];self.client_factory=ArchiveClient;self.credential_store=credentials;self.original_source=None;self.archive_auto=False
+  self.archive=None;self.archive_rows=[];self.archive_widgets=[];self.client_factory=ArchiveClient;self.credential_store=credentials;self.original_source=None;self.archive_auto=False;self.preview_mode=self.settings.value('previewMode','3d') or '3d'
   try:self.registry=json.loads((self.root/'names.json').read_text())
   except (OSError,ValueError):pass
   self.body=QWidget();outer=QVBoxLayout(self.body);outer.setContentsMargins(24,18,24,18);outer.setSpacing(14);self.setCentralWidget(self.body)
@@ -136,7 +143,12 @@ class Window(QMainWindow):
   grid.addWidget(QLabel('Zugangsschlüssel'),0,1);self.archive_key=QLineEdit();self.archive_key.setEchoMode(QLineEdit.Password);self.archive_key.setPlaceholderText('Nur für diese Sitzung');self.archive_key.returnPressed.connect(self.archive_login);grid.addWidget(self.archive_key,1,1)
   self.archive_login_button=QPushButton('Anmelden und Bibliothek laden');self.archive_login_button.clicked.connect(self.archive_login);grid.addWidget(self.archive_login_button,1,2)
   config=QPushButton('Konfiguration laden …');config.setObjectName('quiet');config.setToolTip('Konfigurationsdatei aus dem Webarchiv (Bereich „Bridge“) einlesen: setzt die Archiv-Adresse.');config.clicked.connect(self.archive_import_config);grid.addWidget(config,1,3);grid.setColumnStretch(0,3);grid.setColumnStretch(1,2);card.addLayout(grid)
-  remember=QHBoxLayout();store=self.credential_store.backend();self.archive_remember=QCheckBox({'keychain':'Schlüssel im macOS-Schlüsselbund merken','dpapi':'Schlüssel verschlüsselt für dieses Windows-Konto merken'}.get(store,'Schlüssel merken (auf diesem System nicht verfügbar)'));self.archive_remember.setEnabled(store is not None);remember.addWidget(self.archive_remember)
+  remember=QHBoxLayout();self.store_pref=self.settings.value('credentialStore','auto') or 'auto';stores=self.credential_store.available()
+  self.archive_remember=QCheckBox('Schlüssel merken');self.archive_remember.setEnabled(bool(stores));remember.addWidget(self.archive_remember)
+  remember.addWidget(QLabel('in'));self.archive_store=QComboBox();labels={'keychain':'macOS-Schlüsselbund','1password':'1Password','dpapi':'Windows (DPAPI)'}
+  for key in stores:self.archive_store.addItem(labels[key],key)
+  if not stores:self.archive_store.addItem('kein Schlüsselspeicher verfügbar',None)
+  index=self.archive_store.findData(self.store_pref);self.archive_store.setCurrentIndex(index if index>=0 else 0);self.archive_store.currentIndexChanged.connect(lambda _:self.settings.setValue('credentialStore',self.archive_store.currentData() or 'auto'));remember.addWidget(self.archive_store)
   self.archive_forget=QPushButton('Schlüssel vergessen');self.archive_forget.setObjectName('quiet');self.archive_forget.setEnabled(False);self.archive_forget.clicked.connect(self.archive_forget_key);remember.addWidget(self.archive_forget);remember.addStretch();card.addLayout(remember)
   self.archive_restore_key()
   tools=QHBoxLayout();self.archive_search=QLineEdit();self.archive_search.setPlaceholderText('Name, Projekt oder Dateiname suchen …');self.archive_search.textChanged.connect(self.archive_filter);tools.addWidget(self.archive_search,1)
@@ -178,11 +190,14 @@ class Window(QMainWindow):
   left.addStretch(1)
   row=QHBoxLayout();row.addStretch();self.prepare_button=QPushButton('Vorschau prüfen');self.prepare_button.setObjectName('primary');self.prepare_button.clicked.connect(self.prepare);row.addWidget(self.prepare_button);left.addLayout(row)
   # rechts: Vorschaubild
-  right=self.card(columns,2);self.heading(right,'Vorschaubild','Titelbild für DJI Fly. Die automatische 3D-Ansicht zeigt Route und Wegpunkthöhen.')
+  right=self.card(columns,2);self.heading(right,'Vorschaubild','Titelbild für DJI Fly. Festes Bild, in DJI Fly nicht drehbar.')
+  modes=QHBoxLayout();modes.setSpacing(6);self.preview_group=QButtonGroup(self);self.preview_group.setExclusive(True)
+  self.preview_3d=QPushButton('3D-Ansicht');self.preview_map=QPushButton('Luftbild');self.preview_image_button=QPushButton('Eigenes Bild …')
+  for i,button in enumerate([self.preview_3d,self.preview_map,self.preview_image_button]):button.setCheckable(True);button.setObjectName('segment');self.preview_group.addButton(button,i);modes.addWidget(button)
+  modes.addStretch();right.addLayout(modes);self.preview_group.idClicked.connect(lambda i:self.set_preview_mode(['3d','map','image'][i]))
   self.image=QLabel();self.image.setObjectName('preview');self.image.setMinimumSize(420,280);self.image.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding);self.image.setAlignment(Qt.AlignCenter);self.image.setPixmap(placeholder(QSize(420,280),'Vorschau erscheint nach „Vorschau prüfen“'));right.addWidget(self.image,1)
-  self.preview_label=QLabel('Automatisch: 3D-Route aus der KMZ; ohne vergleichbare Höhen Draufsicht.');self.preview_label.setObjectName('muted');self.preview_label.setWordWrap(True);right.addWidget(self.preview_label)
-  row=QHBoxLayout();button=QPushButton('Eigenes Bild …');button.setObjectName('quiet');button.clicked.connect(self.choose_preview);row.addWidget(button)
-  button=QPushButton('Bild entfernen');button.setObjectName('quiet');button.clicked.connect(self.clear_background);row.addWidget(button);row.addStretch();right.addLayout(row)
+  self.preview_label=QLabel();self.preview_label.setObjectName('muted');self.preview_label.setWordWrap(True);right.addWidget(self.preview_label)
+  self.set_preview_mode(self.preview_mode,choose=False)
   # Seite 2: Prüfen und übertragen
   page=QWidget();review=QHBoxLayout(page);review.setContentsMargins(0,0,0,0);review.setSpacing(14);self.stack.addWidget(page)
   left=self.card(review,3);self.heading(left,'Passt alles?','Prüfe Titelbild, Name und Ziel. Vor jeder Übertragung wird der Bestand automatisch gesichert und jede Datei zurückgelesen.')
@@ -282,7 +297,7 @@ class Window(QMainWindow):
   path,_=QFileDialog.getOpenFileName(self,'ADB auswählen')
   if path:self.adb.setText(path);self.settings.setValue('adb',path);self.adb_note.setText('Eigener ADB-Pfad aus den Einstellungen.')
  def set_source(self,path):
-  original=Path(path);self.original_source=original;self.source_path=original;self.source_label.setText(original.name);self.source_label.setToolTip(str(original));self.name.setText(original.stem);self.clear_background();self.invalidate()
+  original=Path(path);self.original_source=original;self.source_path=original;self.source_label.setText(original.name);self.source_label.setToolTip(str(original));self.name.setText(original.stem);self.invalidate()
   try:
    prepared=prepare_source(original,self.root/'cleaned');self.source_path=prepared['path'];details=inspect_kmz(self.source_path.read_bytes())
    text=f'{details["waypoints"]} Wegpunkte · {details["distance"]/1000:.2f} km · {len(details["segments"])} Flugroute(n)'
@@ -293,10 +308,18 @@ class Window(QMainWindow):
  def choose_kmz(self):
   path,_=QFileDialog.getOpenFileName(self,'DJI-KMZ auswählen','','DJI-KMZ (*.kmz *.KMZ)')
   if path:self.set_source(path)
- def choose_preview(self):
-  path,_=QFileDialog.getOpenFileName(self,'Bildhintergrund auswählen','','Bilder (*.jpg *.jpeg *.png)')
-  if path:self.background_path=Path(path);self.preview_label.setText('Hintergrund: '+Path(path).name);self.invalidate()
- def clear_background(self):self.background_path=None;self.preview_label.setText('Automatisch: 3D-Route aus der KMZ; ohne vergleichbare Höhen Draufsicht.');self.invalidate()
+ def set_preview_mode(self,mode,choose=True):
+  if mode=='image' and choose:
+   path,_=QFileDialog.getOpenFileName(self,'Bildhintergrund auswählen','','Bilder (*.jpg *.jpeg *.png)')
+   if not path:self.set_preview_mode('image' if self.background_path else '3d',choose=False);return
+   self.background_path=Path(path)
+  if mode!='image':self.background_path=None
+  self.preview_mode=mode if mode!='image' or self.background_path else '3d'
+  if self.preview_mode!='image':self.settings.setValue('previewMode',self.preview_mode)
+  for button,key in [(self.preview_3d,'3d'),(self.preview_map,'map'),(self.preview_image_button,'image')]:button.setChecked(key==self.preview_mode)
+  self.preview_label.setText({'3d':'3D-Ansicht: Route schräg mit echten Wegpunkthöhen, offline erzeugt; ohne vergleichbare Höhen Draufsicht.','map':'Luftbild: Route auf dem basemap.at-Orthofoto (nur Österreich, braucht Internet). Fällt sonst auf die 3D-Ansicht zurück.','image':'Eigenes Bild: '+(self.background_path.name if self.background_path else '')}[self.preview_mode]);self.invalidate()
+ def choose_preview(self):self.set_preview_mode('image')
+ def clear_background(self):self.set_preview_mode('3d',choose=False)
 
  # ---------- Gerät ----------
  def refresh_devices(self):
@@ -346,22 +369,27 @@ class Window(QMainWindow):
 
  # ---------- Webarchiv ----------
  def archive_login(self):
-  url=self.archive_url.text().strip();key=self.archive_key.text();remember=self.archive_remember.isChecked();self.archive_auto=False
+  url=self.archive_url.text().strip();key=self.archive_key.text();remember=self.archive_remember.isChecked();pref=self.store_preference();self.archive_auto=False
   def connect():
    client=self.client_factory(url);client.login(key);return client,client.library()
   def done(result):
    client,rows=result;self.archive=client;self.settings.setValue('archiveURL',url);self.archive_rows=rows
    if remember:
-    try:self.archive_forget.setEnabled(self.credential_store.save(url,key,self.root));self.log_line('Zugangsschlüssel im Schlüsselbund gespeichert.')
+    try:self.archive_forget.setEnabled(self.credential_store.save(url,key,self.root,preference=pref));self.log_line(f'Zugangsschlüssel gespeichert ({self.archive_store.currentText()}).')
     except Exception as e:self.log_line('Schlüssel konnte nicht gespeichert werden: '+str(e))
-   else:self.credential_store.delete(url,self.root);self.archive_key.clear();self.archive_forget.setEnabled(False)
+   else:self.credential_store.delete(url,self.root,preference=pref);self.archive_key.clear();self.archive_forget.setEnabled(False)
    self.archive_note.setText(f'Angemeldet als {"Eigentümer" if client.role=="owner" else "Freigabe"} · {len(rows)} Missionen in der Bibliothek.');self.status.setText(f'{len(rows)} Missionen aus dem Webarchiv geladen.');self.archive_filter();self.archive_previews()
   self.task('Am Webarchiv anmelden und Bibliothek laden …',connect,done)
+ def store_preference(self):return self.archive_store.currentData() or 'auto'
  def archive_restore_key(self):
-  url=self.archive_url.text().strip();key=self.credential_store.load(url,self.root) if url else None
+  url=self.archive_url.text().strip();key=None
+  if url:
+   for pref in [self.store_preference()]+[k for k in self.credential_store.available() if k!=self.store_preference()]:
+    key=self.credential_store.load(url,self.root,preference=pref)
+    if key:index=self.archive_store.findData(pref);self.archive_store.setCurrentIndex(index if index>=0 else 0);break
   if key:self.archive_key.setText(key);self.archive_remember.setChecked(True);self.archive_forget.setEnabled(True);self.archive_auto=True;self.archive_note.setText('Zugangsschlüssel aus dem Schlüsselbund geladen. Die Bibliothek wird beim Öffnen des Tabs geladen.')
  def archive_forget_key(self):
-  self.credential_store.delete(self.archive_url.text().strip(),self.root);self.archive_key.clear();self.archive_remember.setChecked(False);self.archive_forget.setEnabled(False);self.archive_auto=False;self.archive_note.setText('Gespeicherter Schlüssel entfernt. Für diese Sitzung erneut eingeben.');self.log_line('Gespeicherter Zugangsschlüssel entfernt.')
+  self.credential_store.delete(self.archive_url.text().strip(),self.root,preference=self.store_preference());self.archive_key.clear();self.archive_remember.setChecked(False);self.archive_forget.setEnabled(False);self.archive_auto=False;self.archive_note.setText('Gespeicherter Schlüssel entfernt. Für diese Sitzung erneut eingeben.');self.log_line('Gespeicherter Zugangsschlüssel entfernt.')
  def archive_import_config(self,path=None):
   if path is None:
    path,_=QFileDialog.getOpenFileName(self,'Bridge-Konfiguration auswählen','','Konfiguration (*.json)')
@@ -424,25 +452,32 @@ class Window(QMainWindow):
    if self.source_path is None:raise BridgeError('Bitte zuerst eine DJI-KMZ auswählen.')
    source=self.source_path;raw=source.read_bytes();details=inspect_kmz(raw);name=self.name.text().strip()
    if not name or len(name)>200:raise BridgeError('Bitte einen Missionsnamen bis 200 Zeichen eingeben.')
-   preview=render_preview(self.root/'previews'/(uuid.uuid4().hex+'.jpg'),name,details,self.background_path);target=None
+   preview_path=self.root/'previews'/(uuid.uuid4().hex+'.jpg');preview=None;target=None
    if self.mode=='replace':
     m=self.selected_row()
     if not m:raise BridgeError('Bitte im Tab „Gerät & Missionen“ den Eintrag wählen, der ersetzt werden soll.')
     if m.get('localState')!='local':raise BridgeError('Nur lokal vorhandene Missionen lassen sich ersetzen. Cloud-Mission zuerst in DJI Fly herunterladen.')
     target=m['uuid'];target_name='Ersetzt: '+self.row_label(r,m,self.list.currentRow())
    else:target_name='Neue Mission auf '+r['name']
-   prepared={'device':r,'source':str(source.resolve()),'originalSource':str(self.original_source.resolve()) if self.original_source else None,'sourceSha256':digest(raw),'name':name,'preview':str(preview),'previewSha256':digest(preview.read_bytes()),'kmz':details,'mode':'ios-replace' if target else 'ios-new','replace':target}
   except Exception as e:self.error(str(e));return
-  mode=self.mode
+  mode=self.mode;preview_mode=self.preview_mode;background=self.background_path;notes=[]
   def prepare_plan():
+   nonlocal preview;chosen=background
+   if preview_mode=='map':
+    try:chosen=map_background(details,self.root/'previews'/(uuid.uuid4().hex+'-luftbild.jpg'),self.root/'tilecache')
+    except Exception as e:notes.append('Luftbild nicht verfügbar ('+str(e)+'). 3D-Ansicht verwendet.')
+   preview=render_preview(preview_path,name,details,chosen)
+   prepared={'device':r,'source':str(source.resolve()),'originalSource':str(self.original_source.resolve()) if self.original_source else None,'sourceSha256':digest(raw),'name':name,'preview':str(preview),'previewSha256':digest(preview.read_bytes()),'previewMode':'3d' if notes else preview_mode,'kmz':details,'mode':'ios-replace' if target else 'ios-new','replace':target}
    if r['kind']=='ios':return prepared
-   result=plan(self.adb_for(r),source,name,preview,target);result['device']=r;result['originalSource']=str(self.original_source.resolve()) if self.original_source else None;return result
+   result=plan(self.adb_for(r),source,name,preview,target);result['device']=r;result['originalSource']=prepared['originalSource'];result['previewMode']=prepared['previewMode'];return result
   def done(p):
    self.transfer=p;pixmap=QPixmap(str(preview))
+   for note in notes:self.log_line(note)
    self.image.setPixmap(pixmap.scaled(self.image.size(),Qt.KeepAspectRatio,Qt.SmoothTransformation));self.review_image.setPixmap(pixmap.scaled(self.review_image.size(),Qt.KeepAspectRatio,Qt.SmoothTransformation))
    self.summary_mode.setText(('ERSETZEN' if mode=='replace' else 'NEU ANLEGEN')+' · '+r['name']);self.summary_name.setText(name);self.summary_points.setText(f'{details["waypoints"]} Wegpunkte · {details["distance"]/1000:.2f} km');self.summary_target.setText(target_name)
-   if r['kind']=='ios':self.review_note.setText('Neue Mission mit Name und Titelbild. Anschließend in DJI Fly öffnen und bei Bedarf synchronisieren.' if mode=='new' else 'Der Eintrag wird nach Sicherung ersetzt (am iPad noch nicht geprüft). Anschließend in DJI Fly öffnen und Speichern prüfen.')
-   else:self.review_note.setText('Der gewählte Eintrag wird nach Sicherung ersetzt. Anschließend RC Pro 2 neu starten, Mission öffnen und Speichern prüfen.' if mode=='replace' else 'Experimentell: Neue Kennung wird geprüft übertragen. Anschließend RC Pro 2 neu starten und prüfen, ob DJI Fly die Mission anzeigt.')
+   if r['kind']=='ios':text='Neue Mission mit Name und Titelbild. Anschließend in DJI Fly öffnen und bei Bedarf synchronisieren.' if mode=='new' else 'Der Eintrag wird nach Sicherung ersetzt (am iPad noch nicht geprüft). Anschließend in DJI Fly öffnen und Speichern prüfen.'
+   else:text='Der gewählte Eintrag wird nach Sicherung ersetzt. Anschließend RC Pro 2 neu starten, Mission öffnen und Speichern prüfen.' if mode=='replace' else 'Experimentell: Neue Kennung wird geprüft übertragen. Anschließend RC Pro 2 neu starten und prüfen, ob DJI Fly die Mission anzeigt.'
+   self.review_note.setText(text+((' '+' '.join(notes)) if notes else ''))
    self.closed.setChecked(False);self.stack.setCurrentIndex(1);self.tabs.setCurrentIndex(TAB_TRANSFER);self.status.setText('Noch nichts übertragen. Vorschau prüfen und DJI Fly schließen.')
   self.task('Mission und Vorschau prüfen …',prepare_plan,done)
  def execute(self):
@@ -497,5 +532,5 @@ def main():
   target=Path(sys.argv[sys.argv.index('--diagnose')+1]);rows=ios.run(ios.discover());result={'iosDevices':len(rows),'paired':sum(r['state']=='device' for r in rows)}
   if rows and rows[0]['state']=='device':result['readableMissions']=len(ios.run(ios.list_missions(rows[0]['serial'],target.parent/'diagnostic-reads')))
   atomic_json(target,result);return
- app=QApplication(sys.argv);app.setOrganizationName('studiobaff');app.setApplicationName('Drone Missions Bridge');app.setStyle('Fusion');app.setStyleSheet(STYLE);window=Window();window.show();sys.exit(app.exec())
+ app=QApplication(sys.argv);app.setOrganizationName('studiobaff');app.setApplicationName('Drone Missions Bridge');app.setStyle('Fusion');app.setStyleSheet(STYLE);app.setWindowIcon(app_icon());window=Window();window.show();sys.exit(app.exec())
 if __name__=='__main__':main()

@@ -27,4 +27,21 @@ class Tests(unittest.TestCase):
         with patch.object(credentials,'backend',return_value='keychain'),patch.object(credentials.subprocess,'run',return_value=Result()):
             self.assertIsNone(credentials.load('https://example.com/'))
 
+    def test_1password_uses_op_cli_and_falls_back_to_create(self):
+        calls=[]
+        class Result:
+            def __init__(self,code,out='',err=''):self.returncode=code;self.stdout=out;self.stderr=err
+        def fake_run(args,**kw):
+            calls.append(args)
+            if args[1:3]==['item','edit']:return Result(1,'','not found')
+            if args[1:3]==['item','get']:return Result(0,'geheim\n')
+            return Result(0)
+        with patch.object(credentials,'available',return_value=['keychain','1password']),patch.object(credentials.subprocess,'run',side_effect=fake_run):
+            self.assertEqual(credentials.backend('1password'),'1password');self.assertEqual(credentials.backend('auto'),'keychain');self.assertIsNone(credentials.backend('dpapi'))
+            self.assertTrue(credentials.save('https://example.com/dronemissions/','geheim',preference='1password'))
+            self.assertEqual(credentials.load('https://example.com/dronemissions/',preference='1password'),'geheim');credentials.delete('https://example.com/dronemissions/',preference='1password')
+        self.assertEqual([c[1:3] for c in calls],[['item','edit'],['item','create'],['item','get'],['item','delete']])
+        self.assertTrue(all(c[0]=='op' and 'Drone Missions Bridge · example.com' in ' '.join(c) for c in calls))
+        self.assertIn('--reveal',calls[2])
+
 if __name__=='__main__':unittest.main()

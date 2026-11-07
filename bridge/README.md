@@ -7,7 +7,7 @@ Lokale Mac-Oberfläche für DJI-KMZ-Dateien. Der Kern verwendet für Android sep
 1. Gerät per Kabel verbinden, entsperren und diesem Computer vertrauen.
 2. DJI Fly vollständig schließen. Andere Übertragungsprogramme für den Vergleich schließen.
 3. In der Bridge Geräte suchen und das iPad/iPhone auswählen. Missionen lesen zeigt die DJI-Fly-Namen.
-4. Eine gültige DJI-KMZ auswählen, Namen eingeben und optional ein Hintergrundbild wählen. Ohne Bild wird die Route schräg von der Seite mit den echten Wegpunkthöhen gezeichnet (siehe „Automatische 3D-Titelvorschau“). DJI Fly zeigt das Bild fest; drehen lässt es sich dort nicht.
+4. Eine gültige DJI-KMZ auswählen, Namen eingeben und das Titelbild wählen: „3D-Ansicht“ (offline, Route schräg mit echten Wegpunkthöhen, siehe „Automatische 3D-Titelvorschau“), „Luftbild“ (Route auf dem basemap.at-Orthofoto, nur Österreich, braucht Internet; fällt sonst mit Hinweis auf die 3D-Ansicht zurück) oder „Eigenes Bild“. Die Wahl wird gemerkt. DJI Fly zeigt das Bild fest; drehen lässt es sich dort nicht.
 5. „Vorschau prüfen“ zeigt den dritten Schritt mit großer Titelvorschau und Zielgerät.
 6. DJI Fly vollständig schließen, das im dritten Schritt bestätigen und „Jetzt übertragen“ wählen. Nach vollständiger Sicherung wird ein neuer Eintrag angelegt. Bestehende Missionen werden nicht ersetzt oder gelöscht.
 7. DJI Fly öffnen; Mission, Speichern und Cloud-Synchronisation prüfen.
@@ -28,13 +28,13 @@ Das experimentelle Anlegen einer unregistrierten Android-UUID wird in der Oberfl
 
 ## Webarchiv
 
-Der Tab „Webarchiv“ meldet sich mit dem Zugangsschlüssel des Eigentümers an der Archiv-API an (`archive.py`, nur Standardbibliothek, HTTPS erforderlich außer auf localhost). Die Archiv-Adresse wird gemerkt. Der Schlüssel bleibt standardmäßig nur für die laufende Sitzung im Speicher; mit „Schlüssel merken“ landet er im macOS-Schlüsselbund (`security`, Dienst `DroneMissionsBridge`) beziehungsweise unter Windows DPAPI-verschlüsselt für das angemeldete Konto (`credentials.py`), nie in einer Klartextdatei. Ein gemerkter Schlüssel meldet die Bridge beim Öffnen des Tabs automatisch an; „Schlüssel vergessen“ entfernt ihn. Die Tests nutzen isolierte Einstellungen und einen Platzhalter-Schlüsselspeicher, damit sie die echten Einstellungen nicht verändern. Die Liste zeigt Vorschaubild, Projektpfad, Format, Version, Wegpunkte und Strecke, mit Suche und den Filtern „Nur DJI-KMZ“ und „Archivierte zeigen“. „Für Übertragung verwenden“ lädt die Originaldatei, vergleicht die SHA-256-Prüfsumme mit dem Archiv, legt sie im Anwendungsdatenordner unter `archive/` ab und setzt sie als Quelle im Tab „Übertragen“ ein. LCHM/LCHZ und MPROJ sind bearbeitbare Quellprojekte; für DJI Fly wird ein gültiger DJI-KMZ-Export benötigt. Der Weg vom Archiv zur Drohne: Archiv → Bridge → DJI Fly auf iPad oder Fernsteuerung → Fluggerät beim Start der Mission.
+Der Tab „Webarchiv“ meldet sich mit dem Zugangsschlüssel des Eigentümers an der Archiv-API an (`archive.py`, nur Standardbibliothek, HTTPS erforderlich außer auf localhost). Die Archiv-Adresse wird gemerkt. Der Schlüssel bleibt standardmäßig nur für die laufende Sitzung im Speicher; mit „Schlüssel merken“ landet er wahlweise im macOS-Schlüsselbund (`security`, Dienst `DroneMissionsBridge`), in 1Password (CLI `op`, Eintrag „Drone Missions Bridge · <Host>“, CLI-Integration in der 1Password-App aktivieren) oder unter Windows DPAPI-verschlüsselt für das angemeldete Konto (`credentials.py`), nie in einer Klartextdatei. Ein gemerkter Schlüssel meldet die Bridge beim Öffnen des Tabs automatisch an; „Schlüssel vergessen“ entfernt ihn. Die Tests nutzen isolierte Einstellungen und einen Platzhalter-Schlüsselspeicher, damit sie die echten Einstellungen nicht verändern. Die Liste zeigt Vorschaubild, Projektpfad, Format, Version, Wegpunkte und Strecke, mit Suche und den Filtern „Nur DJI-KMZ“ und „Archivierte zeigen“. „Für Übertragung verwenden“ lädt die Originaldatei, vergleicht die SHA-256-Prüfsumme mit dem Archiv, legt sie im Anwendungsdatenordner unter `archive/` ab und setzt sie als Quelle im Tab „Übertragen“ ein. LCHM/LCHZ und MPROJ sind bearbeitbare Quellprojekte; für DJI Fly wird ein gültiger DJI-KMZ-Export benötigt. Der Weg vom Archiv zur Drohne: Archiv → Bridge → DJI Fly auf iPad oder Fernsteuerung → Fluggerät beim Start der Mission.
 
 ## Entwickeln und bauen
 
 Python 3.9+, Abhängigkeiten aus requirements-desktop.txt installieren, dann `python bridge/build_desktop.py`. Windows muss unter Windows gebaut und getestet werden; ein Windows-Paket wurde hier nicht gebaut. Der lokale Mac-Build ist ad-hoc signiert und nicht notarisiert.
 
-Tests: `python3 -m unittest discover -s bridge/tests -v` (42 Tests, offscreen ohne Gerät; `test_archive.py` nutzt einen lokalen Nachbau der Archiv-API). Die automatisierten Testdaten sind synthetisch. Die iOS-Tests prüfen unter anderem die Wiederherstellung nach einer unklaren Datenbank-Umbenennung und das unveränderte Erhalten bestehender Datensätze.
+Tests: `python3 -m unittest discover -s bridge/tests -v` (45 Tests, offscreen ohne Gerät; `test_archive.py` nutzt einen lokalen Nachbau der Archiv-API). Die automatisierten Testdaten sind synthetisch. Die iOS-Tests prüfen unter anderem die Wiederherstellung nach einer unklaren Datenbank-Umbenennung und das unveränderte Erhalten bestehender Datensätze.
 
 GPL-3.0-or-later; siehe LICENSE und THIRD_PARTY.md. Öffentliche Binärreleases benötigen den passenden vollständigen Quellstand und Lizenzunterlagen.
 
@@ -47,6 +47,10 @@ Plattformregeln in der Oberfläche: Auf Android ist „Ersetzen“ der geprüfte
 ## Übertragungskopie bei doppeltem Schlusspunkt
 
 Map Creator schreibt bei manchen Exporten den letzten Wegpunkt zweimal mit derselben `wpml:index`-Nummer, gleichen Koordinaten und gleicher Höhe; der einzige Unterschied ist der Abbiegemodus (erst Durchfahren, dann Stopp). `inspect_kmz` lehnt doppelte Nummern weiterhin ab. `prepare_source` erkennt genau diesen Fall über `sanitize_kmz`, behält den Placemark mit dem Stopp, verwirft den Zwilling und schreibt eine Übertragungskopie `<Name> (bereinigt).kmz` plus Journal in den Anwendungsdatenordner unter `cleaned/`. Die Originaldatei bleibt unverändert, Wegpunkte werden nicht umnummeriert, Aktionsgruppen und ihre Indexverweise bleiben erhalten. Jedes andere Duplikat (abweichende Koordinaten, mehr als zwei Treffer, Duplikat nicht am Ende, keine Stopp-Variante) bleibt ein Fehler. Die Oberfläche zeigt die Bereinigung in der Dateizeile an; der Transferplan enthält `originalSource`. Dass das Webarchiv eine Datei liest, bestätigt keine DJI-Fly-Kompatibilität; die Übertragung muss am Gerät geprüft werden.
+
+## App-Icon
+
+`assets/icon.png`, `icon.icns` (macOS) und `icon.ico` (Windows) zeigen das Routen-Zeichen der Web-App auf dunkelgrünem Grund. `build_desktop.py` übergibt das passende Icon an PyInstaller und liefert `assets/` mit; die Oberfläche setzt es zusätzlich als Fenstersymbol.
 
 ## Windows 11
 

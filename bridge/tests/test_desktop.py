@@ -25,10 +25,11 @@ class Tests(unittest.TestCase):
     def tearDownClass(cls):cls.tmp.cleanup()
     class FakeStore:
         def __init__(self,kind='keychain'):self.kind=kind;self.data={}
-        def backend(self):return self.kind
-        def save(self,url,key,root=None):self.data[url]=key;return True
-        def load(self,url,root=None):return self.data.get(url)
-        def delete(self,url,root=None):self.data.pop(url,None)
+        def available(self):return [self.kind]
+        def backend(self,preference='auto'):return self.kind
+        def save(self,url,key,root=None,preference='auto'):self.data[url]=key;return True
+        def load(self,url,root=None,preference='auto'):return self.data.get(url)
+        def delete(self,url,root=None,preference='auto'):self.data.pop(url,None)
     def setUp(self):self.window=Window(autosearch=False);self.window.credential_store=self.FakeStore()
     def tearDown(self):self.window.close();self.app.processEvents()
     def select(self,kind,serial='demo'):
