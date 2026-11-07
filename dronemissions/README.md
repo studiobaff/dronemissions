@@ -6,7 +6,7 @@ Private Web-Bibliothek für DJI-WPML-Missionen aus Litchi Hub oder Map Creator s
 
 ## Funktionen
 
-- Projekte und Unterordner, Suche, Notizen, Archivieren und Wiederherstellen.
+- Projekte und Unterordner mit Pfadnavigation, Suche (Tastenkürzel `/`), Typfilter (KMZ, CSV, Litchi, Punkte), Sortierung, Notizen, Archivieren und Wiederherstellen.
 - DJI-KMZ, Litchi-CSV und native LCHM/LCHZ mit unveränderter Originaldatei und SHA-256-Prüfsumme; getrennte Versionen mit Konflikterkennung.
 - Routen und gespeicherte Missionshöhen aus `wpmz/waylines.wpml`; mehrere Flugrouten werden getrennt dargestellt.
 - basemap.at und österreichisches Luftbild, OpenStreetMap und Esri-Satellit als weitere Kartenebenen.
@@ -14,7 +14,11 @@ Private Web-Bibliothek für DJI-WPML-Missionen aus Litchi Hub oder Map Creator s
 - Widerrufbare Projektfreigaben für Lesen/Download oder Bearbeiten, gültig für 30 Tage inklusive Unterordnern.
 - Wiederverwendbare Planungspunkte mit Höhe, Höhenbezug, Blickrichtung, Gimbalwinkel und gewünschter Panoramaaufnahme.
 
-![Route und Höhenprofil auf basemap.at; synthetische Daten](docs/screenshots/mission-basemap.png)
+![Missionsdetails mit Route, Höhenprofil und Dateifakten; synthetische Daten, Kartenkacheln in dieser Aufnahme nicht geladen](docs/screenshots/mission-basemap.png)
+
+## Oberfläche
+
+Die Oberfläche ist Vanilla JavaScript ohne Build-Schritt: `public/view.html` (Markup und SVG-Icon-Sprite), `public/style.css` (Design-Tokens, Bausteine, Layout, Dialoge, Responsiv) und `public/app.js` (Zustand, Rendern, Karte, Höhenprofil, Dialoge). Gestaltungsgrundsätze und offene Punkte stehen in [docs/HANDOFF.md](docs/HANDOFF.md). Die Oberfläche arbeitet auf Desktop, Tablet und Telefon (Seitenleiste als Schublade, 16-px-Eingabefelder, sichere Bildschirmränder) und respektiert `prefers-reduced-motion`, `prefers-reduced-transparency` und `prefers-contrast`.
 
 ## Eigener Autor / Betreiber
 

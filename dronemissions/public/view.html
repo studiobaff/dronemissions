@@ -1,19 +1,250 @@
 <!doctype html>
-<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Drone Missions{{AUTHOR_TITLE}}</title><link rel="stylesheet" href="vendor/leaflet.css"><link rel="stylesheet" href="style.css"><script defer src="vendor/leaflet.js"></script><script defer src="app.js"></script></head>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f6f7f2">
+<title>Drone Missions{{AUTHOR_TITLE}}</title>
+<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="stylesheet" href="style.css">
+<script defer src="vendor/leaflet.js"></script>
+<script defer src="app.js"></script>
+</head>
 <body>
-<div id="login" class="login hidden"><div class="login-card"><div class="eyebrow">{{AUTHOR_HEADER}} / FLIGHT LIBRARY</div><h1>Deine Mission.<br>Am richtigen Ort.</h1><p>Projekte, Flugrouten und Originaldateien.<br>Ein Archiv für dein ganzes Team.</p><form id="login-form"><label for="password">Zugangsschlüssel</label><input id="password" type="password" autocomplete="current-password" required><button class="primary" type="submit">Archiv öffnen <span>↗</span></button></form><p id="login-error" role="alert"></p><small>Private Installation · Drone Missions 1.0</small></div><div class="login-art"><svg viewBox="0 0 600 600" aria-hidden="true"><g fill="none" stroke="currentColor"><circle cx="300" cy="300" r="230"/><circle cx="300" cy="300" r="170"/><circle cx="300" cy="300" r="110"/><path d="M70 300H530M300 70V530"/><path class="route-line" d="M150 380L180 190L280 220L340 150L440 310L350 430L150 380"/></g></svg><span>PLAN ELSEWHERE. KEEP IT HERE.</span></div></div>
-<div id="shell" class="hidden">
-<aside><a class="brand" href="./"><span class="brand-icon">✣</span><span>drone<span class="brand-light">missions</span>{{AUTHOR_BADGE}}</span></a><button id="new-project" class="sidebar-create">＋ Neues Projekt</button><div class="sidebar-label">BIBLIOTHEK</div><nav><button data-view="all" class="nav-item active">◫ <span>Alle Missionen</span><b id="count">0</b></button><button data-view="archive" class="nav-item">◷ <span>Archiv</span></button></nav><div class="sidebar-label project-title">PROJEKTE <button id="add-folder" title="Unterordner anlegen">＋</button></div><div id="folders"></div><div class="sidebar-bottom"><div class="connection"><i></i> Privates Serverarchiv</div><small id="role-label">Zugriff wird geprüft</small><button id="logout">Abmelden ↗</button></div></aside>
-<main><header><div><div class="eyebrow" id="breadcrumb">BIBLIOTHEK</div><h1 id="page-title">Alle Missionen<span>.</span></h1><p id="page-subtitle">Geplant in Litchi oder Map Creator. Hier bereit für den nächsten Einsatz.</p></div><div class="header-actions"><button id="share-project" class="secondary hidden">↗ Projekt teilen</button><button id="settings" class="secondary">Einstellungen</button><button id="manage-shares" class="secondary">Freigaben</button><button id="upload" class="primary">＋ Mission hochladen</button></div></header>
-<section class="summary"><div><span id="total-missions">0</span><small>MISSIONEN</small></div><div><span id="total-projects">0</span><small>PROJEKTORDNER</small></div><div><span id="total-distance">0 km</span><small>GEPLANTE ROUTEN</small></div><p>Original bleibt Original.<br><strong>Jeder Upload mit geprüfter SHA-256-Prüfsumme.</strong></p></section>
-<div class="library-toolbar"><div class="search-wrap">⌕ <input id="search" aria-label="Missionen suchen" placeholder="Name, Projekt oder Dateiname suchen …"></div><div class="view-switch"><button id="cards-toggle" class="selected" title="Kartenansicht">▦</button><button id="map-toggle" title="Alle Missionen auf der Karte">⌖</button></div><button id="add-point" class="secondary hidden">＋ Planungspunkt</button><button id="folder-options" class="secondary hidden">Ordner bearbeiten</button></div>
-<div id="overview-map" class="hidden"></div><section id="cards" class="cards"></section><div id="empty" class="empty hidden"><span>⌁</span><h2>Raum für deinen nächsten Flug.</h2><p>Lade KMZ, CSV oder native Litchi-Missionen hoch.<br>Route und Höhenprofil für KMZ/CSV; native Litchi-Dateien werden unverändert archiviert.</p><button id="empty-upload" class="primary">Erste Mission hochladen</button></div>
-<footer><span>DRONE MISSIONS <b>1.0</b></span><span>Archiv & Vorschau · Keine Flugfreigabe · USB-Bridge folgt separat</span></footer>
-</main></div>
-<dialog id="settings-dialog"><form id="settings-form"><div class="dialog-head"><h2>Deine Installation</h2><button class="close" type="button" data-close>×</button></div><label>Autor / Betreiber<input name="authorName" maxlength="100" placeholder="Dein Name oder Firmenname"></label><p class="hint">Erscheint auf dieser Installation und als Autor in neuen Archivpaketen. Leer lassen für eine neutrale Ansicht.</p><div class="dialog-actions"><button type="button" class="secondary" data-close>Abbrechen</button><button class="primary" type="submit">Speichern</button></div></form></dialog>
-<dialog id="upload-dialog"><form id="upload-form"><div class="dialog-head"><div><div class="eyebrow">ORIGINAL SICHERN</div><h2 id="upload-title">Mission hinzufügen</h2></div><button class="close" type="button" data-close>×</button></div><label>Missionsdatei<input name="kmz" type="file" accept=".kmz,.csv,.lchm,.lchz" required></label><p class="hint">DJI-KMZ, Litchi-CSV oder native LCHM/LCHZ · maximal 16 MB</p><label>Missionsname<input name="name" maxlength="200" required placeholder="Zum Beispiel: Rundflug – Sommer"></label><label>Projektordner<select name="folder"></select></label><label>Vorschaubild <span class="optional">optional</span><input name="preview" type="file" accept="image/jpeg,image/png"></label><p class="hint">Ohne Bild erzeugen wir eine Routenvorschau. Die Originaldatei bleibt unverändert.</p><div class="dialog-actions"><button type="button" class="secondary" data-close>Abbrechen</button><button class="primary" type="submit">Im Archiv speichern ↗</button></div></form></dialog>
-<dialog id="folder-dialog"><form id="folder-form"><div class="dialog-head"><h2>Projektordner</h2><button class="close" type="button" data-close>×</button></div><label>Name<input name="name" maxlength="200" required></label><label>Übergeordneter Ordner<select name="parent"></select></label><div class="dialog-actions"><button id="archive-folder" type="button" class="secondary hidden">Ordner archivieren</button><button type="submit" class="primary">Speichern</button></div></form></dialog>
-<dialog id="detail-dialog" class="detail-dialog"><div id="detail-content"></div></dialog>
-<dialog id="share-dialog"><div class="dialog-head"><div><div class="eyebrow">ZUSAMMEN ARBEITEN</div><h2>Projektfreigaben</h2></div><button class="close" data-close>×</button></div><div id="share-create"><p>Der Link gilt für dieses Projekt und seine Unterordner. Gültig für 30 Tage; jederzeit widerrufbar.</p><label>Berechtigung<select id="share-role"><option value="view">Ansehen und herunterladen</option><option value="edit">Zusätzlich hochladen und bearbeiten</option></select></label><button id="create-share" class="primary">Freigabelink erstellen</button><div id="share-link-wrap" class="hidden"><label>Freigabelink<input id="share-link" readonly></label><button id="copy-share" class="secondary">Link kopieren</button><p class="hint">Jeder mit diesem Link hat die gewählten Rechte. Nur an die gewünschten Personen weitergeben.</p></div></div><div id="share-list"></div></dialog>
-<dialog id="point-dialog"><form id="point-form"><div class="dialog-head"><h2>Planungspunkt</h2><button class="close" type="button" data-close>×</button></div><label>Name<input name="name" maxlength="200" required></label><label>Beschreibung<textarea name="notes" rows="4" maxlength="20000"></textarea></label><div class="coordinate-fields"><label>Breitengrad<input name="lat" type="number" step="any" min="-90" max="90" required></label><label>Längengrad<input name="lng" type="number" step="any" min="-180" max="180" required></label></div><div class="coordinate-fields"><label>Geplante Höhe (m)<input name="height" type="number" step="any" min="-500" max="10000" value="60" required></label><label>Höhenbezug<select name="heightMode"><option value="relativeToStartPoint">Relativ zum Startpunkt</option><option value="WGS84">WGS84 ellipsoidisch</option></select></label><label>Blickrichtung (°)<input name="heading" type="number" min="-180" max="360" step="any" value="0" required></label><label>Gimbalwinkel (°)<input name="gimbal" type="number" min="-90" max="90" step="any" value="-90" required></label></div><label>Geplante Aufnahme<select name="capture"><option value="sphere">Kugelpanorama</option><option value="wideAngle">Weitwinkelpanorama</option><option value="photo">Einzelfoto</option></select></label><p class="hint">Planungsvorgabe, noch keine ausführbare DJI-Mission. Automatische Flug- und Panoramaaktionen sind noch nicht implementiert oder auf dem Zielmodell geprüft.</p><div class="dialog-actions"><button id="delete-point" type="button" class="secondary hidden">Punkt löschen</button><button type="submit" class="primary">Speichern</button></div></form></dialog><div id="toast" role="status" class="hidden"></div>
-</body></html>
+<svg class="sprite" aria-hidden="true" focusable="false">
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="i-archive" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9M10 13h4"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4.6l2 2h8.4A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></symbol>
+<symbol id="i-folder-plus" viewBox="0 0 24 24"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4.6l2 2h8.4A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/><path d="M12 11v6M9 14h6"/></symbol>
+<symbol id="i-map" viewBox="0 0 24 24"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.3-4.3"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12m0 0-4-4m4 4 4-4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+<symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+<symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M15 8l4 4-4 4M19 12H9"/></symbol>
+<symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v5.5c0 4.3 2.9 7.6 7 9.5 4.1-1.9 7-5.2 7-9.5V6z"/><path d="m9 12 2 2 4-4.5"/></symbol>
+<symbol id="i-crosshair" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+<symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H14a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h5.5"/></symbol>
+<symbol id="i-ruler" viewBox="0 0 24 24"><path d="m3 16.5 13.5-13.5 4.5 4.5L7.5 21z"/><path d="m8 11.5 2 2M11 8.5l2 2M14 5.5l2 2M5 14.5l2 2"/></symbol>
+<symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5M3 17.5l9 5 9-5"/></symbol>
+<symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4 3 19.5h18z"/><path d="M12 10v4M12 17h.01"/></symbol>
+<symbol id="i-history" viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6M3.5 4v4.5H8"/><path d="M12 8v4l2.5 2"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7H8l1.5-2h5L16 7h2.5A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.7-6.5-11a6.5 6.5 0 0 1 13 0c0 5.3-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l.8 12.3a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4L17.5 7"/></symbol>
+<symbol id="i-pencil" viewBox="0 0 24 24"><path d="m4 20 4.2-.9L19.6 7.7a1.5 1.5 0 0 0 0-2.1l-1.2-1.2a1.5 1.5 0 0 0-2.1 0L4.9 15.8z"/><path d="m14.5 6.2 3.3 3.3"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+<symbol id="i-restore" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9"/><path d="M12 17v-5m0 0-2.5 2.5M12 12l2.5 2.5"/></symbol>
+<symbol id="i-spinner" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 1-9 9"/></symbol>
+</svg>
+
+<div id="progress" class="progress" aria-hidden="true"></div>
+
+<div id="login" class="login hidden">
+ <section class="login-card">
+  <div class="eyebrow">{{AUTHOR_HEADER}} · FLIGHT LIBRARY</div>
+  <h1 class="login-title">Deine Mission.<br>Am richtigen Ort.</h1>
+  <p class="login-lead">Projekte, Flugrouten und Originaldateien. Ein Archiv für dein ganzes Team.</p>
+  <form id="login-form" novalidate>
+   <label class="field"><span>Zugangsschlüssel</span><input id="password" type="password" autocomplete="current-password" enterkeyhint="go" required></label>
+   <p id="login-error" class="form-error" role="alert"></p>
+   <button class="btn btn-primary btn-lg btn-block" type="submit"><span>Archiv öffnen</span><svg class="icon"><use href="#i-arrow"/></svg></button>
+  </form>
+  <p class="login-note">Private Installation · Drone Missions 1.0</p>
+ </section>
+ <aside class="login-art" aria-hidden="true">
+  <svg viewBox="0 0 600 600"><g fill="none" stroke="currentColor"><circle cx="300" cy="300" r="230"/><circle cx="300" cy="300" r="170"/><circle cx="300" cy="300" r="110"/><path d="M70 300H530M300 70V530"/><path class="route-line" d="M150 380L180 190L280 220L340 150L440 310L350 430L150 380"/></g></svg>
+  <span>PLAN ELSEWHERE. KEEP IT HERE.</span>
+ </aside>
+</div>
+
+<div id="shell" class="shell hidden">
+ <header class="topbar">
+  <button id="menu-toggle" class="btn btn-icon" type="button" aria-label="Navigation öffnen" aria-controls="sidebar" aria-expanded="false"><svg class="icon"><use href="#i-menu"/></svg></button>
+  <a class="brand brand-compact" href="./"><span class="brand-mark" aria-hidden="true"><svg class="icon"><use href="#i-route"/></svg></span><span class="brand-name">drone<em>missions</em></span></a>
+  <button id="upload-compact" class="btn btn-primary btn-sm" type="button"><svg class="icon"><use href="#i-upload"/></svg><span>Hochladen</span></button>
+ </header>
+ <div id="scrim" class="scrim" hidden></div>
+
+ <aside id="sidebar" class="sidebar">
+  <a class="brand" href="./"><span class="brand-mark" aria-hidden="true"><svg class="icon"><use href="#i-route"/></svg></span><span class="brand-name">drone<em>missions</em>{{AUTHOR_BADGE}}</span></a>
+  <button id="new-project" class="btn btn-outline btn-block sidebar-create" type="button"><svg class="icon"><use href="#i-plus"/></svg><span>Neues Projekt</span></button>
+  <div class="sidebar-label">Bibliothek</div>
+  <nav class="sidebar-nav" aria-label="Bibliothek">
+   <button data-view="all" class="nav-item active" type="button"><svg class="icon"><use href="#i-grid"/></svg><span>Alle Missionen</span><b id="count">0</b></button>
+   <button data-view="archive" class="nav-item" type="button"><svg class="icon"><use href="#i-archive"/></svg><span>Archiv</span><b id="count-archive"></b></button>
+  </nav>
+  <div class="sidebar-label sidebar-label-row"><span>Projekte</span><button id="add-folder" class="btn btn-icon btn-xs" type="button" title="Unterordner anlegen" aria-label="Unterordner anlegen"><svg class="icon"><use href="#i-plus"/></svg></button></div>
+  <nav id="folders" class="folder-tree" aria-label="Projekte"></nav>
+  <div class="sidebar-bottom">
+   <div class="connection"><i></i><span>Privates Serverarchiv</span></div>
+   <small id="role-label">Zugriff wird geprüft</small>
+   <button id="logout" class="btn btn-ghost btn-sm" type="button"><svg class="icon"><use href="#i-logout"/></svg><span>Abmelden</span></button>
+  </div>
+ </aside>
+
+ <main class="main">
+  <header class="page-head">
+   <div class="page-head-text">
+    <nav id="breadcrumb" class="breadcrumb" aria-label="Pfad"></nav>
+    <h1 id="page-title" class="page-title">Alle Missionen</h1>
+    <p id="page-subtitle" class="page-subtitle">Geplant in Litchi oder Map Creator. Hier bereit für den nächsten Einsatz.</p>
+   </div>
+   <div class="page-actions">
+    <button id="share-project" class="btn btn-outline hidden" type="button"><svg class="icon"><use href="#i-share"/></svg><span>Projekt teilen</span></button>
+    <button id="folder-options" class="btn btn-outline hidden" type="button"><svg class="icon"><use href="#i-pencil"/></svg><span>Ordner bearbeiten</span></button>
+    <button id="manage-shares" class="btn btn-outline" type="button"><svg class="icon"><use href="#i-link"/></svg><span>Freigaben</span></button>
+    <button id="settings" class="btn btn-outline" type="button"><svg class="icon"><use href="#i-settings"/></svg><span>Einstellungen</span></button>
+    <button id="upload" class="btn btn-primary" type="button"><svg class="icon"><use href="#i-upload"/></svg><span>Mission hochladen</span></button>
+   </div>
+  </header>
+
+  <section class="stats" aria-label="Übersicht">
+   <div class="stat"><span id="total-missions" class="stat-value">0</span><span id="total-missions-label" class="stat-label">Missionen</span></div>
+   <div class="stat"><span id="total-projects" class="stat-value">0</span><span id="total-projects-label" class="stat-label">Projektordner</span></div>
+   <div class="stat"><span id="total-distance" class="stat-value">0 km</span><span class="stat-label">Geplante Routen</span></div>
+   <div class="stat"><span id="total-points" class="stat-value">0</span><span id="total-points-label" class="stat-label">Planungspunkte</span></div>
+   <p class="stat-note"><svg class="icon"><use href="#i-shield"/></svg><span>Original bleibt Original. Jeder Upload mit geprüfter SHA-256-Prüfsumme.</span></p>
+  </section>
+
+  <div class="toolbar">
+   <div class="search">
+    <svg class="icon"><use href="#i-search"/></svg>
+    <input id="search" type="search" aria-label="Missionen suchen" placeholder="Name, Projekt oder Datei suchen …" autocomplete="off" enterkeyhint="search">
+    <kbd class="search-kbd" aria-hidden="true">/</kbd>
+   </div>
+   <div class="toolbar-group">
+    <div id="filters" class="chips" role="group" aria-label="Nach Typ filtern">
+     <button class="chip selected" type="button" data-filter="all">Alle</button>
+     <button class="chip" type="button" data-filter="kmz">KMZ</button>
+     <button class="chip" type="button" data-filter="csv">CSV</button>
+     <button class="chip" type="button" data-filter="native">Litchi</button>
+     <button class="chip" type="button" data-filter="points">Punkte</button>
+    </div>
+    <label class="sort"><span class="visually-hidden">Sortierung</span><select id="sort" aria-label="Sortierung"><option value="updated">Zuletzt geändert</option><option value="name">Name A–Z</option><option value="distance">Längste Route</option></select></label>
+    <div class="segmented" role="group" aria-label="Ansicht">
+     <button id="cards-toggle" class="selected" type="button" aria-pressed="true" title="Kartenansicht"><svg class="icon"><use href="#i-grid"/></svg><span>Karten</span></button>
+     <button id="map-toggle" type="button" aria-pressed="false" title="Alle Missionen auf der Karte"><svg class="icon"><use href="#i-map"/></svg><span>Karte</span></button>
+    </div>
+    <button id="add-point" class="btn btn-outline hidden" type="button"><svg class="icon"><use href="#i-crosshair"/></svg><span>Planungspunkt</span></button>
+   </div>
+  </div>
+
+  <p id="result-line" class="result-line" aria-live="polite"></p>
+  <div id="overview-map" class="overview-map hidden" role="region" aria-label="Übersichtskarte"></div>
+  <section id="cards" class="cards" aria-live="polite"></section>
+  <div id="empty" class="empty hidden">
+   <div class="empty-icon"><svg class="icon"><use href="#i-route"/></svg></div>
+   <h2 id="empty-title">Raum für deinen nächsten Flug.</h2>
+   <p id="empty-text">Lade KMZ, CSV oder native Litchi-Missionen hoch. Route und Höhenprofil für KMZ/CSV; native Litchi-Dateien werden unverändert archiviert.</p>
+   <button id="empty-upload" class="btn btn-primary" type="button"><svg class="icon"><use href="#i-upload"/></svg><span>Erste Mission hochladen</span></button>
+   <button id="empty-clear" class="btn btn-outline hidden" type="button">Suche zurücksetzen</button>
+  </div>
+
+  <footer class="page-foot"><span>Drone Missions <b>1.0</b></span><span>Archiv &amp; Vorschau · Keine Flugfreigabe · USB-Bridge folgt separat</span></footer>
+ </main>
+</div>
+
+<dialog id="settings-dialog" class="dialog">
+ <form id="settings-form" method="dialog">
+  <div class="dialog-head"><div><div class="eyebrow">Deine Installation</div><h2>Autor / Betreiber</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Schließen"><svg class="icon"><use href="#i-close"/></svg></button></div>
+  <div class="dialog-body">
+   <label class="field"><span>Name</span><input name="authorName" maxlength="100" placeholder="Dein Name oder Firmenname" autocomplete="organization"></label>
+   <p class="hint">Erscheint auf dieser Installation und als Autor in neuen Archivpaketen. Leer lassen für eine neutrale Ansicht.</p>
+  </div>
+  <div class="dialog-foot"><button type="button" class="btn btn-outline" data-close>Abbrechen</button><button class="btn btn-primary" type="submit">Speichern</button></div>
+ </form>
+</dialog>
+
+<dialog id="upload-dialog" class="dialog">
+ <form id="upload-form" method="dialog">
+  <div class="dialog-head"><div><div class="eyebrow">Original sichern</div><h2 id="upload-title">Mission hinzufügen</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Schließen"><svg class="icon"><use href="#i-close"/></svg></button></div>
+  <div class="dialog-body">
+   <label class="field field-file"><span>Missionsdatei</span><input name="kmz" type="file" accept=".kmz,.csv,.lchm,.lchz" required><span class="file-drop"><svg class="icon"><use href="#i-file"/></svg><span class="file-drop-text" data-empty="Datei auswählen oder hierher ziehen">Datei auswählen oder hierher ziehen</span></span></label>
+   <p class="hint">DJI-KMZ, Litchi-CSV oder native LCHM/LCHZ · maximal 16 MB</p>
+   <label class="field"><span>Missionsname</span><input name="name" maxlength="200" required placeholder="Zum Beispiel: Rundflug – Sommer"></label>
+   <label class="field"><span>Projektordner</span><select name="folder"></select></label>
+   <label class="field field-file"><span>Vorschaubild <em>optional</em></span><input name="preview" type="file" accept="image/jpeg,image/png"><span class="file-drop file-drop-sm"><svg class="icon"><use href="#i-camera"/></svg><span class="file-drop-text" data-empty="JPEG oder PNG, bis 3 MB">JPEG oder PNG, bis 3 MB</span></span></label>
+   <p class="hint">Ohne Bild erzeugen wir eine Routenvorschau. Die Originaldatei bleibt unverändert.</p>
+  </div>
+  <div class="dialog-foot"><button type="button" class="btn btn-outline" data-close>Abbrechen</button><button class="btn btn-primary" type="submit" data-busy="Wird gesichert …"><svg class="icon"><use href="#i-upload"/></svg><span>Im Archiv speichern</span></button></div>
+ </form>
+</dialog>
+
+<dialog id="folder-dialog" class="dialog">
+ <form id="folder-form" method="dialog">
+  <div class="dialog-head"><div><div class="eyebrow">Struktur</div><h2 id="folder-title">Projektordner</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Schließen"><svg class="icon"><use href="#i-close"/></svg></button></div>
+  <div class="dialog-body">
+   <label class="field"><span>Name</span><input name="name" maxlength="200" required></label>
+   <label class="field"><span>Übergeordneter Ordner</span><select name="parent"></select></label>
+  </div>
+  <div class="dialog-foot"><button id="archive-folder" type="button" class="btn btn-outline hidden"><svg class="icon"><use href="#i-archive"/></svg><span>Ordner archivieren</span></button><span class="dialog-foot-spacer"></span><button type="button" class="btn btn-outline" data-close>Abbrechen</button><button type="submit" class="btn btn-primary">Speichern</button></div>
+ </form>
+</dialog>
+
+<dialog id="detail-dialog" class="dialog dialog-wide"><div id="detail-content" class="detail"></div></dialog>
+
+<dialog id="share-dialog" class="dialog">
+ <div class="dialog-head"><div><div class="eyebrow">Zusammen arbeiten</div><h2>Projektfreigaben</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Schließen"><svg class="icon"><use href="#i-close"/></svg></button></div>
+ <div class="dialog-body">
+  <div id="share-create" class="share-create">
+   <p id="share-scope" class="share-scope"></p>
+   <p class="hint">Der Link gilt für dieses Projekt und seine Unterordner. Gültig für 30 Tage; jederzeit widerrufbar.</p>
+   <div class="share-row-create">
+    <label class="field"><span>Berechtigung</span><select id="share-role"><option value="view">Ansehen und herunterladen</option><option value="edit">Zusätzlich hochladen und bearbeiten</option></select></label>
+    <button id="create-share" class="btn btn-primary" type="button" data-busy="Wird erstellt …"><svg class="icon"><use href="#i-link"/></svg><span>Freigabelink erstellen</span></button>
+   </div>
+   <div id="share-link-wrap" class="share-link hidden">
+    <label class="field"><span>Freigabelink</span><input id="share-link" readonly></label>
+    <button id="copy-share" class="btn btn-outline" type="button"><svg class="icon"><use href="#i-copy"/></svg><span>Link kopieren</span></button>
+    <p class="hint">Jeder mit diesem Link hat die gewählten Rechte. Der Link wird nur jetzt angezeigt.</p>
+   </div>
+  </div>
+  <div id="share-list" class="share-list"></div>
+ </div>
+</dialog>
+
+<dialog id="point-dialog" class="dialog">
+ <form id="point-form" method="dialog">
+  <div class="dialog-head"><div><div class="eyebrow">Panorama-Standort</div><h2 id="point-title">Planungspunkt</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Schließen"><svg class="icon"><use href="#i-close"/></svg></button></div>
+  <div class="dialog-body">
+   <label class="field"><span>Name</span><input name="name" maxlength="200" required></label>
+   <label class="field"><span>Beschreibung</span><textarea name="notes" rows="3" maxlength="20000"></textarea></label>
+   <div class="field-grid">
+    <label class="field"><span>Breitengrad</span><input name="lat" type="number" inputmode="decimal" step="any" min="-90" max="90" required></label>
+    <label class="field"><span>Längengrad</span><input name="lng" type="number" inputmode="decimal" step="any" min="-180" max="180" required></label>
+    <label class="field"><span>Geplante Höhe (m)</span><input name="height" type="number" inputmode="decimal" step="any" min="-500" max="10000" value="60" required></label>
+    <label class="field"><span>Höhenbezug</span><select name="heightMode"><option value="relativeToStartPoint">Relativ zum Startpunkt</option><option value="WGS84">WGS84 ellipsoidisch</option></select></label>
+    <label class="field"><span>Blickrichtung (°)</span><input name="heading" type="number" inputmode="decimal" min="-180" max="360" step="any" value="0" required></label>
+    <label class="field"><span>Gimbalwinkel (°)</span><input name="gimbal" type="number" inputmode="decimal" min="-90" max="90" step="any" value="-90" required></label>
+   </div>
+   <label class="field"><span>Geplante Aufnahme</span><select name="capture"><option value="sphere">Kugelpanorama</option><option value="wideAngle">Weitwinkelpanorama</option><option value="photo">Einzelfoto</option></select></label>
+   <p class="notice"><svg class="icon"><use href="#i-info"/></svg><span>Planungsvorgabe, noch keine ausführbare DJI-Mission. Automatische Flug- und Panoramaaktionen sind noch nicht implementiert oder auf dem Zielmodell geprüft.</span></p>
+  </div>
+  <div class="dialog-foot"><button id="delete-point" type="button" class="btn btn-outline btn-danger hidden"><svg class="icon"><use href="#i-trash"/></svg><span>Punkt löschen</span></button><span class="dialog-foot-spacer"></span><button type="button" class="btn btn-outline" data-close>Abbrechen</button><button type="submit" class="btn btn-primary">Speichern</button></div>
+ </form>
+</dialog>
+
+<dialog id="confirm-dialog" class="dialog dialog-sm">
+ <form method="dialog">
+  <div class="dialog-head"><div><div class="eyebrow">Bitte bestätigen</div><h2 id="confirm-title">Sicher?</h2></div></div>
+  <div class="dialog-body"><p id="confirm-text" class="confirm-text"></p></div>
+  <div class="dialog-foot"><button type="button" class="btn btn-outline" data-close>Abbrechen</button><button id="confirm-ok" class="btn btn-primary" type="submit" value="ok">Ja, fortfahren</button></div>
+ </form>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden><svg class="icon"><use id="toast-icon" href="#i-check"/></svg><span id="toast-text"></span></div>
+</body>
+</html>

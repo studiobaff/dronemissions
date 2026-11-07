@@ -9,7 +9,8 @@ Der Web-Quellcode liegt in [`dronemissions/`](dronemissions/README.md). Die Anwe
 - [Funktionen und Grenzen](dronemissions/README.md)
 - [Installation und Betrieb](dronemissions/docs/DEPLOYMENT.md)
 - [Tests und Prüfbericht](dronemissions/docs/QA.md)
+- [Übergabe: Oberfläche, Gestaltung und offene Punkte](dronemissions/docs/HANDOFF.md)
 
-Die USB-/DJI-Fly-Bridge wird separat entwickelt. Es gibt aktuell keine geprüften Bridge-Downloads und keine bestätigte Flugfreigabe. Planungspunkte dienen der Vorbereitung und erzeugen noch keine ausführbaren Panoramaaktionen.
+Die USB-/DJI-Fly-Bridge (Desktop-App) wird separat entwickelt und ist noch nicht Teil dieses Repositorys. Es gibt aktuell keine geprüften Bridge-Downloads und keine bestätigte Flugfreigabe. Planungspunkte dienen der Vorbereitung und erzeugen noch keine ausführbaren Panoramaaktionen.
 
 Die Beispiele sind synthetisch. Private Missionen, Zugangsschlüssel, Datenbanken und Serverkonfiguration sind nicht Bestandteil dieses Repositorys.
