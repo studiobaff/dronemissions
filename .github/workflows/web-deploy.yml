@@ -1,0 +1,63 @@
+name: Web checks and deployment
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths: ['dronemissions/**', 'deploy/**', '.github/workflows/web-deploy.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dronemissions-production
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install PHP extensions
+        run: sudo apt-get update -qq && sudo apt-get install -y php-cli php-sqlite3 php-xml php-zip php-gd
+      - name: Syntax, deployment tests and release package
+        run: |
+          find dronemissions/public deploy -name '*.php' -print0 | xargs -0 -n1 php -l
+          find dronemissions/public -name '*.js' -print0 | xargs -0 -n1 node --check
+          python3 -m unittest discover -s deploy/tests -v
+          python3 deploy/package.py dronemissions/public release.zip "$GITHUB_SHA"
+      - name: Release switching and rollback tests
+        run: php deploy/tests/receiver.php
+      - name: Parser regression tests
+        run: php dronemissions/tests/parser.php
+  deploy:
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    environment:
+      name: production
+      url: https://service.studiobaff.com/dronemissions/
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Build public release
+        run: python3 deploy/package.py dronemissions/public release.zip "$GITHUB_SHA"
+      - name: Configure restricted SSH identity
+        env:
+          DEPLOY_KEY: ${{ secrets.DRONEMISSIONS_DEPLOY_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DRONEMISSIONS_KNOWN_HOSTS }}
+        run: |
+          test -n "$DEPLOY_KEY" && test -n "$KNOWN_HOSTS"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
+      - name: Publish release and verify HTTPS
+        run: |
+          checksum=$(sha256sum release.zip | cut -d ' ' -f1)
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 studiobaff@service.studiobaff.com "deploy $GITHUB_SHA $checksum" < release.zip
+          python3 deploy/health.py "https://service.studiobaff.com/dronemissions/" "$GITHUB_SHA"
+      - name: Clean SSH credentials
+        if: always()
+        run: rm -f ~/.ssh/deploy_key ~/.ssh/known_hosts
