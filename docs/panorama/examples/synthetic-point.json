@@ -1,0 +1,37 @@
+{
+  "schema_version": "0.1",
+  "synthetic": true,
+  "executable_mission": false,
+  "point": {
+    "id": "demo-pano-001",
+    "project_id": "synthetic-only",
+    "revision": 1,
+    "status": "draft",
+    "position": {"crs": "EPSG:4326", "latitude_deg": 0.0, "longitude_deg": 0.0},
+    "height": {"value_m": 50.0, "reference": "relative_to_takeoff", "takeoff_id": "demo-start-a", "source": "synthetic", "uncertainty_m": null},
+    "capture_recipe": {
+      "panorama_type": "sphere_requested_unverified",
+      "camera": "main_camera_requested_unverified",
+      "start_policy": "north",
+      "azimuth_reference": "geographic_north_clockwise",
+      "requested_pre_capture_camera_azimuth_deg": 0.0,
+      "requested_first_frame_azimuth_deg": 0.0,
+      "aircraft_heading_mode": "requires_device_mapping",
+      "gimbal_yaw_reference": "unknown",
+      "format": "undecided"
+    },
+    "acceptance_tolerances": {"horizontal_m": null, "vertical_m": null, "first_frame_azimuth_deg": null}
+  },
+  "takeoff": {"id": "demo-start-a", "synthetic_absolute_height_m": 100.0, "synthetic_vertical_reference": "local_demo_datum"},
+  "visit": {
+    "id": "demo-visit-001",
+    "point_id": "demo-pano-001",
+    "point_revision": 1,
+    "captured_at": null,
+    "device_profile_id": null,
+    "takeoff_id": "demo-start-a",
+    "orientation": {"observed_pre_capture_camera_azimuth_deg": null, "observed_first_frame_azimuth_deg": null, "status": "unverified"},
+    "asset_ids": []
+  },
+  "customer_release": {"status": "not_approved", "fields": []}
+}

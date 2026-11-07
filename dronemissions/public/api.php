@@ -11,11 +11,12 @@ function scope(): ?array {
  problem('Bitte anmelden oder eine gültige Projektfreigabe öffnen.',401);
 }
 function may_folder(?string $id,bool $write=false): void {
- global $db;$s=scope();if($write&&$s&&$s['role']!=='edit')problem('Diese Freigabe erlaubt nur Lesen und Herunterladen.',403);
+ global $db;$s=scope();if($write&&$s&&$s['role']!=='edit')problem('Diese Kundenfreigabe erlaubt nur Standortansicht und Navigation.',403);
  if($id!==null&&!stmt('SELECT id FROM folders WHERE id=?',[$id])->fetch())problem('Projektordner nicht gefunden.',404);
  if($s&&($id===null||!in_array($id,dm_folder_ids($db,$s['folder']),true)))problem('Kein Zugriff auf dieses Projekt.',403);
 }
 function mission(string $id,bool $write=false): array {$m=stmt('SELECT * FROM missions WHERE id=?',[$id])->fetch();if(!$m)problem('Mission nicht gefunden.',404);may_folder($m['folder'],$write);return $m;}
+function next_public_mission(array $missions,string $id): array {foreach($missions as $m)if($m['id']===$id)return $m;problem('Standort nicht freigegeben.',404);}
 function owner(): void {if(scope()!==null)problem('Nur der Eigentümer kann Freigaben verwalten.',403);}
 function filename(string $s): string {$s=preg_replace('/[^\pL\pN._ -]/u','_',$s)??'Mission';return substr($s,0,160)?:'Mission';}
 function stream_file(string $path,string $mime,string $name,bool $inline=false): never {header('Content-Type: '.$mime);header('Content-Length: '.filesize($path));header('Content-Disposition: '.($inline?'inline':'attachment').'; filename="download"; filename*=UTF-8\'\''.rawurlencode($name));readfile($path);exit;}
@@ -47,6 +48,11 @@ try {
   try{if(file_put_contents($tmp,json_encode($config,JSON_THROW_ON_ERROR),LOCK_EX)===false)throw new RuntimeException('Konfiguration nicht gespeichert.');chmod($tmp,0600);if(!rename($tmp,dm_private().'/config.json'))throw new RuntimeException('Konfiguration nicht gespeichert.');}finally{if(is_file($tmp))unlink($tmp);}
   respond(['ok'=>true]);
  }
+ if(in_array($action,['location-weather','location-elevation'],true)&&$method==='POST'){
+  require_once __DIR__.'/location.php';[$lat,$lng]=dm_location_coords($input['lat']??null,$input['lng']??null);session_write_close();respond($action==='location-weather'?dm_location_weather($lat,$lng):dm_location_elevation($lat,$lng));
+ }
+ if($action==='address'&&$method==='POST'){require_once __DIR__.'/address.php';respond(dm_address($input['query']??'',(string)($config['geocoderURL']??'https://photon.komoot.io/api/')));}
+ if($action==='zones'&&$method==='GET'){require_once __DIR__.'/zones.php';respond(dm_zones());}
  if($action==='library'&&$method==='GET')respond(dm_payload($db,$current));
  if($action==='point'&&$method==='POST'){
   $folder=(string)($input['folder']??'');may_folder($folder,true);$name=dm_text($input['name']??'');$notes=dm_text($input['notes']??'',20000);$lat=dm_num(isset($input['lat'])?(string)$input['lat']:null);$lng=dm_num(isset($input['lng'])?(string)$input['lng']:null);if(!$name||$lat===null||$lng===null||abs($lat)>90||abs($lng)>180)problem('Name und Koordinaten prüfen.');
@@ -58,12 +64,18 @@ try {
   $name=dm_text($input['name']??'');if($name==='')problem('Bitte einen Ordnernamen eingeben.');$parent=($input['parent']??null)?:null;may_folder($parent,true);
   $id=$input['id']??null;if($id){may_folder($id,true);if($parent!==null&&in_array($parent,dm_folder_ids($db,$id),true))problem('Ein Ordner kann nicht in sich selbst verschoben werden.');if($current&&$id===$current['folder'])problem('Der freigegebene Hauptordner kann hier nicht verschoben werden.',403);stmt('UPDATE folders SET name=?,parent=? WHERE id=?',[$name,$parent,$id]);}else{$id=dm_id();stmt('INSERT INTO folders(id,parent,name) VALUES(?,?,?)',[$id,$parent,$name]);}respond(['id'=>$id]);
  }
+ if($action==='folder-delete'&&$method==='POST'){
+  owner();$id=(string)($input['id']??'');may_folder($id,true);$db->beginTransaction();$f=stmt('SELECT * FROM folders WHERE id=?',[$id])->fetch();
+  if(!$f||$f['name']!==($input['name']??null)||$f['parent']!==(($input['parent']??null)?:null)){$db->rollBack();problem('Ordner wurde inzwischen geändert. Bitte neu laden.',409);}
+  foreach(['SELECT COUNT(*) FROM folders WHERE parent=?','SELECT COUNT(*) FROM missions WHERE folder=?','SELECT COUNT(*) FROM points WHERE folder=?'] as $sql)if((int)stmt($sql,[$id])->fetchColumn()){$db->rollBack();problem('Ordner ist nicht leer. Inhalte zuerst verschieben oder den Ordner archivieren.',409);}
+  stmt('DELETE FROM shares WHERE folder=?',[$id]);stmt('DELETE FROM folders WHERE id=?',[$id]);$db->commit();respond(['ok'=>true]);
+ }
  if($action==='folder-archive'&&$method==='POST'){$id=(string)($input['id']??'');may_folder($id,true);stmt('UPDATE folders SET archived=? WHERE id=?',[(int)(bool)($input['archived']??false),$id]);respond(['ok'=>true]);}
  if($action==='upload'&&$method==='POST'){
   $folder=($input['folder']??null)?:null;$existing=($input['mission']??null)?:null;$m=$existing?mission($existing,true):null;if($m)$folder=$m['folder'];may_folder($folder,true);
   $file=$_FILES['kmz']??null;if(!$file||$file['error']!==UPLOAD_ERR_OK||!is_uploaded_file($file['tmp_name']))problem('Upload fehlgeschlagen. Maximal 16 MB pro Datei.');
-  $original=basename(str_replace('\\','/',$file['name']));$extension=strtolower(pathinfo($original,PATHINFO_EXTENSION));if(!in_array($extension,['kmz','csv','lchm','lchz'],true))problem('Bitte KMZ, CSV oder eine native Litchi-Datei (LCHM/LCHZ) auswählen.');
-  $details=match($extension){'csv'=>dm_inspect_csv($file['tmp_name']),'lchm','lchz'=>dm_inspect_native($file['tmp_name'],$extension),default=>dm_inspect($file['tmp_name'])};$details['sourceFormat']=match($extension){'csv'=>'litchi-csv','lchm','lchz'=>'litchi-'.$extension,default=>'dji-kmz'};$sha=hash_file('sha256',$file['tmp_name']);$blob=dm_private().'/blobs/'.$sha.'.'.$extension;
+  $original=basename(str_replace('\\','/',$file['name']));$extension=strtolower(pathinfo($original,PATHINFO_EXTENSION));if(!in_array($extension,['kmz','csv','lchm','lchz','mproj'],true))problem('Bitte KMZ, CSV, LCHM/LCHZ oder ein Map-Creator-Projekt (MPROJ) auswählen.');
+  $details=match($extension){'mproj'=>dm_inspect_mproj($file['tmp_name']),'csv'=>dm_inspect_csv($file['tmp_name']),'lchm','lchz'=>dm_inspect_native($file['tmp_name'],$extension),default=>dm_inspect($file['tmp_name'])};$details['sourceFormat']=match($extension){'mproj'=>'mapcreator-project','csv'=>'litchi-csv','lchm','lchz'=>'litchi-'.$extension,default=>'dji-kmz'};$sha=hash_file('sha256',$file['tmp_name']);$blob=dm_private().'/blobs/'.$sha.'.'.$extension;
   if(!is_file($blob)&&!move_uploaded_file($file['tmp_name'],$blob))throw new RuntimeException('Datei konnte nicht gespeichert werden.');chmod($blob,0600);if(!hash_equals($sha,hash_file('sha256',$blob)))throw new RuntimeException('Prüfsumme stimmt nicht.');
   $stem=pathinfo($original,PATHINFO_FILENAME);$details['sourceUUID']=preg_match('/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i',$stem)?strtoupper($stem):null;
   $name=dm_text($input['name']??($details['originalName']?:$stem));if(!$name)problem('Bitte Missionsnamen eingeben.');
@@ -72,17 +84,56 @@ try {
   if($existing){ $changed=stmt('UPDATE missions SET updated=?,revision=revision+1 WHERE id=? AND revision=?',[$now,$id,(int)($input['revision']??0)]);if(!$changed->rowCount()){$db->rollBack();problem('Mission wurde inzwischen geändert. Bitte neu laden.',409);}$ordinal=(int)stmt('SELECT MAX(ordinal) FROM versions WHERE mission=?',[$id])->fetchColumn()+1;}else{$ordinal=1;stmt('INSERT INTO missions(id,folder,name,created,updated) VALUES(?,?,?,?,?)',[$id,$folder,$name,$now,$now]);}
   stmt('INSERT INTO versions VALUES(?,?,?,?,?,?,?,?)',[$vid,$id,$ordinal,$original,$sha,filesize($blob),json_encode($details,JSON_THROW_ON_ERROR),$now]);$db->commit();respond(['id'=>$id,'version'=>$ordinal]);
  }
+ if($action==='missions-move'&&$method==='POST'){
+  $folder=($input['folder']??null)?:null;may_folder($folder,true);$items=$input['missions']??[];
+  if(!is_array($items)||!count($items)||count($items)>500)problem('Bitte 1 bis 500 Missionen auswählen.');
+  $seen=[];$db->beginTransaction();
+  foreach($items as $item){
+   if(!is_array($item)||!is_string($item['id']??null)||isset($seen[$item['id']])){$db->rollBack();problem('Ungültige Missionsauswahl.');}
+   $m=mission($item['id'],true);$seen[$m['id']]=true;
+   if((int)($item['revision']??0)!==(int)$m['revision']){$db->rollBack();problem('Eine Mission wurde inzwischen geändert. Bitte neu laden.',409);}
+  }
+  foreach($items as $item)stmt('UPDATE missions SET folder=?,updated=?,revision=revision+1 WHERE id=?',[$folder,gmdate('c'),$item['id']]);
+  $db->commit();respond(['ok'=>true,'moved'=>count($items)]);
+ }
  if($action==='mission'&&$method==='POST'){
   $id=(string)($input['id']??'');$m=mission($id,true);$name=dm_text($input['name']??$m['name']);if(!$name)problem('Bitte Missionsnamen eingeben.');$folder=array_key_exists('folder',$input)?($input['folder']?:null):$m['folder'];may_folder($folder,true);$notes=dm_text($input['notes']??$m['notes'],20000);
-  $s=stmt('UPDATE missions SET name=?,notes=?,folder=?,archived=?,updated=?,revision=revision+1 WHERE id=? AND revision=?',[$name,$notes,$folder,(int)(bool)($input['archived']??$m['archived']),gmdate('c'),$id,(int)($input['revision']??0)]);if(!$s->rowCount())problem('Mission wurde inzwischen geändert. Bitte neu laden.',409);respond(['ok'=>true]);
+  $index=$m['overview_waypoint'];$mapVersion=$m['overview_version'];
+  if(array_key_exists('overviewWaypoint',$input)){
+   $index=$input['overviewWaypoint'];$v=stmt('SELECT id,details FROM versions WHERE mission=? ORDER BY ordinal DESC LIMIT 1',[$id])->fetch();$details=json_decode($v['details'],true,512,JSON_THROW_ON_ERROR);
+   if($index!==null&&(!is_int($index)||$index<0||!isset($details['points'][$index])||dm_format($details)!=='kmz'))problem('Bitte einen gültigen Wegpunkt des aktuellen KMZ-Exports wählen.');
+   $mapVersion=$index===null?null:$v['id'];
+  }
+  $link=dm_text($input['litchiURL']??$m['litchi_url'],500);
+  if($link!==''&&!preg_match('~^https://hub\.flylitchi\.com/\?m=[A-Za-z0-9_-]+$~D',$link))problem('Bitte einen Litchi-Hub-Missionslink eingeben.');
+  $s=stmt('UPDATE missions SET name=?,notes=?,folder=?,archived=?,updated=?,overview_waypoint=?,overview_version=?,litchi_url=?,revision=revision+1 WHERE id=? AND revision=?',[$name,$notes,$folder,(int)(bool)($input['archived']??$m['archived']),gmdate('c'),$index,$mapVersion,$link,$id,(int)($input['revision']??0)]);if(!$s->rowCount())problem('Mission wurde inzwischen geändert. Bitte neu laden.',409);respond(['ok'=>true]);
  }
- if($action==='versions'&&$method==='GET'){$id=(string)($_GET['id']??'');mission($id);respond(['versions'=>stmt('SELECT id,ordinal,filename,sha256,bytes,created FROM versions WHERE mission=? ORDER BY ordinal DESC',[$id])->fetchAll()]);}
+ if($action==='attach-source'&&$method==='POST'){
+  $target=mission((string)($input['target']??''),true);$source=mission((string)($input['source']??''),true);if($target['id']===$source['id'])problem('Bitte zwei verschiedene Einträge auswählen.');
+  $tv=stmt('SELECT * FROM versions WHERE mission=? ORDER BY ordinal DESC LIMIT 1',[$target['id']])->fetch();$sv=stmt('SELECT * FROM versions WHERE mission=? ORDER BY ordinal DESC LIMIT 1',[$source['id']])->fetch();
+  if(dm_format(json_decode($tv['details'],true))!=='kmz'||!in_array(dm_format(json_decode($sv['details'],true)),['mproj','lchm','lchz'],true))problem('Eine KMZ-Mission und eine Map-Creator- oder Litchi-Projektdatei auswählen.');
+  $db->beginTransaction();$t=stmt('UPDATE missions SET updated=?,revision=revision+1 WHERE id=? AND revision=?',[gmdate('c'),$target['id'],(int)($input['targetRevision']??0)]);$s=stmt('UPDATE missions SET archived=1,revision=revision+1 WHERE id=? AND revision=?',[$source['id'],(int)($input['sourceRevision']??0)]);
+  if(!$t->rowCount()||!$s->rowCount()){$db->rollBack();problem('Eintrag wurde inzwischen geändert. Bitte neu laden.',409);}
+  stmt('INSERT OR IGNORE INTO mission_attachments(mission,version) VALUES(?,?)',[$target['id'],$sv['id']]);$db->commit();respond(['id'=>$target['id']]);
+ }
+ if($action==='attachment'&&$method==='GET'){
+  if($current&&$current['role']==='view')problem('Projektdateien sind nicht für Kunden freigegeben.',403);$m=mission((string)($_GET['id']??''));$v=stmt('SELECT v.* FROM mission_attachments a JOIN versions v ON v.id=a.version WHERE a.mission=? AND a.version=?',[$m['id'],(string)($_GET['version']??'')])->fetch();if(!$v)problem('Zugehörige Projektdatei nicht gefunden.',404);$ext=dm_format(json_decode($v['details'],true));$path=dm_private().'/blobs/'.$v['sha256'].'.'.$ext;if(!is_file($path)||!hash_equals($v['sha256'],hash_file('sha256',$path)))problem('Projektdatei fehlt oder Prüfsumme ungültig.',500);stream_file($path,'application/octet-stream',$v['filename']);
+ }
+ if($action==='location'&&$method==='GET'){
+  $id=(string)($_GET['id']??'');mission($id);$public=dm_payload($db,$current);$m=next_public_mission($public['missions'],$id);$p=$m['overviewPoint'];if(!$p)problem('Kein Übersichtspunkt ausgewählt.',404);
+  $name=htmlspecialchars($m['name'],ENT_XML1|ENT_QUOTES,'UTF-8');$xml='<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Placemark><name>'.$name.'</name><Point><coordinates>'.$p['lng'].','.$p['lat'].',0</coordinates></Point></Placemark></kml>';
+  header('Content-Type: application/vnd.google-earth.kml+xml');header('Content-Disposition: attachment; filename="Standort.kml"');echo $xml;exit;
+ }
+ if($action==='versions'&&$method==='GET'){if($current&&$current['role']==='view')problem('Versionsdateien sind nicht für Kunden freigegeben.',403);$id=(string)($_GET['id']??'');mission($id);respond(['versions'=>stmt('SELECT id,ordinal,filename,sha256,bytes,created FROM versions WHERE mission=? ORDER BY ordinal DESC',[$id])->fetchAll()]);}
  if(in_array($action,['original','kmz','preview','package'],true)&&$method==='GET'){
-  $m=mission((string)($_GET['id']??''));$vid=$_GET['version']??null;$v=$vid?stmt('SELECT * FROM versions WHERE mission=? AND id=?',[$m['id'],$vid])->fetch():stmt('SELECT * FROM versions WHERE mission=? ORDER BY ordinal DESC LIMIT 1',[$m['id']])->fetch();if(!$v)problem('Version nicht gefunden.',404);
+  if($current&&$current['role']==='view'&&$action!=='preview')problem('Missionsdateien sind nicht für Kunden freigegeben.',403);
+  $m=mission((string)($_GET['id']??''));
+  if($current&&$current['role']==='view'){$public=dm_payload($db,$current);$m=next_public_mission($public['missions'],$m['id']);header('Content-Type: image/svg+xml');header("Content-Security-Policy: default-src 'none'; sandbox");echo dm_preview($m['details']);exit;}
+  $vid=$_GET['version']??null;$v=$vid?stmt('SELECT * FROM versions WHERE mission=? AND id=?',[$m['id'],$vid])->fetch():stmt('SELECT * FROM versions WHERE mission=? ORDER BY ordinal DESC LIMIT 1',[$m['id']])->fetch();if(!$v)problem('Version nicht gefunden.',404);
   $details=json_decode($v['details'],true,512,JSON_THROW_ON_ERROR);$extension=dm_format($details);$blob=dm_private().'/blobs/'.$v['sha256'].'.'.$extension;if(!is_file($blob)||!hash_equals($v['sha256'],hash_file('sha256',$blob)))throw new RuntimeException('Archivdatei fehlt oder Prüfsumme ist ungültig.');
   if(in_array($action,['original','kmz'],true))stream_file($blob,match($extension){'csv'=>'text/csv','kmz'=>'application/vnd.google-earth.kmz',default=>'application/octet-stream'},filename($m['name']).'.'.$extension);
   if($action==='preview'){if(isset($details['previewHash']))stream_file(dm_private().'/blobs/'.$details['previewHash'].'.jpg','image/jpeg','preview.jpg',true);header('Content-Type: image/svg+xml');header("Content-Security-Policy: default-src 'none'; sandbox");echo dm_preview($details);exit;}
-  $tmp=tempnam(dm_private().'/tmp','export-');try{$z=new ZipArchive();$z->open($tmp,ZipArchive::OVERWRITE);$originalEntry='mission.'.$extension;$z->addFile($blob,$originalEntry);$preview=isset($details['previewHash'])?file_get_contents(dm_private().'/blobs/'.$details['previewHash'].'.jpg'):dm_preview($details);$pname=isset($details['previewHash'])?'preview.jpg':'preview.svg';$z->addFromString($pname,$preview);$metadata=['format'=>'drone-missions/1','author'=>$config['authorName']??'','mission'=>$m,'version'=>array_diff_key($v,['details'=>true]),'details'=>$details,'files'=>[$originalEntry=>$v['sha256'],$pname=>hash('sha256',$preview)]];$z->addFromString('manifest.json',json_encode($metadata,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));$z->close();header('Content-Type: application/zip');header('Content-Disposition: attachment; filename="mission.zip"; filename*=UTF-8\'\''.rawurlencode(filename($m['name']).'-v'.$v['ordinal'].'.zip'));header('Content-Length: '.filesize($tmp));readfile($tmp);}finally{if(is_file($tmp))unlink($tmp);}exit;
+  $tmp=tempnam(dm_private().'/tmp','export-');try{$z=new ZipArchive();$z->open($tmp,ZipArchive::OVERWRITE);$originalEntry='mission.'.$extension;$z->addFile($blob,$originalEntry);$preview=isset($details['previewHash'])?file_get_contents(dm_private().'/blobs/'.$details['previewHash'].'.jpg'):dm_preview($details);$pname=isset($details['previewHash'])?'preview.jpg':'preview.svg';$z->addFromString($pname,$preview);$sourceFiles=[];$attachmentManifest=[];foreach(stmt('SELECT v.* FROM mission_attachments a JOIN versions v ON v.id=a.version WHERE a.mission=? ORDER BY v.created',[$m['id']])->fetchAll() as $index=>$attached){$ad=json_decode($attached['details'],true,512,JSON_THROW_ON_ERROR);$ap=dm_private().'/blobs/'.$attached['sha256'].'.'.dm_format($ad);if(!is_file($ap)||!hash_equals($attached['sha256'],hash_file('sha256',$ap)))throw new RuntimeException('Projektdatei fehlt oder Prüfsumme ungültig.');$entry='sources/'.($index+1).'-'.filename($attached['filename']);$z->addFile($ap,$entry);$sourceFiles[$entry]=$attached['sha256'];$attachmentManifest[]=['filename'=>$attached['filename'],'entry'=>$entry,'sha256'=>$attached['sha256'],'format'=>dm_format($ad)];}$metadata=['format'=>'drone-missions/1','author'=>$config['authorName']??'','mission'=>$m,'version'=>array_diff_key($v,['details'=>true]),'details'=>$details,'attachments'=>$attachmentManifest,'files'=>[$originalEntry=>$v['sha256'],$pname=>hash('sha256',$preview)]+$sourceFiles];$z->addFromString('manifest.json',json_encode($metadata,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));$z->close();header('Content-Type: application/zip');header('Content-Disposition: attachment; filename="mission.zip"; filename*=UTF-8\'\''.rawurlencode(filename($m['name']).'-v'.$v['ordinal'].'.zip'));header('Content-Length: '.filesize($tmp));readfile($tmp);}finally{if(is_file($tmp))unlink($tmp);}exit;
  }
  if($action==='share'&&$method==='POST'){owner();$folder=(string)($input['folder']??'');may_folder($folder);$role=$input['role']??'view';if(!in_array($role,['view','edit'],true))problem('Ungültige Berechtigung.');$token=bin2hex(random_bytes(32));$id=dm_id();$expiry=time()+30*86400;stmt('INSERT INTO shares VALUES(?,?,?,?,?,?)',[$id,$folder,hash('sha256',$token),$role,$expiry,gmdate('c')]);respond(['id'=>$id,'token'=>$token,'expires'=>$expiry]);}
  if($action==='shares'&&$method==='GET'){owner();respond(['shares'=>stmt('SELECT s.id,s.folder,s.role,s.expires,s.created,f.name FROM shares s JOIN folders f ON f.id=s.folder ORDER BY s.created DESC')->fetchAll()]);}
