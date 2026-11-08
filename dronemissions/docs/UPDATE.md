@@ -1,3 +1,14 @@
+## Missionsplaner: kompakte Werkzeugleisten, Kalotte und POI-AGL · 8.11.2026
+
+Branch `codex/planner-cap-corridor`, Generator 0.4.0. Eigener PR nach `main`, Web-Deployment; Bridge unverändert.
+
+- Schmale Leisten für Kamera, Flugart, Aufnahmeabstände und Zeichnen über einer größeren Karte; ein-/ausklappbare Seitenleiste. Automatische Vorschau und editierbare Umrisse bleiben erhalten.
+- Neue Helix/Doppelhelix: Kugelkalotte, automatischer Blick zur Objektmitte, senkrechte Scheitelaufnahme. Bestehende Zylinderform bleibt bei alten Planungen erhalten.
+- Eigene Flugarten Linie/Korridor. POI relativ Start oder AGL am Ziel plus Offset; getrennt vom Flug-Höhenbezug. Feste Kalotte + Gelände-Folgen wird abgelehnt.
+- Optionale Zusatzpause nach Foto standardmäßig 0; Ausrichten/Anhalten bleibt. Nominale Überlappung ist ausdrücklich keine 3D-Oberflächenmessung.
+- PHP-Geometrie-/DEM-/KMZ-Regressionen, Scheduler-Test und Planner-API-Integration bestanden. Browser bei 1280 × 720: Polygon ziehen, automatische Neuberechnung, Wechsel zur Doppelhelix, Kalotte mit 292 Fotos nach Speichern/Wiederöffnen identisch, Linie/Korridor, fehlender POI-AGL-Start sperrt Speichern. Neue Testfälle in `tests/planner.php`. Kein Gerätetest/Flugtest.
+- Anforderung „abgeflogene Höhenreferenzpunkte als Planungsgrundlage“ in `docs/PLANNER.md` dokumentiert, **noch nicht implementiert**; keine automatische Höhenableitung aus vier Wegpunkten behaupten.
+
 ## Missionsplaner: automatische Vorschau und verständliche Aufnahmeabstände · 8.11.2026
 
 Branch `codex/planner-live-preview`. Generator 0.3.0. Veröffentlichung über eigenen PR und den vorhandenen Web-Deployment-Workflow; kein Bridge-Build nötig.
