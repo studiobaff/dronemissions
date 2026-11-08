@@ -4,19 +4,21 @@ Stand: 8. November 2026.
 
 ## Aktueller Stand und offene Gerätetests
 
-Der aktuelle Mac-Download und die installierte App sind **0.5.0**, Quellstand
-[`3bd45da`](https://github.com/studiobaff/dronemissions/tree/3bd45da/bridge).
-Er kombiniert Claudes Layoutkorrektur
-[`7bf012c`](https://github.com/studiobaff/dronemissions/commit/7bf012c)
-mit dem ADB-Verpackungsfix aus
-[PR #10](https://github.com/studiobaff/dronemissions/pull/10).
+Der aktuelle Mac-Download und die installierte App sind **0.6.0**:
+**`dronemissions-bridge.app`**, Quellstand
+[`e1b6ca9`](https://github.com/studiobaff/dronemissions/tree/e1b6ca9/bridge).
+Er enthält Claudes
+[`21bd381`](https://github.com/studiobaff/dronemissions/commit/21bd381)
+und zusätzlich den ADB-Verpackungsfix. Das vorherige Bundle
+„Drone Missions Bridge.app“ wurde auf dem betreuten Mac aus Programme in eine
+Rückfallkopie verschoben. Kennungen für Einstellungen und Schlüsselbund bleiben
+unverändert; vorhandene Zugangsdaten gelten weiterhin.
 
-**83 isolierte Tests** bestehen. Das Paket wurde gebaut, signiert, installiert
-und gestartet. Das korrigierte Einstellungsfenster, die Erkennung des eingebauten
-ADB und die Verbindung zum echten Webarchiv mit Ordnerbaum wurden auf dem Mac
-geprüft. Die folgenden Gerätetests sind weiterhin offen; durch diese Prüfung
-wurde keine Mission übertragen. Der spätere Apple-Design-Durchgang **0.6** ist
-eine getrennte Überarbeitung und nicht Voraussetzung für diesen Build.
+**99 isolierte Tests** bestehen. Paket und ADB-Prüfsumme wurden geprüft, die App
+wurde installiert und gestartet. Am verbundenen iPad wurden **44 Missionen samt
+DJI-Fly-Titelbildern** erfolgreich gelesen (Bestand zum Testzeitpunkt). Dabei
+wurden keine Missionen geändert oder übertragen. Der Vorschau-Upload ins
+Webarchiv und die unten genannten Übertragungsfälle bleiben offen.
 
 ## Download und Zugang
 
@@ -58,7 +60,7 @@ Schlüsselbund und echte Programmeinstellungen nie berühren.
   keinen Cloud-Download aus. Danach die Geräteliste neu lesen.
 * Löschen auf dem Gerät ist nicht implementiert; es erfolgt in DJI Fly.
 
-## Ablauf in 0.5.0
+## Ablauf ab 0.5.0
 
 1. **Gerät wählen:** iPad/iPhone oder Fernsteuerung per USB verbinden, entsperren
    und auswählen.
@@ -85,6 +87,26 @@ Pfeilleiste und **⌘1–⌘4** wechseln zwischen den vier Schritten. Das Protok
 separat erreichbar. Native Menüs rufen dieselben Prüfungen wie die Knöpfe auf;
 Tastenkürzel umgehen keine Bestätigung.
 
+## Neu in 0.6.0
+
+* Systemabhängiges helles/dunkles Schema, kompakte Symbolleiste mit einfarbigen
+  Icons, Kapsel-Knöpfe und gerahmter Infoblock auf der Prüfseite. Der Programmname
+  lautet **dronemissions-bridge**.
+* Die Warteschlange zeigt Bilder sofort. Für Archivmissionen ist das mitgeladene
+  **Archivbild** die Standardvorschau, wählbar neben 3D, Luftbild und eigenem Bild.
+* Das iPad liefert beim Lesen auch seine DJI-Fly-Titelbilder. Fehlt ein Gerätebild,
+  kann die identische Archivmission als Bildquelle dienen.
+* **Vorschauen ins Webarchiv** speichert Gerätebilder als zusätzliche aktive Bilder
+  identischer Archivmissionen. Die angehakten Missionen sind maßgeblich; ohne
+  Hakerl werden alle sichtbaren passenden Missionen berücksichtigt. Der Dialog
+  fragt vor dem Speichern nach. Für den ersten Test **genau eine Mission anhaken**.
+  Frühere Bilder und KMZ bleiben erhalten; eine neue Missionsversion entsteht
+  nicht. Der echte Upload dieses Ablaufs ist noch nicht geprüft.
+* Checkboxen in Schritt 3 und 4 erlauben **Markierte entfernen**, bevor die
+  Übertragung beginnt. Die übrigen geprüften Aufträge bleiben gültig.
+* **Umbenennen** ist auch bei genau einer angehakten Gerätemission verfügbar.
+  Das ist eine Änderung am Gerät und kein Bestandteil des reinen Bildlesetests.
+
 ## Prüfung und Grenzen
 
 Die frühere Helix wurde nach gezielter Bereinigung eines doppelten Schlusspunkts
@@ -94,16 +116,16 @@ bleibt unverändert. Dies bestätigt nicht automatisch die neue Warteschlange.
 DJI Fly kann das eigene Vorschaubild nach dem Speichern durch eine Karte ersetzen;
 Änderungen bestehender Bilder werden nicht zuverlässig über DJI Cloud verteilt.
 
-Für diesen Stand bestanden **83 isolierte Tests**. Echte Kartenabrufe wurden auf
+Für diesen Stand bestanden **99 isolierte Tests**. Echte Kartenabrufe wurden auf
 dem Mac für Österreich und das weltweite Luftbild erfolgreich ausgeführt. Ein
 reales Mac-Paket zeigte zusätzlich einen ADB-Verpackungsfehler: PyInstaller
 verändert das Mach-O-Binary durch Architekturverarbeitung und Signatur. Der
 Korrekturbranch `codex/bridge-050-packaging` bewahrt den Upstream-Hash und prüft den
 Hash des tatsächlich ausgelieferten ADB. Das korrigierte Paket wurde nach dem
 Staging mit strikter Signaturprüfung und erfolgreicher ADB-Erkennung geprüft.
-Diese Korrektur ist im ausgelieferten Stand `3bd45da` enthalten und bleibt über PR #10 für Claudes weitere Arbeit verfügbar.
+Diese Korrektur ist auch im ausgelieferten Stand `e1b6ca9` enthalten.
 
-Noch offen: zwei neue iPad-Missionen seriell übertragen, Fehler/Stopp/Fortsetzen
+Noch offen: ein Gerätebild über die neue Bridge-Funktion ins Webarchiv speichern, zwei neue iPad-Missionen seriell übertragen, Fehler/Stopp/Fortsetzen
 am Gerät, iPad-Ersetzen, RC-Pro-2-Ersetzen, experimenteller Android-Neuimport und
 Windows-Build. Keine Dateiprüfung oder Vorschau bestätigt die Flugsicherheit.
 
