@@ -14,6 +14,10 @@ def main():
  profile=c.call('upload',{'folder':folder,'name':'Synthetic device profile'},files={'kmz':('device.kmz',raw)})['id']
  body={'folder':folder,'profileMission':profile,'plan':plan()};cat=c.call('planner-catalog')['cameras'];assert len(cat)==6 and {v['id'] for v in cat}=={'mini4','mini5','air3','air3s','mavic3','mavic4'}
  imported=c.call('planner-height-import',{'folder':folder},files={'file':('reference.kmz',synthetic_kmz(20))})['heightReference'];assert imported['heightMode']=='relativeToStartPoint' and not imported['enabled'] and len(imported['points'])==5
+ archive_ref=c.call('planner-height-import',{'folder':folder,'mission':profile})['heightReference']
+ local_ref=c.call('planner-height-import',{'folder':folder},files={'file':('device.kmz',raw)})['heightReference']
+ assert archive_ref['points']==local_ref['points'] and archive_ref['sha256']==local_ref['sha256'] and archive_ref['name'].endswith(' · V1') and not archive_ref['enabled'] and archive_ref['datum']==''
+ c.call('planner-height-import',{'folder':folder,'mission':'missing'},expected=404)
  imported.update({'datum':'sameStart','enabled':True,'margin':10});body['plan']['heightReference']=imported
  r=c.call('planner-preview',body);assert r['summary']['photos']>0 and len(r['parts'])==1
  saved=c.call('planner-save',body);body.update(saved);assert saved['revision']==1
@@ -29,6 +33,17 @@ def main():
  edit=c.call('share',{'folder':folder,'role':'edit'});e=Client(a.base);e.call('share-login',{'token':edit['token']});assert any(x['id']==saved['id'] for x in e.call('planner-list')['plans']);e.call('planner-load&id='+saved['id']);e.call('planner-preview',body)
  outsider=c.call('share',{'folder':other,'role':'edit'});f=Client(a.base);f.call('share-login',{'token':outsider['token']});assert not f.call('planner-list')['plans'];f.call('planner-load&id='+saved['id'],expected=403);f.call('planner-preview',body,expected=403)
  f.call('planner-height-import',{'folder':folder},expected=403,files={'file':('reference.kmz',synthetic_kmz(20))})
+ v.call('planner-height-import',{'folder':folder,'mission':profile},expected=403)
+ f.call('planner-height-import',{'folder':other,'mission':profile},expected=403) # permitted destination, forbidden source
+ e.call('planner-height-import',{'folder':other,'mission':profile},expected=403) # permitted source, forbidden destination
+ assert e.call('planner-height-import',{'folder':folder,'mission':profile})['heightReference']['sha256']==archive_ref['sha256']
+ archive_plan={'folder':folder,'plan':plan()};archive_plan['plan']['heightReference']=archive_ref
+ ah=c.call('planner-save',archive_plan);assert c.call('planner-load&id='+ah['id'])['body']['heightReference']==archive_ref
+ pm=next(m for m in c.call('library')['missions'] if m['id']==profile)
+ c.call('upload',{'mission':profile,'revision':pm['revision']},files={'kmz':('device-v2.kmz',synthetic_kmz(10))})
+ newer=c.call('planner-height-import',{'folder':folder,'mission':profile})['heightReference'];assert newer['name'].endswith(' · V2') and newer['sha256']!=archive_ref['sha256']
+ assert c.call('planner-load&id='+ah['id'])['body']['heightReference']==archive_ref # imported snapshot stays pinned
+ print('PASS: archive height-reference import, source/destination permissions, checksum and saved snapshot')
  forged={'folder':other,'plan':plan(),'profileMission':profile};f.call('planner-export',forged,expected=403)
  c.call('folder-delete',{'id':folder,'name':'Planner synthetic','parent':None},expected=409)
  c.call('planner-osm',{'south':48,'north':49,'west':16,'east':17},expected=400)

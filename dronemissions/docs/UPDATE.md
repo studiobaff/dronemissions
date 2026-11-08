@@ -1,3 +1,7 @@
+## Höhenreferenz direkt aus dem Webarchiv · 8.11.2026
+
+Im Planer unter „Höhenpunkte aus Erkundungsflug“ eine DJI-KMZ aus dem Archiv wählen und „Höhenpunkte übernehmen“ anklicken. Liste mit Projektpfaden, serverseitiger Prüfung beider Projektberechtigungen, Dateityp und Prüfsumme. Die neueste KMZ-Version wird als feste Kopie der Höhenpunkte in den Entwurf übernommen; Name, Versionsnummer und Quellprüfsumme bleiben erhalten. Spätere Änderungen der Quelle verändern den Entwurf nicht. Lokaler Upload bleibt verfügbar. Startbezug, Auswahl und Sicherheitsabstand werden weiterhin bewusst eingestellt, Mindesthöhenprüfung zunächst aus. API-Tests (Rechte, aktuelle Version, gespeicherte Kopie) und Browserprüfung bestanden. Keine Bridge-Änderung.
+
 ## Missionsplaner 0.5.2 · Einzelbilder / Video · 8.11.2026
 
 Aufnahmeauswahl in der oberen Werkzeugleiste; keine Bezeichnung „SkySplat“. Video-Grid erzeugt nur Anfang/Ende jeder Bahn. Gelände kann zusätzliche Höhenstützpunkte verlangen; Helix behält ihre Kurvenstützpunkte. Jeder KMZ-Abschnitt richtet die Kamera aus, startet die Aufnahme und stoppt sie am letzten Wegpunkt. Gimbal-Pitch wird zwischen benachbarten Punkten interpoliert. Keine Foto-/Hover-Aktionen im Videoexport. Bestehende Wegpunkt-Stopps bleiben erhalten; kein Versprechen eines unterbrechungsfreien Rundflugs.

@@ -17,7 +17,18 @@ if(in_array($action,['planner-catalog','planner-list','planner-load','planner-sa
  if($action==='planner-load'&&$method==='GET'){$row=stmt('SELECT * FROM mission_plans WHERE id=?',[(string)($_GET['id']??'')])->fetch();if(!$row)problem('Planung nicht gefunden.',404);may_folder($row['folder']);$row['body']=json_decode($row['body'],true,64,JSON_THROW_ON_ERROR);respond($row);}
  if($method!=='POST')problem('Methode nicht unterstützt.',405);
  if($action==='planner-height-import'){
-  may_folder(($input['folder']??null)?:null,true);$file=$_FILES['file']??null;
+  may_folder(($input['folder']??null)?:null,true);
+  if(isset($input['mission'])){
+   $m=mission((string)$input['mission']);
+   $v=stmt('SELECT sha256,details,ordinal FROM versions WHERE mission=? ORDER BY ordinal DESC LIMIT 1',[$m['id']])->fetch();
+   if(!$v)problem('Archivmission enthält keine Version.',404);
+   if(dm_format(json_decode($v['details'],true,512,JSON_THROW_ON_ERROR))!=='kmz')problem('Höhenreferenz benötigt eine DJI-Waypoint-KMZ.');
+   $path=dm_private().'/blobs/'.$v['sha256'].'.kmz';
+   if(!is_file($path)||!hash_equals($v['sha256'],hash_file('sha256',$path)))problem('Archivdatei fehlt oder ist beschädigt.',500);
+   if(filesize($path)>8388608)problem('KMZ-Höhenreferenz darf höchstens 8 MB groß sein.');
+   respond(['heightReference'=>dm_plan_height_import($path,$m['name'].' · V'.$v['ordinal'])]);
+  }
+  $file=$_FILES['file']??null;
   if(!$file||$file['error']!==UPLOAD_ERR_OK||!is_uploaded_file($file['tmp_name'])||$file['size']>8388608)problem('KMZ-Höhenreferenz hochladen, maximal 8 MB.');
   $name=basename(str_replace('\\','/',$file['name']));if(strtolower(pathinfo($name,PATHINFO_EXTENSION))!=='kmz')problem('Bitte eine DJI-Waypoint-KMZ wählen.');
   respond(['heightReference'=>dm_plan_height_import($file['tmp_name'],$name)]);
