@@ -4,7 +4,7 @@ Stand: 8. November 2026. Diese Übersicht unterscheidet ausgelieferte Funktionen
 
 ## Ausgeliefert und geprüft
 
-- Mac-App und privater Webarchiv-Download: **dronemissions-bridge 0.6.1**, Quellstand `55bbdaa`, 109 isolierte Tests. Einstellungen und Schlüsselbund-Kennungen bleiben erhalten.
+- Mac-App und privater Webarchiv-Download: **dronemissions-bridge 0.6.2**, Quellstand `618aa5a`, 113 isolierte Tests. Einstellungen und Schlüsselbund-Kennungen bleiben erhalten.
 - Auf dem echten iPad wurde der komplette Ablauf über die App bestätigt: eine Mission mit zwölf Wegpunkten ins Webarchiv sichern, KMZ-Prüfsumme vergleichen, lokal entfernen und als neue Mission aus dem Archiv zurückübertragen. Der Nutzer bestätigte das Ergebnis in DJI Fly. Archivversion und Originaldatei blieben unverändert. Details: [BRIDGE.md](BRIDGE.md).
 - Web-Veröffentlichungen erfolgen aus geschütztem `main` über Pull Request, erfolgreiche Checks und GitHub Actions. Ein Push auf Claudes Arbeitsbranch veröffentlicht nicht automatisch.
 
@@ -16,14 +16,14 @@ Branch: `claude/drone-missions-ui-handoff-4nsj6e`, letzter überprüfter Stand *
 - `d1513bc`: eigene Kachelquellen mit API-Schlüssel, WMTS-Import, Vektor-Upload und zusätzliche Geozonenkategorie.
 - `c185a2a`: gespeicherte Ebenenreihenfolge. Vektor-Ebenen liegen über Geozonen und unter Missionsrouten/Wegpunkten. Weiter unten gelistete Overlays liegen weiter oben auf der Karte. Ab der 19. Vektor-Ebene teilen sich weitere Ebenen eine Stapelstufe.
 
-Die Kartenebenen dieses Stands gelten installationsweit. Claudes Testbericht nennt erfolgreiche Integrations- und Browserprüfungen; das ersetzt nicht die erneute Prüfung des zusammengeführten Release-Stands. Die drei Codeänderungen sind im Projektkarten-/POI-Kandidaten enthalten; der Live-Stand folgt erst nach geprüftem PR-Merge.
+Die Kartenebenen dieses Stands gelten installationsweit. Claudes Testbericht nennt erfolgreiche Integrations- und Browserprüfungen; das ersetzt nicht die erneute Prüfung des zusammengeführten Release-Stands. Die drei Codeänderungen wurden mit Projektkarten und POIs über PR #19 in `main` übernommen und per GitHub Actions veröffentlicht.
 
-## Projektkarten und POIs: fertiger Release-Kandidat
+## Projektkarten und POIs: veröffentlicht
 
 - Projektkarten verwenden Claudes bestehende Vektor-Ebenen mit einer Projektzuordnung. Im Projekt öffnet „Projektkarte …“ den Upload mit vorausgewähltem Ordner. Originaldatei mit Prüfsumme bleibt privat erhalten. Unterordner erben die Referenz; andere Projekte zeigen sie nicht. Kundenlinks können projektbezogene Vektoren weder sehen noch herunterladen. Details: [PROJECT-MAPS.md](PROJECT-MAPS.md).
 - Aktive WPML-POIs sind in der Web-Missionskarte, SVG-Vorschau sowie im 3D-/Karteneditor sichtbar. Alte KMZs werden bei Bedarf ohne neue Version nachgelesen. Bridge **0.6.2**, Quellstand `618aa5a`, enthält dieselbe POI-Auswertung für 3D und Luftbild. Bestehende eigene Fotos/Archivbilder bleiben unverändert. POIs zeigen die Lage; der Höhenbezug wird nicht geraten.
 - Prüfung: Archiv-Integration, Vorschaugeschichte und neue API-Rechte-/Projekt-/POI-Tests auf isolierter synthetischer Installation; Browserprüfung von Editor, Projektvorwahl, automatischer Referenzanzeige und Ausblendung beim Projektwechsel. Bridge: **113 isolierte Tests** einschließlich 3D- und Luftbildrendering mit Kachel-Fakes.
-- Veröffentlichung: Web-Kandidat geht über PR nach `main`, Bridge separat als Mac-Build. Der genaue installierte Paketstand steht in [BRIDGE.md](BRIDGE.md); ein Code-Commit allein bestätigt keine Installation. Neue Übertragungs-/Ersetzen-Gerätetests bleiben getrennt.
+- Veröffentlichung: PR #19 ist nach erfolgreichen Checks gemerged und live. Bridge 0.6.2 wurde gebaut, installiert, gestartet und visuell geprüft. Mac-ZIP und Anleitung sind im authentifizierten Webarchiv aktualisiert; der vollständige Download ist per SHA-256 geprüft. Neue Übertragungs-/Ersetzen-Gerätetests bleiben getrennt.
 
 ## Zusammenarbeit und Erhalt bestehender Arbeit
 
