@@ -26,6 +26,21 @@ jobs:
           find dronemissions/public -name '*.js' -print0 | xargs -0 -n1 node --check
           python3 -m unittest discover -s deploy/tests -v
           python3 deploy/package.py dronemissions/public release.zip "$GITHUB_SHA"
+      - name: Archive and preview integration tests (synthetic loopback installation)
+        run: |
+          test_private=$(mktemp -d /tmp/dm-preview-XXXXXX)
+          php dronemissions/tests/setup-preview-test.php "$test_private"
+          test_web=$(mktemp -d /tmp/dm-preview-web-XXXXXX)
+          ln -s "$PWD/dronemissions/public" "$test_web/dronemissions"
+          env DRONEMISSIONS_PRIVATE="$test_private" php -S 127.0.0.1:18764 -t "$test_web" > "$test_private/server.log" 2>&1 &
+          test_pid=$!
+          trap 'kill "$test_pid"; rm -rf "$test_private" "$test_web"' EXIT
+          for attempt in $(seq 1 30); do
+            curl -fsS 'http://127.0.0.1:18764/dronemissions/api.php?action=session' >/dev/null && break
+            sleep 0.2
+          done
+          python3 dronemissions/tests/integration.py --base http://127.0.0.1:18764/dronemissions/ --access "$test_private/access.json" --allow-test-writes
+          python3 dronemissions/tests/previews.py --base http://127.0.0.1:18764/dronemissions/ --access "$test_private/access.json"
       - name: Release switching and rollback tests
         run: php deploy/tests/receiver.php
       - name: Parser regression tests

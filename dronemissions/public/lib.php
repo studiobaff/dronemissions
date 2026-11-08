@@ -12,9 +12,11 @@ function dm_migrate(PDO $db): void {
  if(!$db->query("SELECT name FROM sqlite_master WHERE type='table' AND name='missions'")->fetch())return;
  $columns=array_column($db->query('PRAGMA table_info(missions)')->fetchAll(),'name');
  foreach(['overview_waypoint'=>'INTEGER','overview_version'=>'TEXT','litchi_url'=>'TEXT NOT NULL DEFAULT ""'] as $column=>$type)if(!in_array($column,$columns,true))$db->exec("ALTER TABLE missions ADD COLUMN $column $type");
+ dm_preview_schema($db);
  $db->exec('CREATE TABLE IF NOT EXISTS mission_attachments(mission TEXT NOT NULL REFERENCES missions(id),version TEXT NOT NULL REFERENCES versions(id),PRIMARY KEY(mission,version))');
 }
 function dm_schema(PDO $db): void {
+ dm_preview_schema($db);
  $db->exec('CREATE TABLE IF NOT EXISTS mission_attachments(mission TEXT NOT NULL REFERENCES missions(id),version TEXT NOT NULL REFERENCES versions(id),PRIMARY KEY(mission,version)); CREATE TABLE IF NOT EXISTS points(id TEXT PRIMARY KEY,folder TEXT NOT NULL REFERENCES folders(id),name TEXT NOT NULL,notes TEXT NOT NULL DEFAULT "",lat REAL NOT NULL,lng REAL NOT NULL,settings TEXT NOT NULL DEFAULT "{}",revision INTEGER NOT NULL DEFAULT 1); CREATE TABLE IF NOT EXISTS folders(id TEXT PRIMARY KEY,parent TEXT REFERENCES folders(id),name TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS missions(id TEXT PRIMARY KEY,folder TEXT REFERENCES folders(id),name TEXT NOT NULL,notes TEXT NOT NULL DEFAULT "",archived INTEGER NOT NULL DEFAULT 0,created TEXT NOT NULL,updated TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,overview_waypoint INTEGER,overview_version TEXT,litchi_url TEXT NOT NULL DEFAULT ""); CREATE TABLE IF NOT EXISTS versions(id TEXT PRIMARY KEY,mission TEXT NOT NULL REFERENCES missions(id),ordinal INTEGER NOT NULL,filename TEXT NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,details TEXT NOT NULL,created TEXT NOT NULL,UNIQUE(mission,ordinal)); CREATE TABLE IF NOT EXISTS shares(id TEXT PRIMARY KEY,folder TEXT NOT NULL REFERENCES folders(id),token_hash TEXT NOT NULL UNIQUE,role TEXT NOT NULL,expires INTEGER NOT NULL,created TEXT NOT NULL); CREATE TABLE IF NOT EXISTS login_attempts(ip TEXT NOT NULL,happened INTEGER NOT NULL);');
 }
 function dm_id(): string { return bin2hex(random_bytes(16)); }
@@ -124,4 +126,11 @@ function dm_inspect_mproj(string $path): array {
  if(!is_array($d)||($d['version']??null)!==1||!in_array($d['type']??null,['circle','polygon'],true)||!is_array($d['polygon']??null)||!is_array($d['settings']??null))throw new InvalidArgumentException('Unbekanntes Map-Creator-Projektformat.');
  foreach($d['polygon'] as $p)if(!is_array($p)||count($p)!==2||!is_numeric($p[0])||!is_numeric($p[1])||!is_finite((float)$p[0])||!is_finite((float)$p[1]))throw new InvalidArgumentException('Ungültige Planungsgeometrie.');
  return ['sourceFormat'=>'mapcreator-project','previewAvailable'=>false,'points'=>[],'routes'=>[],'count'=>null,'distance'=>0,'estimatedSeconds'=>null,'droneEnum'=>null,'droneSubEnum'=>null,'author'=>'','heightMode'=>'Map-Creator-Projekt – kein Flugexport','originalName'=>'','planningType'=>$d['type'],'planningVertexCount'=>count($d['polygon']),'flightValidation'=>'Originalprojekt archiviert. Für die Übertragung auf DJI Fly einen DJI-KMZ-Export zuordnen.'];
+}
+
+function dm_preview_schema(PDO $db): void {
+ $db->exec('CREATE TABLE IF NOT EXISTS mission_previews(id TEXT PRIMARY KEY,mission TEXT NOT NULL REFERENCES missions(id),source_version TEXT NOT NULL REFERENCES versions(id),hash TEXT NOT NULL,photo_hash TEXT,settings TEXT NOT NULL,created TEXT NOT NULL); CREATE TABLE IF NOT EXISTS mission_preview_selection(mission TEXT PRIMARY KEY REFERENCES missions(id),preview TEXT NOT NULL REFERENCES mission_previews(id)); CREATE INDEX IF NOT EXISTS mission_previews_mission ON mission_previews(mission)');
+}
+function dm_active_preview(PDO $db,string $mission): ?array {
+ $s=$db->prepare('SELECT p.* FROM mission_previews p JOIN mission_preview_selection s ON s.preview=p.id WHERE s.mission=? AND p.mission=?');$s->execute([$mission,$mission]);return $s->fetch()?:null;
 }
