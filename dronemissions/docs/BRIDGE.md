@@ -2,18 +2,21 @@
 
 Stand: 8. November 2026.
 
-## Freigegebener Stand und laufende Überarbeitung
+## Aktueller Stand und offene Gerätetests
 
-Der freigegebene Mac-Download ist **0.4.4**, Quellstand
-[`da4e48d`](https://github.com/studiobaff/dronemissions/tree/da4e48d/bridge).
+Der aktuelle Mac-Download und die installierte App sind **0.5.0**, Quellstand
+[`3bd45da`](https://github.com/studiobaff/dronemissions/tree/3bd45da/bridge).
+Er kombiniert Claudes Layoutkorrektur
+[`7bf012c`](https://github.com/studiobaff/dronemissions/commit/7bf012c)
+mit dem ADB-Verpackungsfix aus
+[PR #10](https://github.com/studiobaff/dronemissions/pull/10).
 
-**0.5.0 ist noch in UI-Überarbeitung.** Claude hat mit
-[`e445a4c`](https://github.com/studiobaff/dronemissions/tree/e445a4c/bridge) einen
-Kandidaten auf `claude/drone-missions-ui-handoff-4nsj6e` geliefert. Er enthält die
-0.4.4-Korrekturen und den aktuellen Webarchiv-Stand. 83 isolierte Tests bestehen
-auch auf dem Mac. Der Kandidat wurde gebaut und gestartet; überlagernde
-UI-Elemente werden noch von Claude überarbeitet. Der Sammel-Gerätetest ist offen.
-Der Download wird erst nach der Überarbeitung aktualisiert.
+**83 isolierte Tests** bestehen. Das Paket wurde gebaut, signiert, installiert
+und gestartet. Das korrigierte Einstellungsfenster, die Erkennung des eingebauten
+ADB und die Verbindung zum echten Webarchiv mit Ordnerbaum wurden auf dem Mac
+geprüft. Die folgenden Gerätetests sind weiterhin offen; durch diese Prüfung
+wurde keine Mission übertragen. Der spätere Apple-Design-Durchgang **0.6** ist
+eine getrennte Überarbeitung und nicht Voraussetzung für diesen Build.
 
 ## Download und Zugang
 
@@ -55,7 +58,7 @@ Schlüsselbund und echte Programmeinstellungen nie berühren.
   keinen Cloud-Download aus. Danach die Geräteliste neu lesen.
 * Löschen auf dem Gerät ist nicht implementiert; es erfolgt in DJI Fly.
 
-## Neuer Ablauf in 0.5.0 (Kandidat)
+## Ablauf in 0.5.0
 
 1. **Gerät wählen:** iPad/iPhone oder Fernsteuerung per USB verbinden, entsperren
    und auswählen.
@@ -91,14 +94,14 @@ bleibt unverändert. Dies bestätigt nicht automatisch die neue Warteschlange.
 DJI Fly kann das eigene Vorschaubild nach dem Speichern durch eine Karte ersetzen;
 Änderungen bestehender Bilder werden nicht zuverlässig über DJI Cloud verteilt.
 
-Für den Kandidaten bestanden **83 isolierte Tests**. Echte Kartenabrufe wurden auf
+Für diesen Stand bestanden **83 isolierte Tests**. Echte Kartenabrufe wurden auf
 dem Mac für Österreich und das weltweite Luftbild erfolgreich ausgeführt. Ein
 reales Mac-Paket zeigte zusätzlich einen ADB-Verpackungsfehler: PyInstaller
 verändert das Mach-O-Binary durch Architekturverarbeitung und Signatur. Der
 Korrekturbranch `codex/bridge-050-packaging` bewahrt den Upstream-Hash und prüft den
 Hash des tatsächlich ausgelieferten ADB. Das korrigierte Paket wurde nach dem
 Staging mit strikter Signaturprüfung und erfolgreicher ADB-Erkennung geprüft.
-Diese Korrektur muss in den endgültigen Claude-Stand einfließen.
+Diese Korrektur ist im ausgelieferten Stand `3bd45da` enthalten und bleibt über PR #10 für Claudes weitere Arbeit verfügbar.
 
 Noch offen: zwei neue iPad-Missionen seriell übertragen, Fehler/Stopp/Fortsetzen
 am Gerät, iPad-Ersetzen, RC-Pro-2-Ersetzen, experimenteller Android-Neuimport und
@@ -110,8 +113,7 @@ Windows-Build. Keine Dateiprüfung oder Vorschau bestätigt die Flugsicherheit.
 Branchlöschung. Claude kann auf seinem Arbeitsbranch weiterarbeiten. Beiträge
 von außen erfolgen in einem Fork; nur der Eigentümer hat Schreibzugriff.
 
-Die zentrale Anleitung liegt auf `main`; unfertige Bridge-Arbeit bleibt auf dem
-angegebenen Branch. Nach Claudes finalem Commit: Stand holen, isolierte Tests,
+Die zentrale Anleitung liegt auf `main`; Bridge-Arbeit und der genaue Paketstand sind oben verlinkt. Für weitere Versionen nach Claudes finalem Commit: Stand holen, isolierte Tests,
 Mac-Build, Paket-/Signaturprüfung, App installieren und Gerätetest mit dem Nutzer.
 Das ZIP und die zugehörige Doku kommen anschließend in den privaten Serverordner
 `bridge/`. Alte Download-Pakete bleiben separat archiviert. Web-Code wird über
