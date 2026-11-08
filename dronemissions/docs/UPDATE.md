@@ -1,3 +1,7 @@
+# KMZ-Editor · 8. November 2026
+
+Neu: Archivmission öffnen → **Wegpunkte bearbeiten**. Punkte ziehen, Koordinaten/Höhen ändern, kontrolliert löschen/einfügen und als neue Version speichern. Originale bleiben erhalten. Separate Module `kmz-editor*`; Claudes Planer-UI wird nicht verändert. Umfang, Grenzen und Prüfungen: [KMZ-EDITOR.md](KMZ-EDITOR.md). Veröffentlichung über geprüften PR nach main; nur Web-App, kein Bridge-Build nötig.
+
 ## Höhenreferenz direkt aus dem Webarchiv · 8.11.2026
 
 Im Planer unter „Höhenpunkte aus Erkundungsflug“ eine DJI-KMZ aus dem Archiv wählen und „Höhenpunkte übernehmen“ anklicken. Liste mit Projektpfaden, serverseitiger Prüfung beider Projektberechtigungen, Dateityp und Prüfsumme. Die neueste KMZ-Version wird als feste Kopie der Höhenpunkte in den Entwurf übernommen; Name, Versionsnummer und Quellprüfsumme bleiben erhalten. Spätere Änderungen der Quelle verändern den Entwurf nicht. Lokaler Upload bleibt verfügbar. Startbezug, Auswahl und Sicherheitsabstand werden weiterhin bewusst eingestellt, Mindesthöhenprüfung zunächst aus. API-Tests (Rechte, aktuelle Version, gespeicherte Kopie) und Browserprüfung bestanden. Keine Bridge-Änderung.
