@@ -1,96 +1,123 @@
 # Bridge bedienen und aktualisieren
 
-Stand: 8. November 2026. Quellstand der Mac-App 0.4.1: `1679b96` auf
-[Claudes Bridge-Branch](https://github.com/studiobaff/dronemissions/tree/1679b96/bridge).
+Stand: 8. November 2026.
 
-## Download und Anmeldung
+## Freigegebener Stand und laufende Überarbeitung
 
-Im Webarchiv anmelden und **Bridge** öffnen. ZIP für macOS und bei Bedarf die
-Archiv-Konfiguration herunterladen. Die SHA-256-Prüfsumme steht am Download.
-ZIP entpacken und die App in Programme ablegen. Der Mac-Build ist ad-hoc signiert,
-jedoch nicht von Apple notarisiert. Windows erfordert einen eigenen Build auf
-Windows; ein getestetes Windows-Paket ist bislang nicht veröffentlicht.
+Der freigegebene Mac-Download ist **0.4.4**, Quellstand
+[`da4e48d`](https://github.com/studiobaff/dronemissions/tree/da4e48d/bridge).
 
-Im App-Tab **Webarchiv** die Konfiguration laden oder die Archiv-Adresse eintragen:
-`https://service.studiobaff.com/dronemissions/`. Der Zugangsschlüssel wird getrennt
-angegeben und ist nicht Teil der herunterladbaren Konfiguration oder App.
+**0.5.0 ist noch in UI-Überarbeitung.** Claude hat mit
+[`e445a4c`](https://github.com/studiobaff/dronemissions/tree/e445a4c/bridge) einen
+Kandidaten auf `claude/drone-missions-ui-handoff-4nsj6e` geliefert. Er enthält die
+0.4.4-Korrekturen und den aktuellen Webarchiv-Stand. 83 isolierte Tests bestehen
+auch auf dem Mac. Der Kandidat wurde gebaut und gestartet; überlagernde
+UI-Elemente werden noch von Claude überarbeitet. Der Sammel-Gerätetest ist offen.
+Der Download wird erst nach der Überarbeitung aktualisiert.
 
-**Schlüssel merken** bietet auf macOS den Schlüsselbund und bei installierter
-1Password-CLI auch 1Password. Für 1Password muss `op` installiert und die
-CLI-Integration in der 1Password-App aktiviert sein. Die App-Konfiguration allein
-richtet diese Integration nicht ein. Das merkt den Archiv-Zugangsschlüssel;
-Missionsdaten und Datenbank werden dadurch nicht in 1Password gesichert.
+## Download und Zugang
 
-## Ablauf
+Im [Webarchiv](https://service.studiobaff.com/dronemissions/) anmelden und
+**Bridge** öffnen. Mac-ZIP und bei Bedarf die Konfiguration herunterladen; die
+Prüfsumme steht beim Download. Die Konfiguration enthält die Archiv-Adresse,
+keinen Zugangsschlüssel. Die App ist lokal ad-hoc signiert, nicht von Apple
+notarisiert. Windows braucht einen separaten Build auf Windows; ein getestetes
+Windows-Paket ist nicht veröffentlicht.
 
-1. iPad/iPhone oder Fernsteuerung per USB anschließen, entsperren und auswählen.
-2. **Missionen lesen** lädt den Bestand; Namenssuche und Mehrfachauswahl helfen bei
-   der Auswahl. iPad-Missionsnamen lassen sich bearbeiten, Fernsteuerungen können
-   davon abweichen. **Im Webarchiv sichern** legt ausgewählte Gerätemissionen im
-   Archiv ab; eine erfolgreiche Dateisicherung ersetzt keine Prüfung in DJI Fly.
-3. Im Webarchiv eine DJI-KMZ wählen oder über **Datei → KMZ auswählen** öffnen.
-4. **Neu anlegen** oder **Ersetzen** und das gewünschte Ziel wählen. Titel und
-   Vorschaumodus festlegen: 3D offline, Luftbild über basemap.at innerhalb Österreichs
-   mit Internet, oder ein eigenes Bild. Luftbildfehler werden mit Rückfall auf 3D
-   angezeigt. Die Vorschau zeigt geplante Wegpunkthöhen, kein Hindernismodell.
-5. **Vorschau prüfen**, DJI Fly vollständig schließen und den geschlossenen Zustand
-   bestätigen. Erst **Jetzt übertragen** schreibt aufs Gerät. Der Bestand wird
-   vorher gesichert und die übertragenen Daten werden zurückgelesen.
-6. In DJI Fly Mission, Punktzahl, Darstellung, Speichern und Cloud-Synchronisation
-   prüfen. Dateiprüfsummen bestätigen nicht die Flugsicherheit.
+Archiv-Adresse: `https://service.studiobaff.com/dronemissions/`.
 
-Bekannter Helix-Fall: Der doppelte abschließende Map-Creator-Punkt wird nur im
-eng geprüften Sonderfall in einer Übertragungskopie zusammengeführt. Der Stopp
-bleibt erhalten, das Original unverändert. Die Original-Helix wurde auf dem iPad
-mit 117 Punkten angezeigt, synchronisiert und erfolgreich gespeichert/verlassen.
-DJI Fly ersetzt die eigene Titelvorschau beim Speichern gegebenenfalls durch eine
-Kartenansicht. Änderungen vorhandener Vorschaubilder werden nicht zuverlässig
-über DJI Cloud auf andere Geräte verteilt.
+In **0.4.4** stehen Adresse und Schlüssel im Webarchiv-Tab. In **0.5.0** wandern sie
+in ein separates natives Fenster **Einstellungen …** mit **⌘,**. Dort liegen auch
+Konfigurationsimport, ADB, Ablage und Schlüsselspeicher. Im Hauptfenster bleiben
+nur Verbindungsstatus und die Missionen.
 
-## Menüleiste und Tastatur
+**Schlüssel merken** unterstützt den macOS-Schlüsselbund, bei installierter
+1Password-CLI `op` die vorhandene 1Password-Integration und unter Windows DPAPI.
+Die CLI-Integration muss in 1Password aktiviert sein. Das speichert den
+Zugangsschlüssel, keine Missionsdaten oder Datenbanksicherung. Auf diesem Mac ist
+die 1Password-Integration noch nicht geprüft. Tests dürfen den echten
+Schlüsselbund und echte Programmeinstellungen nie berühren.
 
-Auf macOS erscheinen die Menüs in der Systemleiste, auf Windows im Fenster.
-Windows verwendet Strg statt ⌘. Die Menüaktionen verwenden dieselben Prüfungen
-wie die Knöpfe; Tastenkürzel umgehen keine Übertragungsbestätigung.
+## Bestehende Funktionen aus 0.4.4
 
-| Menü | Wichtige Aktionen / macOS-Kürzel |
-| --- | --- |
-| Datei | KMZ ⌘O, eigenes Bild ⇧⌘O, Konfiguration, Sicherungen, Beenden ⌘Q |
-| Gerät | Suchen ⌘R, Lesen ⌘L, Sichern ⌘B, Umbenennen ⌘E, Neu ⌘N, Ersetzen ⇧⌘R, Webarchiv sichern ⌘S |
-| Webarchiv | Anmelden ⇧⌘L, für Übertragung verwenden ⌘U, Browser öffnen |
-| Übertragen | Vorschau ⌘↩, Übertragen ⇧⌘↩, Modus Neu/Ersetzen |
-| Ansicht | Tabs ⌘1 bis ⌘4 |
-| Hilfe | README und Versionsinformation |
+* **Gerät wählen → Missionen lesen** lädt die Missionsliste.
+* Filter: **Nur lokal**, **Nur Cloud**, nach Archivanmeldung **Nicht im Webarchiv**.
+* Suche und Sortierung nach Name, Datum, Strecke oder Punktzahl; nicht verfügbare
+  Metadaten bleiben unbekannt. Hakerl zeigen Auswahl und Teilzustand deutlich.
+* Chips zeigen lokalen/Cloud-Bestand sowie den Archivstatus. „Im Webarchiv“ setzt
+  eine identische Prüfsumme im geladenen aktuellen Archivbestand voraus.
+* **Im Webarchiv sichern** sichert lokale Dateien. Wird dieselbe Datei in einen
+  anderen Projektordner gesichert, verschiebt die Bridge einen eindeutig passenden
+  bestehenden Archiveintrag, statt ihn zu duplizieren. Mehrdeutige Treffer und
+  veraltete Revisionen werden abgelehnt.
+* Reine Cloud-Missionen müssen zunächst **in DJI Fly manuell heruntergeladen**
+  werden. Der entsprechende Bridge-Knopf zeigt eine Anleitung und führt selbst
+  keinen Cloud-Download aus. Danach die Geräteliste neu lesen.
+* Löschen auf dem Gerät ist nicht implementiert; es erfolgt in DJI Fly.
 
-## Betrieb und offene Prüfungen
+## Neuer Ablauf in 0.5.0 (Kandidat)
 
-Web-Änderungen laufen nach geprüftem PR/Merge in main automatisch über GitHub
-Actions. Die Mac-App wird separat aus dem genannten Quellstand gebaut und als ZIP
-in den privaten Serverordner `bridge/` gestellt; Zugang für Eigentümer/Bearbeiter.
-Alte Pakete bleiben außerhalb der aktuellen Download-Liste archiviert.
+1. **Gerät wählen:** iPad/iPhone oder Fernsteuerung per USB verbinden, entsperren
+   und auswählen.
+2. **Missionen auswählen:** aufklappbarer Projektbaum wie im Webarchiv mit
+   Unterordnern, „Alle Missionen“, „Ohne Projekt“ und „Unterordner einbeziehen“.
+   Ordnerfilter, Suche und Sortierung sind kombinierbar. Mehrere ausführbare
+   DJI-KMZs lassen sich auswählen; ausgeblendete ausgewählte Einträge werden
+   gezählt. Lokale KMZs benötigen keine Archivanmeldung. Native Litchi-/Map-Creator-
+   Projektdateien ersetzen keinen ausführbaren DJI-KMZ-Export.
+3. **Vorschauen prüfen:** pro Auftrag Name, Quelle, Vorschau und Modus kontrollieren.
+   **Neu anlegen** und **Ersetzen** bleiben getrennt. Jedes Ersetzen braucht ein
+   eindeutiges lokales Ziel. 3D nutzt gespeicherte Wegpunkthöhen; erste und letzte
+   Wegpunktnummer sind markiert. In Österreich nutzt das Luftbild basemap.at plus
+   Beschriftung, außerhalb das weltweite Luftbild mit Quellenangabe und eine
+   Karten-Rückfallebene. Ein eigenes Bild ist ebenfalls möglich. Es handelt sich
+   um ein festes Titelbild, kein drehbares Modell in DJI Fly.
+4. **Übertragen:** DJI Fly vollständig schließen, keinen Flug aktiv lassen und den
+   Zustand bestätigen. Die Warteschlange schreibt seriell, sichert vorher und
+   liest zurück. Einzelstatus und Fortschritt anzeigen; beim ersten Fehler stoppen.
+   Erfolgreiche Aufträge werden beim Fortsetzen nicht erneut angelegt. Gerätewechsel
+   verwirft zugehörige Pläne und Ziele.
 
-Gerätetest **Ersetzen auf RC Pro 2**, Windows-Paket und 1Password-Integration auf
-diesem Mac sind noch offen. Änderungen am Schlüsselbund dürfen niemals aus Tests
-heraus erfolgen; die Desktop-Tests injizieren ihren Test-Schlüsselspeicher bereits
-vor dem Fensteraufbau.
+Pfeilleiste und **⌘1–⌘4** wechseln zwischen den vier Schritten. Das Protokoll ist
+separat erreichbar. Native Menüs rufen dieselben Prüfungen wie die Knöpfe auf;
+Tastenkürzel umgehen keine Bestätigung.
 
-## Korrekturen in 0.4.1
+## Prüfung und Grenzen
 
-Der Konfigurationsknopf und die native Menüaktion können die heruntergeladene JSON
-öffnen. Nach dem Import wird der gespeicherte Zugangsschlüssel nur für die
-importierte Archiv-Adresse geladen; anschließend „Anmelden und Bibliothek laden“
-wählen. Test-Adressen wie `example.com` oder Loopback werden außerhalb des
-Entwicklermodus auf die produktive Vorgabe zurückgesetzt.
+Die frühere Helix wurde nach gezielter Bereinigung eines doppelten Schlusspunkts
+als neue iPad-Mission mit 117 Punkten angezeigt, synchronisiert und erfolgreich
+gespeichert/verlassen. Die Bereinigung arbeitet mit einer Kopie, das Original
+bleibt unverändert. Dies bestätigt nicht automatisch die neue Warteschlange.
+DJI Fly kann das eigene Vorschaubild nach dem Speichern durch eine Karte ersetzen;
+Änderungen bestehender Bilder werden nicht zuverlässig über DJI Cloud verteilt.
 
-Die Desktop-Tests verwenden explizite temporäre INI-Einstellungen und einen
-vor dem Fensteraufbau injizierten Schlüsselspeicher. Sie lesen und ändern weder
-die echten macOS-Präferenzen noch den Schlüsselbund. 60 Tests bestanden.
+Für den Kandidaten bestanden **83 isolierte Tests**. Echte Kartenabrufe wurden auf
+dem Mac für Österreich und das weltweite Luftbild erfolgreich ausgeführt. Ein
+reales Mac-Paket zeigte zusätzlich einen ADB-Verpackungsfehler: PyInstaller
+verändert das Mach-O-Binary durch Architekturverarbeitung und Signatur. Der
+Korrekturbranch `codex/bridge-050-packaging` bewahrt den Upstream-Hash und prüft den
+Hash des tatsächlich ausgelieferten ADB. Das korrigierte Paket wurde nach dem
+Staging mit strikter Signaturprüfung und erfolgreicher ADB-Erkennung geprüft.
+Diese Korrektur muss in den endgültigen Claude-Stand einfließen.
 
-Qt wurde von 6.8.3 auf 6.10.3 aktualisiert. Der gemeldete native macOS-Absturz
-in `QMacAccessibilityElement` passt zu QTBUG-134784 (Listen-/Tabellenmodell wird
-nach einer Bedienungshilfe-Abfrage zurückgesetzt):
-https://qt-project.atlassian.net/browse/QTBUG-134784.
-Die Konfiguration aus Downloads, das Wiederherstellen des gespeicherten Schlüssels
-und die erneute Anmeldung mit geladener Bibliothek wurden mit der gebauten App
-auf dem Mac erfolgreich geprüft. Das ist keine Garantie gegen jeden weiteren
-nativen Qt-Absturz; Bedienungshilfen bleiben aktiviert.
+Noch offen: zwei neue iPad-Missionen seriell übertragen, Fehler/Stopp/Fortsetzen
+am Gerät, iPad-Ersetzen, RC-Pro-2-Ersetzen, experimenteller Android-Neuimport und
+Windows-Build. Keine Dateiprüfung oder Vorschau bestätigt die Flugsicherheit.
+
+## GitHub und Veröffentlichung
+
+`main` ist geschützt: Pull Request, erfolgreiche Checks, keine Force-Pushes oder
+Branchlöschung. Claude kann auf seinem Arbeitsbranch weiterarbeiten. Beiträge
+von außen erfolgen in einem Fork; nur der Eigentümer hat Schreibzugriff.
+
+Die zentrale Anleitung liegt auf `main`; unfertige Bridge-Arbeit bleibt auf dem
+angegebenen Branch. Nach Claudes finalem Commit: Stand holen, isolierte Tests,
+Mac-Build, Paket-/Signaturprüfung, App installieren und Gerätetest mit dem Nutzer.
+Das ZIP und die zugehörige Doku kommen anschließend in den privaten Serverordner
+`bridge/`. Alte Download-Pakete bleiben separat archiviert. Web-Code wird über
+geprüfte PRs und GitHub Actions veröffentlicht, nicht mit alten lokalen Dateien
+überschrieben.
+
+Die eigenständige Bildauswahl im Webarchiv ist unter
+[PREVIEWS.md](PREVIEWS.md) dokumentiert: mehrere Bilder und gespeicherte
+Einstellungen ohne neue Missionsversion; Archivordner sind aufklappbar.
