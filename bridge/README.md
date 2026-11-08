@@ -152,3 +152,6 @@ Tests dazu: `tests/test_theme.py` (beide Schemata ohne offene Platzhalter, Icons
 - **Umbenennen** ist auch aktiv, wenn genau eine Mission angehakt ist (nicht nur bei markierter Zeile).
 
 Tests: 99, davon neu iPad-Bildlesen (`test_ios.py`), `save_preview` gegen den API-Fake (`test_archive.py`), Archivbild-Rückfall, Vorschau-Sync und Entfernen in Schritt 4 (`test_queue.py`).
+### ADB im Mac-Build
+
+PyInstaller verarbeitet und signiert das gebündelte Mach-O-Binary. Der Mac-Build bewahrt deshalb die Upstream-Prüfsumme als `sourceAdbSha256` und trägt unter `adbSha256` die Prüfsumme der tatsächlich ausgelieferten Datei ein. Die Laufzeitprüfung bleibt aktiv. Nach diesem Ressourcen-Update wird nur die äußere App-Signatur neu gesetzt.
