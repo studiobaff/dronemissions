@@ -20,6 +20,7 @@
   try {
    const { layers } = await api('layers'); list.replaceChildren();
    if (!layers.length) { list.textContent = 'Noch keine eigenen Ebenen. Die eingebauten Karten (basemap.at, OpenStreetMap, Esri) bleiben immer verfügbar.'; return; }
+   const note = document.createElement('p'); note.className = 'hint'; note.textContent = 'Reihenfolge wie hier: so erscheinen die Ebenen in der Kartenwahl; Overlays weiter unten in der Liste liegen auf der Karte weiter oben.'; list.append(note);
    for (const l of layers) {
     const item = document.createElement('div'); item.className = 'layer-item';
     const swatch = document.createElement('span'); swatch.className = 'layer-swatch'; swatch.style.background = l.kind === 'vector' ? l.config.color : (l.config.overlay ? '#8460b5' : '#254e3b'); item.append(swatch);
@@ -27,6 +28,9 @@
     const strong = document.createElement('strong'); strong.textContent = l.name; text.append(strong);
     const span = document.createElement('span'); span.textContent = l.kind === 'vector' ? `Vektor · ${l.config.features} Objekte${l.config.attribution ? ' · ' + l.config.attribution : ''}` : `${l.config.overlay ? 'Overlay' : 'Hintergrund'} · ${l.config.url}${l.config.keyHint ? ' · Schlüssel ' + l.config.keyHint : ''}`; text.append(span); item.append(text);
     if (l.kind === 'tile') { const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'btn btn-outline btn-sm'; edit.textContent = 'Bearbeiten'; edit.onclick = () => { editing = l.id; el('layer-preset').value = ''; el('layer-name').value = l.name; el('layer-url').value = l.config.url; el('layer-key').value = ''; el('layer-key').placeholder = l.config.keyHint ? 'gespeichert (' + l.config.keyHint + '), leer lassen zum Behalten' : ''; el('layer-attribution').value = l.config.attribution || ''; el('layer-maxzoom').value = l.config.maxZoom || 19; el('layer-opacity').value = l.config.opacity ?? 1; el('layer-overlay').checked = Boolean(l.config.overlay); el('layer-save').textContent = 'Änderung speichern'; document.querySelector('.layer-add').open = true; el('layer-name').focus(); }; item.append(edit); }
+    const order = document.createElement('span'); order.className = 'layer-order';
+    for (const [label, delta, title] of [['▲', -1, 'Nach oben (weiter unten im Stapel)'], ['▼', 1, 'Nach unten (weiter oben im Stapel)']]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-icon btn-xs'; b.textContent = label; b.title = title; b.setAttribute('aria-label', title); b.disabled = (delta < 0 && layers[0] === l) || (delta > 0 && layers[layers.length - 1] === l); b.onclick = () => run(async () => { const ids = layers.map(x => x.id), i = ids.indexOf(l.id); ids.splice(i, 1); ids.splice(i + delta, 0, l.id); await api('layer-order', { ids }); await loadList(); await refresh(); }, b); order.append(b); }
+    item.append(order);
     const del = document.createElement('button'); del.type = 'button'; del.className = 'btn btn-outline btn-sm'; del.textContent = 'Entfernen'; del.onclick = () => run(async () => { await api('layer-delete', { id: l.id }); await loadList(); await refresh(); toast('Ebene entfernt.'); }, del); item.append(del);
     list.append(item);
    }

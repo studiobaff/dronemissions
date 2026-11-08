@@ -1,6 +1,6 @@
 <?php
 // Eigene Kartenebenen. Nach der Anmeldung geladen; Schreiben nur für den Eigentümer, Lesen für alle Kartennutzer.
-if(in_array($action,['layers','layer-save','layer-upload','layer-delete','layer-data','wmts-capabilities'],true)){
+if(in_array($action,['layers','layer-save','layer-upload','layer-delete','layer-data','layer-order','wmts-capabilities'],true)){
  if($action==='layer-data'&&$method==='GET'){
   $row=stmt('SELECT * FROM map_layers WHERE id=? AND kind=?',[(string)($_GET['id']??''),'vector'])->fetch();if(!$row)problem('Ebene nicht gefunden.',404);
   $path=dm_private().'/blobs/'.$row['hash'].'.geojson';if(!is_file($path)||!hash_equals($row['hash'],hash_file('sha256',$path)))problem('Ebene fehlt oder ist beschädigt.',500);
@@ -42,6 +42,12 @@ if(in_array($action,['layers','layer-save','layer-upload','layer-delete','layer-
   if((int)stmt('SELECT COUNT(*) FROM map_layers')->fetchColumn()>=30)problem('Maximal 30 eigene Ebenen.');
   $id=dm_id();stmt('INSERT INTO map_layers(id,kind,name,config,hash,ordinal,created) VALUES(?,?,?,?,?,?,?)',[$id,'vector',$name,json_encode(['color'=>$color,'features'=>count($clean['features']),'attribution'=>dm_text($input['attribution']??'',300)],JSON_THROW_ON_ERROR),$hash,(int)stmt('SELECT COALESCE(MAX(ordinal),0)+1 FROM map_layers')->fetchColumn(),gmdate('c')]);
   respond(['ok'=>true,'id'=>$id,'features'=>count($clean['features'])]);
+ }
+ if($action==='layer-order'){
+  // Reihenfolge = Position in der Kartenwahl und Stapelung der Overlays (spätere liegen oben).
+  $ids=$input['ids']??null;if(!is_array($ids)||!$ids||count($ids)>30||count($ids)!==count(array_unique($ids)))problem('Reihenfolge prüfen.');
+  $known=array_column(stmt('SELECT id FROM map_layers')->fetchAll(),'id');if(count($known)!==count($ids)||array_diff($ids,$known))problem('Die Ebenenliste hat sich geändert. Bitte Einstellungen neu öffnen.',409);
+  $db->beginTransaction();foreach(array_values($ids) as $i=>$id)stmt('UPDATE map_layers SET ordinal=? WHERE id=?',[$i+1,(string)$id]);$db->commit();respond(['ok'=>true]);
  }
  if($action==='layer-delete'){
   $row=stmt('SELECT * FROM map_layers WHERE id=?',[(string)($input['id']??'')])->fetch();if(!$row)problem('Ebene nicht gefunden.',404);
