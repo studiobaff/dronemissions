@@ -79,7 +79,7 @@ function dm_plan_build(array $in, ?callable $elevations=null): array {
   $notes[]='Helix/Kreis: Bildabstände aus nominalem Kameramodell; tatsächliche 3D-Überlappung ist ohne Oberflächenmodell nicht nachgewiesen.';
   if($shape==='hemisphere')$notes[]='Halbkugel: Höhe oben = Höhe unten + Radius. Der Radius wird nach oben kleiner; der Baukörperabstand ist dort nicht konstant. Zylinderhöhe und Radius bleiben unabhängig.';
  }
- $pitchMode=$p['pitchMode']??'auto';if(!in_array($pitchMode,['auto','manual'],true))throw new InvalidArgumentException('Kameraneigung prüfen.');$manualPitch=dm_pnum($p,'cameraPitch',-90,30,-45);if($pitchMode==='manual')foreach($points as &$point)$point['pitch']=$manualPitch;unset($point);
+ $pitchMode=$p['pitchMode']??'auto';if(!in_array($pitchMode,['auto','manual'],true))throw new InvalidArgumentException('Kameraneigung prüfen.');$manualPitch=dm_pnum($p,'cameraPitch',-90,30,-45);if($pitchMode==='manual')$notes[]='Manuelle Kameraneigung: tatsächliche Bildabdeckung und Überlappung sind nicht nachgewiesen; Abstände beruhen auf dem nominalen Kameramodell.';if($pitchMode==='manual')foreach($points as &$point)$point['pitch']=$manualPitch;unset($point);
  foreach($points as $point)if($point['height']>500||$point['height']<1||$point['pitch']< -90||$point['pitch']>30)throw new InvalidArgumentException('Erzeugte Höhen oder Kameraneigungen außerhalb des Exportbereichs.');
  if($terrain){if(!$elevations)throw new InvalidArgumentException('Geländedaten fehlen.');$terrainInfo=dm_plan_follow($points,$p,$type,$elevations);$notes=array_merge($notes,$terrainInfo['notes']);}
  if(count($points)<2)throw new InvalidArgumentException('Keine ausreichende Route erzeugt.');
