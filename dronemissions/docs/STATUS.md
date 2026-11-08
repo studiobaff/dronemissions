@@ -37,3 +37,7 @@ Weitere Anleitungen: [UPDATE.md](UPDATE.md), [PREVIEWS.md](PREVIEWS.md), [BRIDGE
 ## Web-Missionsplaner · erster Stand
 
 Branch `codex/web-mission-planner`: QGIS-/Projektreferenzen, Zeichnen und OSM-Gebäude; Grid, Kreis, Helix/Doppelhelix, POI-Polygon und Fassadenbahnen; sechs DJI-Hauptkameraprofile plus eigene Eingaben; nominelle Überlappung, Fotoaufteilung und 3D-Prüfung. Planungen mit Konfliktschutz, referenzbasiertes WPML/KMZ und wiederholsichere Archivierung im selben Projekt. Rechen-/API-/Browser-Rundlauf geprüft, 496-Foto-ZIP vom Bridge-Parser gelesen. Kein neuer Geräte-/Flugtest und keine automatische DEM-/AGL-Anpassung. Vollständige Bedienung und Grenzen: [PLANNER.md](PLANNER.md).
+
+### Webplaner 0.2 · Geländeanpassung und Zeicheneditor
+
+Leaflet-Geoman ersetzt die manuellen Zeichenmarker. Expliziter Bearbeitungsmodus, Zwischenpunkte, Löschen/Rücknahme, Slider und weitere Flugparameter. Grid/Kreis/Helix: DEM-Höhen relativ zum gewählten Startpunkt, Navigationspunkte ohne Fotos, Höhenprofil und private Snapshots. Details und Genauigkeitsgrenzen: [PLANNER.md](PLANNER.md). Kein Geräte-/Flugtest der neu erzeugten Exporte.

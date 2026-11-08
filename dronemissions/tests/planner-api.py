@@ -33,5 +33,6 @@ def main():
  bundle=c.call('planner-export',multi);z=zipfile.ZipFile(io.BytesIO(bundle));kmzs=[n for n in z.namelist() if n.endswith('.kmz')];assert len(kmzs)==len(r['parts']) and 'planung.dmplan.json' in z.namelist()
  for n in kmzs:
   inner=zipfile.ZipFile(io.BytesIO(z.read(n)));route=E.fromstring(inner.read('wpmz/waylines.wpml'));points=[e for e in route.iter() if e.tag.rsplit('}',1)[-1]=='Placemark'];assert 1<=len(points)<=150
+ missing=plan();missing['params']['terrainMode']='follow';c.call('planner-preview',{'folder':folder,'plan':missing},expected=400)
  print('PASS: planner catalog, preview, draft CAS/reopen, device profile, KMZ/section ZIP, archive idempotency/linkage, customer/foreign-project denial, delete guard and OSM bounds')
 if __name__=='__main__':main()
