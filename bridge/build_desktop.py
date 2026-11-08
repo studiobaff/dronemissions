@@ -17,7 +17,7 @@ if sys.platform=='darwin':
  import plistlib
  info=root.parent/'outputs'/'dronemissions-bridge.app'/'Contents'/'Info.plist'
  with info.open('rb') as stream:metadata=plistlib.load(stream)
- metadata.update(CFBundleShortVersionString='0.6.0',CFBundleVersion='20261108.6',CFBundleName='dronemissions-bridge',CFBundleDisplayName='dronemissions-bridge',UIDesignRequiresCompatibility=True)
+ metadata.update(CFBundleShortVersionString='0.6.1',CFBundleVersion='20261108.7',CFBundleName='dronemissions-bridge',CFBundleDisplayName='dronemissions-bridge',UIDesignRequiresCompatibility=True)
  with info.open('wb') as stream:plistlib.dump(metadata,stream)
 
  # PyInstaller thins and signs Mach-O inputs, so the bundled ADB is no longer
