@@ -62,7 +62,7 @@ Zahlenfelder und zugehörige Slider für Überlappung, Höhen, Radius, Wandabsta
 
 ## Quellen und Prüfung
 
-- [Leaflet-Geoman Zeichnen](https://geoman.io/docs/leaflet/modes/draw-mode) und [Bearbeiten](https://geoman.io/docs/leaflet/modes/edit-mode); MIT-Lizenz und feste Version in `public/vendor/geoman/`.
+- [Leaflet-Geoman Zeichnen](https://geoman.io/docs/leaflet/modes/draw-mode) und [Bearbeiten](https://geoman.io/docs/leaflet/modes/edit-mode); MIT-Lizenz und feste Version in `docs/third-party/leaflet-geoman-LICENSE.md` und den lokal ausgelieferten JS-/CSS-Dateien unter `public/vendor/geoman/`.
 - [OpenTopoData API](https://www.opentopodata.org/api/) und [Datensätze/Limits](https://www.opentopodata.org/).
 - [Map Creator Desktop](https://map-creator.com/windows.htm) als Funktionsreferenz.
 - Regression: synthetischer schiefer Boden, Grid-AGL, Helix-Radius/POI, Navigation ohne Fotos, Exporthöhen und Aktionsindizes, fehlende DEM-/Startdaten und Steilhang. Echter DEM-Abruf, Polygon-Abschluss/Eckpunkt-Löschen/Rücknahme, Grid-Speichern und Helix-Export im isolierten Browser-Testarchiv geprüft. Die zwei exportierten Helix-Abschnitte wurden zusätzlich vom Bridge-Parser akzeptiert. Keine Geräte- oder Flugprüfung dieser Exporte.

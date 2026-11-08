@@ -1,3 +1,5 @@
+# Leaflet-Geoman Free 2.20.6
+
 MIT License
 
 Copyright (c) 2017 Sumit Kumar
