@@ -28,3 +28,8 @@ $poiRoute='<kml xmlns:wpml="http://www.dji.com/wpmz/1.0.6"><Folder>'.str_replace
 $pois=dm_wpml_pois(dm_xml($poiRoute));check(count($pois)===1&&$pois[0]['lat']===48.2&&$pois[0]['lng']===16.3&&$pois[0]['label']==='POI 3'&&$pois[0]['waypoints']===[0,1],'active POI coordinate order and deduplication');
 check(dm_wpml_pois(dm_xml(str_replace('48.2,16.3,5','91,16.3,5',$poiRoute)))===[],'invalid POI ignored');
 echo "PASS: active WPML POIs, coordinate order, deduplication, optional waypoint indices, inactive and invalid POIs.\n";
+
+// Keep the archive editor's roundtrip checks in the existing parser CI entry point.
+$editorStatus=0;
+passthru(escapeshellarg(PHP_BINARY).' '.escapeshellarg(__DIR__.'/kmz-editor.php'),$editorStatus);
+check($editorStatus===0,'KMZ editor regression suite failed');
