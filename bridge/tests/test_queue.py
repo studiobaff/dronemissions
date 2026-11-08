@@ -195,6 +195,21 @@ class DeviceListTests(QueueTests.__bases__[0]):
             with patch.object(desktop_module.ios,'apply_new',apply_new),patch.object(desktop_module.ios,'run',run):
                 w.execute();QueueTests.wait(self,lambda:not (w.job and w.job.isRunning()),'execute')
             self.assertEqual(calls,['A','C']);w.run_list.setCurrentRow(0);w.remove_run_selected();self.assertEqual([e['name'] for e in w.queue],['C'])
+    def test_checkboxes_remove_several_entries_at_once(self):
+        w=self.window;self.select('ios')
+        with tempfile.TemporaryDirectory() as t:
+            for n in ('A','B','C','D'):
+                path=Path(t)/(n+'.kmz');path.write_bytes(KMZ);w.add_entry(path)
+            w.tabs.setCurrentIndex(TAB_RUN);rows=[w.run_list.itemWidget(w.run_list.item(i)) for i in range(w.run_list.count())]
+            rows[0].check.setChecked(True);rows[2].check.setChecked(True);self.assertEqual(len(w.queue_checked),2);self.assertTrue(w.run_remove_button.isEnabled())
+            w.remove_run_selected();self.assertEqual([e['name'] for e in w.queue],['B','D']);self.assertEqual(w.queue_checked,set());self.assertIn('2 Aufträge',w.status.text())
+            w.tabs.setCurrentIndex(TAB_TRANSFER);rows=[w.queue_list.itemWidget(w.queue_list.item(i)) for i in range(w.queue_list.count())];rows[1].check.setChecked(True);w.remove_current();self.assertEqual([e['name'] for e in w.queue],['B'])
+            w.remove_current();self.assertEqual(w.queue,[])  # ohne Haken: aktueller Auftrag
+    def test_rename_is_available_for_a_single_checked_mission(self):
+        w=self.window;self.select('ios');w.show_rows(w.device.currentData(),[{'uuid':UID,'name':'Eins','waypoints':2,'localState':'local','preview':False},{'uuid':UID.replace('A','B'),'name':'Zwei','waypoints':2,'localState':'local','preview':False}])
+        w.list.clearSelection();w.list.setCurrentRow(-1);self.assertFalse(w.rename_button.isEnabled())
+        w.device_rows_widgets[1][1].check.setChecked(True);self.assertTrue(w.rename_button.isEnabled());self.assertEqual(w.rename_target()['name'],'Zwei')
+        w.device_rows_widgets[0][1].check.setChecked(True);self.assertFalse(w.rename_button.isEnabled());self.assertIsNone(w.rename_target())
     def test_device_rows_fall_back_to_the_archive_picture_and_sync_previews_to_the_archive(self):
         from core import digest
         from PySide6.QtGui import QPixmap

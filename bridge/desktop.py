@@ -141,8 +141,11 @@ class MissionRow(QWidget):
 
 class QueueRow(QWidget):
  """Eine Zeile der Warteschlange: Vorschau, Name, Herkunft, Modus/Ziel, Status."""
- def __init__(self,entry,index,current=False):
-  super().__init__();layout=QHBoxLayout(self);layout.setContentsMargins(10,8,10,8);layout.setSpacing(14)
+ def __init__(self,entry,index,current=False,checked=None,on_toggle=None):
+  """checked/on_toggle: optionale Checkbox zum Markieren für „Markierte entfernen“ (None = keine Checkbox)."""
+  super().__init__();layout=QHBoxLayout(self);layout.setContentsMargins(10,8,10,8);layout.setSpacing(14);self.check=None
+  if on_toggle is not None:
+   self.check=QCheckBox();self.check.setChecked(bool(checked));self.check.setToolTip('Zum Entfernen aus der Warteschlange markieren');self.check.setEnabled(entry['status']!='running');self.check.toggled.connect(lambda state:on_toggle(entry['id'],state));layout.addWidget(self.check,alignment=Qt.AlignVCenter)
   number=QLabel(str(index+1));number.setObjectName('queueNumber');number.setFixedWidth(26);number.setAlignment(Qt.AlignCenter);layout.addWidget(number)
   picture=QLabel();picture.setFixedSize(QSize(132,88));picture.setObjectName('thumb');picture.setAlignment(Qt.AlignCenter)
   pixmap=QPixmap(str(entry['preview'])) if entry.get('preview') and Path(entry['preview']).is_file() else QPixmap()
@@ -161,7 +164,7 @@ class Window(QMainWindow):
   # root: Anwendungsdatenordner; Tests übergeben einen temporären Ordner, damit weder names.json noch Sicherungen des Nutzers berührt werden.
   self.settings=QSettings('studiobaff','DroneMissionsBridge');self.root=Path(root) if root else Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation));self.root.mkdir(parents=True,exist_ok=True)
   self.rows=[];self.registry={};self.job=None;self.prepared=None;self.stop_requested=False
-  self.queue=[];self.current=-1;self.pending_target=None;self.mode='new';self.loose_transfer=None;self.quick_timer=QTimer(self);self.quick_timer.setSingleShot(True);self.quick_timer.setInterval(350);self.quick_timer.timeout.connect(self.quick_preview)
+  self.queue=[];self.current=-1;self.pending_target=None;self.mode='new';self.loose_transfer=None;self.queue_checked=set();self.quick_timer=QTimer(self);self.quick_timer.setSingleShot(True);self.quick_timer.setInterval(350);self.quick_timer.timeout.connect(self.quick_preview)
   self.archive=None;self.archive_rows=[];self.archive_widgets=[];self.archive_checked=set();self.archive_selection='all';self.client_factory=client_factory or ArchiveClient;self.credential_store=credential_store or credentials;self.archive_auto=False;self.checked=set();self.device_rows_widgets=[];self.preview_mode=self.settings.value('previewMode','3d') or '3d';self.background_path=None
   try:self.registry=json.loads((self.root/'names.json').read_text())
   except (OSError,ValueError):pass
@@ -279,7 +282,7 @@ class Window(QMainWindow):
   self.queue_list=QListWidget();self.queue_list.setObjectName('missions');self.queue_list.setSelectionMode(QListWidget.SingleSelection);self.queue_list.setSpacing(4);self.queue_list.currentRowChanged.connect(self.queue_selected);left.addWidget(self.queue_list,1)
   self.queue_empty=QLabel('Noch keine Mission in der Warteschlange.\nIn Schritt 2 Missionen aus dem Webarchiv übernehmen oder KMZ-Dateien vom Mac wählen.');self.queue_empty.setObjectName('emptyList');self.queue_empty.setAlignment(Qt.AlignCenter);self.queue_empty.setWordWrap(True);left.addWidget(self.queue_empty,1)
   qa=QHBoxLayout();add=QPushButton('KMZ-Dateien hinzufügen …');add.setObjectName('quiet');add.clicked.connect(self.choose_kmz);qa.addWidget(add)
-  self.queue_remove=QPushButton('Entfernen');self.queue_remove.setObjectName('quiet');self.queue_remove.setEnabled(False);self.queue_remove.clicked.connect(self.remove_current);qa.addWidget(self.queue_remove)
+  self.queue_remove=QPushButton('Entfernen');self.queue_remove.setToolTip('Markierte Aufträge entfernen, sonst den aktuellen.');self.queue_remove.setObjectName('quiet');self.queue_remove.setEnabled(False);self.queue_remove.clicked.connect(self.remove_current);qa.addWidget(self.queue_remove)
   self.queue_clear=QPushButton('Leeren');self.queue_clear.setObjectName('quiet');self.queue_clear.setEnabled(False);self.queue_clear.clicked.connect(self.clear_queue);qa.addWidget(self.queue_clear);qa.addStretch();left.addLayout(qa)
   right=self.card(columns,3);self.editor=QWidget();self.editor.setMinimumWidth(520);ev=QVBoxLayout(self.editor);ev.setContentsMargins(0,0,0,0);ev.setSpacing(12);right.addWidget(self.editor,1)
   mode=QHBoxLayout();mode.setSpacing(6);self.mode_group=QButtonGroup(self);self.mode_group.setExclusive(True)
@@ -331,7 +334,7 @@ class Window(QMainWindow):
   self.run_empty=QLabel('Noch nichts übertragen. In Schritt 3 die Vorschauen prüfen und „Jetzt übertragen“ wählen.');self.run_empty.setObjectName('emptyList');self.run_empty.setAlignment(Qt.AlignCenter);self.run_empty.setWordWrap(True);card.addWidget(self.run_empty,1)
   row=QHBoxLayout();self.stop_button=QPushButton('Nach dem aktuellen Auftrag anhalten');self.stop_button.setObjectName('quiet');self.stop_button.setEnabled(False);self.stop_button.clicked.connect(self.request_stop);row.addWidget(self.stop_button)
   self.retry_button=QPushButton('Fehlgeschlagene erneut prüfen …');self.retry_button.setObjectName('quiet');self.retry_button.setEnabled(False);self.retry_button.clicked.connect(self.retry_failed);row.addWidget(self.retry_button)
-  self.run_remove_button=QPushButton('Aus Warteschlange entfernen');self.run_remove_button.setObjectName('quiet');self.run_remove_button.setEnabled(False);self.run_remove_button.setToolTip('Den markierten Auftrag vor der Übertragung entfernen; die übrigen geprüften Aufträge bleiben bereit.');self.run_remove_button.clicked.connect(self.remove_run_selected);row.addWidget(self.run_remove_button);row.addStretch()
+  self.run_remove_button=QPushButton('Markierte entfernen');self.run_remove_button.setObjectName('quiet');self.run_remove_button.setEnabled(False);self.run_remove_button.setToolTip('Angehakte Aufträge (sonst den markierten) vor der Übertragung entfernen; die übrigen geprüften Aufträge bleiben bereit.');self.run_remove_button.clicked.connect(self.remove_run_selected);row.addWidget(self.run_remove_button);row.addStretch()
   self.resume_button=QPushButton('Fortsetzen  ▸');self.resume_button.setObjectName('primary');self.resume_button.setEnabled(False);self.resume_button.clicked.connect(self.execute);row.addWidget(self.resume_button);card.addLayout(row)
 
  def build_settings_dialog(self):
@@ -447,7 +450,7 @@ class Window(QMainWindow):
  def render_queue(self):
   self.queue_list.blockSignals(True);self.queue_list.clear()
   for i,e in enumerate(self.queue):
-   row=QueueRow(e,i,i==self.current);item=QListWidgetItem();item.setSizeHint(QSize(0,max(104,row.sizeHint().height()+4)));self.queue_list.addItem(item);self.queue_list.setItemWidget(item,row)
+   row=QueueRow(e,i,i==self.current,checked=e['id'] in self.queue_checked,on_toggle=self.queue_toggle);item=QListWidgetItem();item.setSizeHint(QSize(0,max(104,row.sizeHint().height()+4)));self.queue_list.addItem(item);self.queue_list.setItemWidget(item,row)
   if 0<=self.current<len(self.queue):self.queue_list.setCurrentRow(self.current)
   self.queue_list.blockSignals(False);has=bool(self.queue);self.queue_list.setVisible(has);self.queue_empty.setVisible(not has);self.editor.setEnabled(has);self.queue_remove.setEnabled(self.entry() is not None);self.queue_clear.setEnabled(has);self.prepare_button.setEnabled(has)
   prepared=sum(1 for e in self.queue if e['plan']);self.queue_count.setText(f'{len(self.queue)} Mission(en)'+(f' · {prepared} geprüft' if prepared else ''))
@@ -480,10 +483,26 @@ class Window(QMainWindow):
   if not e or not e.get('details') or e['status']=='done':return
   try:e['preview']=render_preview(self.root/'previews'/('quick-'+e['id']+'.jpg'),e['name'].strip() or e['original'].stem,e['details'],e.get('archivePreview') if e['previewMode']=='archive' else None);self.image.set_source(QPixmap(str(e['preview'])));self.render_queue()
   except Exception as err:self.log_line('Schnellvorschau nicht möglich: '+str(err))
+ def queue_toggle(self,entry_id,state):
+  if state:self.queue_checked.add(entry_id)
+  else:self.queue_checked.discard(entry_id)
+  self.update_run_buttons();self.queue_remove.setEnabled(bool(self.queue_checked) or self.entry() is not None)
+ def removal_targets(self,fallback):
+  """Angehakte Aufträge, sonst der übergebene Einzelauftrag; laufende Aufträge nie."""
+  picked=[e for e in self.queue if e['id'] in self.queue_checked and e['status']!='running']
+  if picked:return picked
+  return [fallback] if fallback and fallback['status']!='running' else []
+ def remove_entries(self,entries):
+  if not entries or (self.job and self.job.isRunning()):return 0
+  ids={e['id'] for e in entries};current_id=self.entry()['id'] if self.entry() else None
+  self.queue=[e for e in self.queue if e['id'] not in ids];self.queue_checked-=ids
+  self.current=next((i for i,e in enumerate(self.queue) if e['id']==current_id),min(max(self.current,0),len(self.queue)-1) if self.queue else -1)
+  if self.pending_target and any(e.get('target')==self.pending_target.get('uuid') for e in entries):self.pending_target=None
+  return len(entries)
  def remove_current(self):
-  e=self.entry()
-  if not e:return
-  self.queue.pop(self.current);self.current=min(self.current,len(self.queue)-1);self.invalidate();self.render_queue();self.show_entry()
+  targets=self.removal_targets(self.entry())
+  if not targets:return
+  count=self.remove_entries(targets);self.invalidate();self.render_queue();self.show_entry();self.status.setText(f'{count} Auftrag/Aufträge entfernt.')
  def clear_queue(self):
   if self.job and self.job.isRunning():return
   self.queue=[];self.current=-1;self.pending_target=None;self.invalidate();self.render_queue();self.show_entry();self.render_run_list()
@@ -522,7 +541,7 @@ class Window(QMainWindow):
   if hasattr(self,'queue_list'):self.render_queue()
  def changed_target(self):
   m=self.selected_row();self.cloud_download_button.setEnabled(bool(m and m.get('localState')=='cloud-or-missing'));self.replace_button.setEnabled(m is not None and m.get('localState')=='local');r=self.current_device()
-  self.rename_button.setEnabled(m is not None);self.rename_button.setToolTip('Name in DJI Fly ändern (iPad/iPhone)' if r and r['kind']=='ios' else 'Auf Android nur das Etikett in der Bridge; der DJI-Fly-Name ist dort nicht erreichbar.')
+  self.rename_button.setEnabled(m is not None or len(self.checked)==1);self.rename_button.setToolTip('Name in DJI Fly ändern (iPad/iPhone)' if r and r['kind']=='ios' else 'Auf Android nur das Etikett in der Bridge; der DJI-Fly-Name ist dort nicht erreichbar.')
   if m:self.selected_label.setText(f'Ausgewählt: {self.row_label(r,m,self.rows.index(m))}'+('' if m.get('localState')=='local' else ' · nur lokal vorhandene Missionen lassen sich ersetzen'))
   else:self.selected_label.setText('Kein Eintrag ausgewählt.')
  def invalidate(self,*args):
@@ -675,10 +694,17 @@ class Window(QMainWindow):
   self.device_unsaved_only.setEnabled(self.archive is not None)
   self.save_web_button.setEnabled(bool(local) and self.archive is not None);self.save_web_button.setToolTip('' if self.archive else 'Zuerst mit dem Webarchiv verbinden (Schritt 2 oder Einstellungen).')
   self.sync_preview_button.setEnabled(self.archive is not None and bool(self.preview_sync_candidates()))
+  self.rename_button.setEnabled(self.selected_row() is not None or len(self.checked)==1)
   visible=self.visible_rows();count=sum(m['uuid'] in self.checked for _,m in visible);state=Qt.Checked if visible and count==len(visible) else Qt.PartiallyChecked if count else Qt.Unchecked
   self.select_all.blockSignals(True);self.select_all.setCheckState(state);self.select_all.blockSignals(False)
- def rename_selected(self):
+ def rename_target(self):
+  """Markierte Zeile; sonst die einzige angehakte Mission."""
   m=self.selected_row()
+  if m:return m
+  if len(self.checked)==1:uid=next(iter(self.checked));return next((x for x in self.rows if x['uuid']==uid),None)
+  return None
+ def rename_selected(self):
+  m=self.rename_target()
   if not m:return
   try:r=self.selected_device()
   except Exception as e:self.error(str(e));return
@@ -1001,25 +1027,24 @@ class Window(QMainWindow):
  def render_run_list(self):
   self.run_list.clear()
   for i,e in enumerate(self.queue):
-   row=QueueRow(e,i);item=QListWidgetItem();item.setSizeHint(QSize(0,max(104,row.sizeHint().height()+4)));self.run_list.addItem(item);self.run_list.setItemWidget(item,row)
+   row=QueueRow(e,i,checked=e['id'] in self.queue_checked,on_toggle=self.queue_toggle);item=QListWidgetItem();item.setSizeHint(QSize(0,max(104,row.sizeHint().height()+4)));self.run_list.addItem(item);self.run_list.setItemWidget(item,row)
   has=bool(self.queue);self.run_list.setVisible(has);self.run_empty.setVisible(not has)
   done=sum(1 for e in self.queue if e['status']=='done');self.run_progress.setText(f'{done} von {len(self.queue)} übertragen' if self.queue else '')
   self.retry_button.setEnabled(any(e['status']=='failed' for e in self.queue));self.resume_button.setEnabled(any(e['status'] in ('prepared','skipped') and e['plan'] for e in self.queue) and not (self.job and self.job.isRunning()));self.update_run_buttons()
  def update_run_buttons(self):
   row=self.run_list.currentRow();e=self.queue[row] if 0<=row<len(self.queue) else None
-  self.run_remove_button.setEnabled(e is not None and e['status']!='running' and not (self.job and self.job.isRunning()))
+  self.run_remove_button.setEnabled(bool(self.removal_targets(e)) and not (self.job and self.job.isRunning()))
  def remove_run_selected(self):
-  """Auftrag in Schritt 4 entfernen, ohne die Prüfung der übrigen Aufträge zu verwerfen."""
-  row=self.run_list.currentRow()
-  if (self.job and self.job.isRunning()) or not (0<=row<len(self.queue)) or self.queue[row]['status']=='running':return
-  removed=self.queue.pop(row);self.current=min(max(self.current,0),len(self.queue)-1) if self.queue else -1
-  if self.pending_target and removed.get('target')==self.pending_target.get('uuid'):self.pending_target=None
+  """Angehakte (sonst den markierten) Auftrag in Schritt 4 entfernen, ohne die Prüfung der übrigen Aufträge zu verwerfen."""
+  row=self.run_list.currentRow();targets=self.removal_targets(self.queue[row] if 0<=row<len(self.queue) else None)
+  if (self.job and self.job.isRunning()) or not targets:return
+  removed=targets[0];count=self.remove_entries(targets)
   self.render_queue();self.render_run_list();self.show_entry()
   if self.stack.currentIndex()==1:
    if self.queue:self.render_review()
    else:self.stack.setCurrentIndex(0)
   self.apply_button.setEnabled(bool(self.queue) and self.closed.isChecked() and self.all_prepared())
-  self.status.setText(f'„{removed["name"]}“ aus der Warteschlange entfernt.'+('' if self.queue else ' Die Warteschlange ist leer.'))
+  self.status.setText((f'„{removed["name"]}“ aus der Warteschlange entfernt.' if count==1 else f'{count} Aufträge aus der Warteschlange entfernt.')+('' if self.queue else ' Die Warteschlange ist leer.'))
  def request_stop(self):self.stop_requested=True;self.stop_button.setEnabled(False);self.status.setText('Wird nach dem aktuellen Auftrag angehalten …')
  def retry_failed(self):
   failed=[e for e in self.queue if e['status']=='failed']
