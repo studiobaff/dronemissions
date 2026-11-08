@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/planner-core.php';
+require_once __DIR__.'/planner-terrain.php';
 function dm_planner_schema(PDO $db): void {
  $db->exec('CREATE TABLE IF NOT EXISTS mission_plans(id TEXT PRIMARY KEY,folder TEXT REFERENCES folders(id),name TEXT NOT NULL,body TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,created TEXT NOT NULL,updated TEXT NOT NULL); CREATE TABLE IF NOT EXISTS mission_plan_runs(id TEXT PRIMARY KEY,plan TEXT NOT NULL REFERENCES mission_plans(id),missions TEXT NOT NULL,created TEXT NOT NULL)');
 }
@@ -31,7 +32,7 @@ if(in_array($action,['planner-catalog','planner-list','planner-load','planner-sa
    $result=['provider'=>$provider,'features'=>$features,'attribution'=>'© OpenStreetMap-Mitwirkende · ODbL','limitations'=>'Nur geschlossene Gebäude-Ways im gewählten Ausschnitt; keine Vollständigkeitsgarantie, keine Multipolygon-Relationen.'];file_put_contents($file,json_encode($result,JSON_THROW_ON_ERROR),LOCK_EX);chmod($file,0600);respond($result);
   }finally{flock($lock,LOCK_UN);fclose($lock);}
  }
- $folder=($input['folder']??null)?:null;may_folder($folder,true);$planInput=$input['plan']??[];if(!is_array($planInput))problem('Planungsdaten prüfen.');$plan=dm_plan_build($planInput);$body=dm_planner_body($plan);
+ $folder=($input['folder']??null)?:null;may_folder($folder,true);$planInput=$input['plan']??[];if(!is_array($planInput))problem('Planungsdaten prüfen.');$plan=dm_plan_build($planInput,'dm_planner_elevations');$body=dm_planner_body($plan);
  if($action==='planner-preview')respond($plan);
  if($action==='planner-save'){
   $id=(string)($input['id']??'');$now=gmdate('c');$body['profileMission']=(string)($input['profileMission']??'');if($body['profileMission']!=='')dm_planner_profile($body['profileMission']);
