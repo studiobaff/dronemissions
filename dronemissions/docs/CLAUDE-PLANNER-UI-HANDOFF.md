@@ -79,3 +79,21 @@ Was Codex als Nächstes tun soll:
 ```
 
 README/PLANNER/UPDATE passend zur tatsächlich gelieferten Bedienung aktualisieren. Keine Flug-/Geräteprüfung behaupten: Die neue Planergeneration und insbesondere Video haben weiterhin offene reale Geräte-/Flugtests. Bridge muss für reine Web-UI-Änderungen nicht neu gebaut werden.
+
+## Zusatz: Litchi-Editor als gemeinsames Bedienvorbild · 8.11.2026
+
+Florian hat inzwischen den **KMZ-Editor an Codex beauftragt**. Er entsteht getrennt auf `codex/kmz-waypoint-editor`: vorhandene Wegpunkte auf Karte verschieben, Koordinaten/Höhe ändern, Undo/Redo, Feinverschiebung per Pfeilen, Punktnavigation, kontrolliertes Löschen/Einfügen und Speichern als neue Archivversion. POIs/Aktionen sollen erhalten bleiben; ihre Bearbeitung wird gesondert entwickelt. Das ist kein zusätzlicher Implementierungsauftrag an Claude.
+
+Die von Florian markierten Litchi-Bereiche sollen auch dem Planer als Gestaltungsreferenz dienen:
+
+- Kompakte Werkzeuggruppe direkt an der Karte, klare Trennung von Bearbeiten (Auswählen, Umriss, Löschen) und Ansicht (Kartenquelle, 2D/3D, Zentrieren, Zoom). Kein großes Werkzeugfeld neben einer kleinen Karte.
+- Kontextbezogener Inspektor: Auswahl/Umriss/Flugmuster erklärt, welche Werte gerade bearbeitet werden. Zahlenfeld plus kleine ±-Pfeile für präzise Schritte; Ausrichtung weiterhin ±1°. Einheiten/Höhenbezüge direkt am Wert.
+- Gut sichtbare aktive Auswahl, nummerierte Punkte, Höhe beim Hover/Antippen. Referenzflug gestrichelt und klar von berechneter Flugroute unterscheidbar. AGL, relativ Start und POI-Höhe nicht vermischen.
+- Kleine Vor/Zurück-Navigation für selektierte Punkte, soweit die vorhandene Funktion das trägt. Der Planer erzeugt seine Route aus Parametern: generierte Punkte nicht scheinbar frei editierbar machen oder deren manuelle Änderungen bei Neuberechnung unbemerkt verlieren.
+- Undo deutlich erreichbar; Redo als separate funktionale Ergänzung nur mit Zustands-/Vorschautests. Vorhandenes Undo nicht durch eine dekorative Schaltfläche ersetzen.
+- Kompakte Statuszeile mit geplanten Werten. Keine simulierte Live-Telemetrie, keine behauptete Drohnenverbindung und keine funktionslosen Simulations-/Google-3D-Schalter aus dem Vorbild kopieren.
+- POI, Ausrichtung, Gimbal und Aktionen als nachvollziehbare Gruppen mit Platz für späteren Ausbau. Nur die heute tatsächlich implementierten Planer-Felder bedienbar anbieten.
+
+**Dateigrenzen:** Codex verwendet neue `kmz-editor*.php`, `kmz-editor.js` und `kmz-editor.css`; kleine Anschlüsse in `api.php`, `app.js` und `view.html`. Claude bearbeitet vorrangig `planner.js` und die gekapselten Planer-Regeln in `style.css`. Keine neu hinzugefügten Editor-Skripte, API-Includes oder Archiv-Einstiegsknöpfe entfernen. Gemeinsame Dateien beim späteren Merge zusammenführen, nicht vollständig mit einem alten Stand ersetzen.
+
+Bitte die neue Planer-Gestaltung so dokumentieren, dass Codex den KMZ-Editor anschließend visuell angleichen kann: Abstände, Knopfhöhen, Werkzeuggruppen, Seitenleistenbreite, Auswahlfarbe und Verhalten auf schmalen Bildschirmen. Den Editor selbst nicht parallel umbauen. Rückgabe weiterhin über eigenen PR plus Commit, Screenshots und Tests; Codex integriert beide Arbeiten und veröffentlicht.
