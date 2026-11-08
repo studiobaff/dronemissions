@@ -21,3 +21,7 @@ Die Bibliothek und das aktuelle Archivpaket verwenden das aktive Bild. Explizit 
 `tests/previews.py` führt auf einer ausschließlich synthetischen Loopback-Installation Speicherung, Wechsel, Ausgangsfoto-Wiederverwendung, Prüfsummen/Versionskonstanz, Paketexport, veraltete Revisionen, ungültige Bilder/Einstellungen und Kunden-/Projektgrenzen durch. Die GitHub-Web-Checks starten diese Installation und führen zusätzlich die bestehende Archiv-Integration aus.
 
 Geräteverhalten ist getrennt: DJI Fly kann ein importiertes Titelbild nach dem Speichern durch einen eigenen Kartenausschnitt ersetzen. Dieser Webeditor ändert keine Mission auf einem angeschlossenen Gerät.
+
+## Ordner im Archiv
+
+Archivieren behält die Projektzuordnung bei. Die Archivansicht gruppiert Missionen und archivierte Planungspunkte deshalb nach dem vollständigen Ordnerpfad. Ordnergruppen lassen sich per Maus oder Tastatur auf- und zuklappen; die aufgeklappten Gruppen werden während der Sitzung gemerkt. Eine Namenssuche klappt passende Gruppen auf. Auch leere archivierte Ordner bleiben sichtbar. Aktive Projektansichten weisen auf ausgeblendete archivierte Missionen hin; ein nicht leerer Ordner lässt sich weiterhin nicht versehentlich löschen.
