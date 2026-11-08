@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from PySide6.QtCore import QThread,Signal,QSettings,QStandardPaths,Qt,QUrl,QTimer,QSize
 from PySide6.QtGui import QDesktopServices,QPixmap,QPainter,QColor,QFont,QIcon,QAction,QKeySequence
-from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,QDialog,
+from PySide6.QtWidgets import (QLayout,QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,QDialog,
  QLabel,QPushButton,QComboBox,QLineEdit,QFileDialog,QListWidget,QListWidgetItem,QPlainTextEdit,QTreeWidget,QTreeWidgetItem,
  QMessageBox,QCheckBox,QStackedWidget,QFrame,QProgressBar,QTabWidget,QTabBar,QButtonGroup,QSizePolicy,QScrollArea,QInputDialog,QSplitter)
 from PySide6.QtSvg import QSvgRenderer
@@ -277,9 +277,13 @@ class Window(QMainWindow):
   self.resume_button=QPushButton('Fortsetzen  ▸');self.resume_button.setObjectName('primary');self.resume_button.setEnabled(False);self.resume_button.clicked.connect(self.execute);row.addWidget(self.resume_button);card.addLayout(row)
 
  def build_settings_dialog(self):
-  d=QDialog(self);d.setWindowTitle('Einstellungen');d.setModal(False);d.resize(720,560);self.settings_dialog=d;layout=QVBoxLayout(d);layout.setContentsMargins(24,20,24,20);layout.setSpacing(14)
+  d=QDialog(self);d.setWindowTitle('Einstellungen');d.setModal(False);d.resize(800,760);d.setMinimumSize(640,420);self.settings_dialog=d
+  # Umbrechende Beschreibungen melden Qt eine zu kleine Mindesthöhe, die Karten würden sich bei kleinem Fenster überlagern.
+  # Eine Scrollfläche mit widgetResizable berücksichtigt heightForWidth und hält die Zeilen auf jeder Fenstergröße auseinander.
+  outer=QVBoxLayout(d);outer.setContentsMargins(0,0,0,0);outer.setSpacing(0);scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setFrameShape(QFrame.NoFrame);scroll.setObjectName('settingsScroll');outer.addWidget(scroll,1)
+  content=QWidget();content.setObjectName('settingsContent');scroll.setWidget(content);layout=QVBoxLayout(content);layout.setContentsMargins(24,20,24,8);layout.setSpacing(14)
   card=self.card(layout);self.heading(card,'Webarchiv','Adresse des privaten Archivs und dein Zugangsschlüssel. Die Konfigurationsdatei aus dem Webarchiv (Bereich „Bridge“) enthält nur die Adresse.')
-  grid=QGridLayout();grid.setHorizontalSpacing(10);grid.setVerticalSpacing(4)
+  grid=QGridLayout();grid.setHorizontalSpacing(10);grid.setVerticalSpacing(6)
   saved_url=self.settings.value('archiveURL','') or ''
   if re.match(r'^https?://(?:127\.0\.0\.1|localhost|\[::1\]|example\.(?:com|net|org))(?=[:/]|$)',saved_url,re.I) and not os.environ.get('DRONEMISSIONS_DEV'):saved_url='';self.settings.setValue('archiveURL',ARCHIVE_URL)
   grid.addWidget(QLabel('Archiv-Adresse'),0,0);self.archive_url=QLineEdit(saved_url or ARCHIVE_URL);self.archive_url.setPlaceholderText(ARCHIVE_URL);self.archive_url.editingFinished.connect(self.archive_url_edited);grid.addWidget(self.archive_url,1,0)
@@ -303,7 +307,7 @@ class Window(QMainWindow):
   card=self.card(layout);self.heading(card,'Ablage','Sicherungen, Transferjournale, Übertragungskopien und geladene Archivdateien liegen im Anwendungsdatenordner.')
   row=QHBoxLayout();button=QPushButton('Ordner öffnen');button.clicked.connect(lambda:QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.root))));row.addWidget(button);path=QLabel(str(self.root));path.setObjectName('ident');path.setWordWrap(True);row.addWidget(path,1);card.addLayout(row)
   label=QLabel(f'Drone Missions Bridge {VERSION} · GPL-3.0-or-later · Lizenzen im Programmpaket. Dateiprüfung ist keine Bestätigung eines nutzbaren Flugplans.');label.setObjectName('muted');label.setWordWrap(True);layout.addWidget(label)
-  foot=QHBoxLayout();foot.addStretch();close=QPushButton('Schließen');close.clicked.connect(d.close);foot.addWidget(close);layout.addLayout(foot)
+  layout.addStretch();foot=QHBoxLayout();foot.setContentsMargins(24,10,24,16);foot.addStretch();close=QPushButton('Schließen');close.clicked.connect(d.close);foot.addWidget(close);outer.addLayout(foot)
   self.archive_restore_key()
  def build_log_dialog(self):
   d=QDialog(self);d.setWindowTitle('Protokoll');d.setModal(False);d.resize(760,480);self.log_dialog=d;layout=QVBoxLayout(d);layout.setContentsMargins(20,16,20,16)
@@ -983,6 +987,7 @@ QCheckBox::indicator:checked{background:#254e3b;border:1px solid #254e3b;image:u
 QCheckBox::indicator:indeterminate{background:#254e3b;border:1px solid #254e3b;image:url("__CHECKPARTIAL__")}
 QCheckBox::indicator:disabled{border-color:#c7d0c6;background:#e5ebe2}
 QProgressBar{background:#e1e9dc;border:none;border-radius:2px}QProgressBar::chunk{background:#7b9f68}
+QScrollArea#settingsScroll,QScrollArea#settingsScroll>QWidget>QWidget#settingsContent{background:#f4f6f2;border:none}
 QScrollBar:vertical{background:transparent;width:10px}QScrollBar::handle:vertical{background:#cdd8c9;border-radius:5px;min-height:30px}
 QSplitter::handle{background:transparent;width:8px}
 '''
