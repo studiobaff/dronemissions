@@ -159,3 +159,9 @@ Oben neben der Kamera **Aufnahme → Video** wählen. Die Auswahl bleibt im Entw
 - **Vor dem Einsatz:** Auflösung, Bildrate und Kameraeinstellungen in DJI Fly prüfen. Aufnahme und Gimbal-Aktionen am Zielgerät testen. Bisher sind Parser, Export und UI geprüft, kein echter Video-Flug. Der Planer extrahiert keine Frames; dafür dienen nachgelagerte Programme.
 
 Regressionen decken Einzelbild-Kompatibilität, Bahnendpunkte, Gelände-Stützpunkte, Helix-Geometrie, lokale Aktionsindizes, Aufnahmestart/-stopp je Abschnitt, Modi in gespeicherten Entwürfen und den Archivkonflikt bei geändertem Modus ab. Originalmissionen werden nicht verändert.
+
+### Höhenreferenz aus einer Archivmission
+
+Unter **Höhenpunkte aus Erkundungsflug → DJI-KMZ aus dem Webarchiv** eine Mission mit Projektpfad wählen und **Höhenpunkte übernehmen** anklicken. Alternativ bleibt der lokale KMZ-Upload verfügbar. Es wird die neueste Version gelesen; die Quelle im Dialog trägt deren Nummer (z. B. „Erkundung · V2“). Höhenmodus, Dateigröße und Prüfsumme werden ebenso wie beim Upload geprüft. Kunden und fremde Projektbereiche bleiben ausgeschlossen.
+
+Die Punkte werden zusammen mit Quellname und SHA-256 im Planungsentwurf gespeichert. Es entsteht keine neue Archivmission und kein dynamischer Link: Eine spätere Quellversion überschreibt die übernommene Referenz nicht. Zum Aktualisieren erneut übernehmen; dies setzt Auswahl, Startbezug und Sicherheitsabstand auf die Importvorgaben zurück. Danach Startbezug bestätigen, relevante Punkte auswählen, Sicherheitsabstand einstellen und Mindesthöhe übernehmen/aktivieren.
