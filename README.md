@@ -13,3 +13,7 @@ Der Web-Quellcode liegt in [`dronemissions/`](dronemissions/README.md). Die Anwe
 Die USB-/DJI-Fly-Bridge wird separat entwickelt. Es gibt aktuell keine geprüften Bridge-Downloads und keine bestätigte Flugfreigabe. Planungspunkte dienen der Vorbereitung und erzeugen noch keine ausführbaren Panoramaaktionen.
 
 Die Beispiele sind synthetisch. Private Missionen, Zugangsschlüssel, Datenbanken und Serverkonfiguration sind nicht Bestandteil dieses Repositorys.
+
+## Sharing and contributions
+
+You are welcome to read, download and **fork** this project. Please make changes in your own fork; to propose them for this repository, open a pull request. Only the repository owner controls what is merged here. See [CONTRIBUTING.md](CONTRIBUTING.md).
