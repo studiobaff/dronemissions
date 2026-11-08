@@ -46,3 +46,18 @@ require_once dirname((new ReflectionFunction('dm_plan_build'))->getFileName()).'
 $tmp=sys_get_temp_dir().'/dm-dem-cache-'.bin2hex(random_bytes(5));mkdir($tmp,0700);mkdir($tmp.'/terrain',0700);$old=getenv('DRONEMISSIONS_PRIVATE');putenv('DRONEMISSIONS_PRIVATE='.$tmp);
 try{$coords=[['lat'=>48.0,'lng'=>16.0]];$key=hash('sha256','eudem25m:bilinear:48.0000000,16.0000000');$cache=['snapshot'=>$key,'elevations'=>[200.0]];file_put_contents($tmp.'/terrain/'.$key.'.json',json_encode($cache));pc(dm_planner_elevations($coords,'eudem25m')===json_decode(json_encode($cache),true),'immutable cache replay without network');unlink($tmp.'/terrain/'.$key.'.json');}finally{putenv('DRONEMISSIONS_PRIVATE'.($old===false?'':'='.$old));foreach(glob($tmp.'/terrain/*') as $f)unlink($f);rmdir($tmp.'/terrain');rmdir($tmp);}
 echo "PASS: vertical speed cap, stable DEM replay and private snapshot reuse without network.\n";
+
+// A small survey must remain a raster even when one photo footprint spans the polygon.
+$small=spec();$small['geometry']['coordinates']=[[[16,48],[16.0005,48],[16.0005,48.0004],[16,48.0004],[16,48]]];
+$small['params']=array_replace($small['params'],['height'=>91,'spacingMode'=>'distance','photoDistance'=>13,'trackDistance'=>13]);
+$sp=dm_plan_build($small);pc($sp['summary']['rows']===3,'small polygon distributes three 13m raster tracks');pc($sp['summary']['actualPhotoSpacing']<=13.001&&$sp['summary']['actualTrackSpacing']<=13.001,'meter limits honored');pc($sp['summary']['referenceDistance']===91.0,'footprint datum must not become route length');
+$small['params']['trackDistance']=7;$dense=dm_plan_build($small);pc($dense['summary']['rows']>$sp['summary']['rows'],'smaller track distance creates more lines');
+$small['params']['trackDistance']=13;$small['params']['height']=110;$raised=dm_plan_build($small);pc($raised['summary']['photos']===$sp['summary']['photos'],'meter mode retains density when height changes');pc($raised['summary']['nominalFrontOverlap']>$sp['summary']['nominalFrontOverlap'],'higher flight increases nominal overlap for fixed spacing');
+$normalized=dm_planner_test_body($sp);pc(dm_plan_build($normalized)['routeSha256']===$sp['routeSha256'],'distance mode survives save/load');
+$manual=spec('helix');$manual['geometry']=$center;$manual['params']+=['spacingMode'=>'distance','photoDistance'=>13,'trackDistance'=>8];$hm=dm_plan_build($manual);pc($hm['summary']['actualPhotoSpacing']<=13.001&&$hm['summary']['actualTrackSpacing']<=8.001,'helix independent photo step and rise');
+$manual['params']['photoDistance']=0;rejects(fn()=>dm_plan_build($manual),'reject zero photo distance');
+$small['params']['spacingMode']='invalid';rejects(fn()=>dm_plan_build($small),'reject unknown spacing mode');
+$small['params']['spacingMode']='overlap';unset($small['params']['photoDistance'],$small['params']['trackDistance']);$ov=dm_plan_build($small);pc($ov['summary']['rows']>=2,'overlap mode also distributes at least two tracks');pc(abs($ov['summary']['nominalFrontOverlap']-80)<.01,'overlap roundtrip');
+$mini=spec();$mini['cameraId']='mini5';$cm=dm_plan_camera($mini,97);pc(abs($cm['footprintWidth']-2*97*tan(deg2rad(42))*.8)<1e-8,'full FOV uses full footprint, not half width');
+function dm_planner_test_body(array $plan):array{return array_intersect_key($plan,array_flip(['name','type','cameraId','camera','geometry','params']));}
+echo "PASS: small-area raster, meter spacing, density/height response, nominal overlap, saved replay, helix spacing and input bounds.\n";

@@ -1,3 +1,14 @@
+## Missionsplaner: automatische Vorschau und verständliche Aufnahmeabstände · 8.11.2026
+
+Branch `codex/planner-live-preview`. Generator 0.3.0. Veröffentlichung über eigenen PR und den vorhandenen Web-Deployment-Workflow; kein Bridge-Build nötig.
+
+- Gemeinsame Planungsansicht mit weiterhin editierbarem Umriss; automatische, serialisierte Neuberechnung nach Parameter-/Geometrieänderungen. Veraltete Antworten werden verworfen, Speichern/Export bleiben bis zur aktuellen gültigen Vorschau gesperrt.
+- Neue Planungen: Foto- und Bahnen-/Höhenabstand direkt in Metern. Optional Vorgabe über Überlappung. Bildfeld, Rechenabstand und nominale Prozentwerte sichtbar; tatsächliche eingepasste Abstände separat.
+- Raster verteilt mindestens zwei Bahnen über den Umriss. Alte gespeicherte Planungen werden neu berechnet; bestehende Missions-KMZs bleiben unverändert.
+- Browser auf isolierter Testinstallation: Polygon zeichnen, Ecke ziehen, Zwischenpunkt einfügen, Ecke löschen, Undo; automatische Reaktion auf Meterabstand, Höhe und Richtung; Wechsel Grid → Helix → Grid; ungültige Höhe sperrt Export, Korrektur erholt sich; Speichern/Neuladen behält Abstände; keine Konsolenfehler.
+- PHP-Geometrie-/DEM-/KMZ-Regressionen, neue Meter-/Rasterfälle, Scheduler-Test und Planner-API-Integration bestanden. CI prüft zusätzlich die übrigen Archivfälle.
+- Kein Gerätetest oder Flugtest dieser neuen Planergeneration. 3D-/Schrägbildüberlappung wird ausdrücklich nur als Rechenwert bezeichnet.
+
 # Update vom GitHub-Branch auf den Server
 
 **Produktivinstallation:** Seit PR #1/#2 veröffentlicht GitHub Actions geprüfte Änderungen in `main` automatisch auf `service.studiobaff.com/dronemissions/`. Änderungen vom Claude-Branch zuerst per PR nach `main` übernehmen. Der Release-Wechsel sichert SQLite/Konfiguration und prüft HTTPS; private Daten bleiben außerhalb. Die folgenden manuellen Kopierbefehle sind nur für andere Installationen bzw. administrativen Notbetrieb gedacht. Für die Produktivinstallation nicht parallel per rsync veröffentlichen. Details: `deploy/README.md` im Repository.

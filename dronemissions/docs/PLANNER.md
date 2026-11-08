@@ -66,3 +66,17 @@ Zahlenfelder und zugehörige Slider für Überlappung, Höhen, Radius, Wandabsta
 - [OpenTopoData API](https://www.opentopodata.org/api/) und [Datensätze/Limits](https://www.opentopodata.org/).
 - [Map Creator Desktop](https://map-creator.com/windows.htm) als Funktionsreferenz.
 - Regression: synthetischer schiefer Boden, Grid-AGL, Helix-Radius/POI, Navigation ohne Fotos, Exporthöhen und Aktionsindizes, fehlende DEM-/Startdaten und Steilhang. Echter DEM-Abruf, Polygon-Abschluss/Eckpunkt-Löschen/Rücknahme, Grid-Speichern und Helix-Export im isolierten Browser-Testarchiv geprüft. Die zwei exportierten Helix-Abschnitte wurden zusätzlich vom Bridge-Parser akzeptiert. Keine Geräte- oder Flugprüfung dieser Exporte.
+
+## Interaktive Planung
+
+Umriss und Flugparameter stehen gemeinsam unter „Planen“. Fertige und importierte Umrisse sind sofort bearbeitbar. Änderungen an Geometrie, Kamera, Flugart oder Reglern berechnen die Vorschau nach 650 ms Eingabepause automatisch neu; die Ansicht und der Kartenausschnitt bleiben erhalten. Währenddessen ist die alte Route als veraltet markiert und Export/Speichern gesperrt. Es läuft höchstens eine Berechnung gleichzeitig, nachfolgende Änderungen werden zusammengefasst und überholte Antworten verworfen. DEM-Abfragen folgen denselben Regeln; je nach Dienst dauern sie länger. „Vorschau aktualisieren“ erlaubt einen manuellen Wiederholungsversuch nach Fehlern.
+
+### Aufnahmeabstände und Überlappung (Generator 0.3.0)
+
+Neue Planungen starten mit „Direkt in Metern“: Fotoabstand entlang der Route und Abstand zwischen Rasterbahnen beziehungsweise Höhenreihen/Windungen. Die Werte sind Obergrenzen; ein Abschnitt wird gleichmäßig eingepasst. Alternativ berechnet „Über gewünschte Überlappung“ diese Abstände. Alte Planungen ohne `spacingMode` bleiben im bisherigen Überlappungsmodus.
+
+Die Anzeige trennt Vorgaben, eingepasste Abstände und nominale Überlappung. Formel: `100 × (1 − Abstand / Bildfeldausdehnung)`. Das volle diagonale Bildfeld ist `2 × Abstand zur Aufnahmefläche × tan(FOV / 2)`; Breite/Höhe ergeben sich aus dem Bildseitenverhältnis. Beim Nadir-Grid liegt die kurze Bildseite in Flugrichtung. Kamera, Fotoformat, Höhe über Aufnahmefläche und Bahnenrichtung müssen beim Vergleich übereinstimmen. Nominale Prozentwerte bei schrägem Blick, Helix oder unebener Oberfläche sind kein Nachweis tatsächlicher 3D-Bildüberlappung. Quellen: [Pix4D Bildrate und Frontalüberlappung](https://support.pix4d.com/hc/en-us/articles/202557479), [Pix4D – Prüfung gilt für Nadirbilder](https://support.pix4d.com/hc/en-us/articles/203756125); Kameradaten sind im jeweiligen Profil verlinkt.
+
+Das Raster verteilt mindestens zwei Bahnen über den gesamten Umriss, mit einem halben Bahnenabstand zum Rand. Es reduziert kleine Gebiete nicht mehr auf eine einzelne Bahn, nur weil das nominale Bildfeld größer als das Gebiet ist. Bei concaven Umrissen und Löchern bleibt das Clipping samt separaten Abschnitten erhalten. Eine ältere gespeicherte Planung kann durch Generator 0.3.0 mehr Bahnen bekommen; vor erneutem Export wird sie neu berechnet und als geänderter Planungsstand gespeichert. Bestehende KMZ-Dateien werden nicht geändert.
+
+Bedienvergleich mit Map Creator am 8.11.2026: Fotoabstand 13 → 20 m änderte die angezeigte nominale Überlappung 75,3 → 61,9 %; „Calculate Grid“ änderte die Route. Beim Ziehen einer Ecke wurde die Route neu erzeugt; Undo stellte den Umriss wieder her. Teständerungen wurden zurückgenommen, keine Mission gespeichert/exportiert. Dessen numerische Bildfeldwerte werden nicht ungeprüft kopiert.
