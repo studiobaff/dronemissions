@@ -62,7 +62,13 @@ def test_layers(c,a,root):
     c.call('layer-upload',{'name':'Kein GeoJSON'},expected=400,files={'file':('x.geojson',b'[1,2,3]')})
     data=json.loads(c.call('layer-data&id='+vec['id']));assert data['features'][0]['properties']=={'name':'Fläche','x':1} and len(data['features'])==1
     public=c.call('library')['layers'];assert any(l['kind']=='vector' and l['features']==1 and l['color']=='#2f8f4e' for l in public)
+    c.call('layer-style',{'id':vec['id'],'color':'#ff8800','weight':6,'useSourceStyle':False})
+    styled=next(l for l in c.call('library')['layers'] if l['id']==vec['id']);assert styled['color']=='#ff8800' and styled['weight']==6 and styled['useSourceStyle'] is False
+    assert json.loads(c.call('layer-data&id='+vec['id']))==data
+    for bad in [{'weight':0},{'weight':33},{'weight':'nan'},{'color':'red'},{'useSourceStyle':'unexpected'}]:
+        body={'id':vec['id'],'color':'#ff8800','weight':6,'useSourceStyle':False};body.update(bad);c.call('layer-style',body,expected=400)
     customer=c.call('share',{'folder':root,'role':'view'});cust=Client(a.base);cust.call('share-login',{'token':customer['token']})
+    cust.call('layer-style',{'id':vec['id'],'color':'#000000','weight':4},expected=403)
     assert json.loads(cust.call('layer-data&id='+vec['id']))['features'];cust.call('layers',expected=403);cust.call('layer-delete',{'id':vec['id']},expected=403);cust.call('layer-save',{'name':'x','url':'https://t.example/{z}/{x}/{y}.png'},expected=403)
     c.call('wmts-capabilities',{'url':'http://127.0.0.1:1/wmts'},expected=400) if not a.wmts_fixture else None
     if a.wmts_fixture:

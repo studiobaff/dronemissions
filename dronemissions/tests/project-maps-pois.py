@@ -18,6 +18,11 @@ def main():
  assert len(c.call('library')['missions'])==before
  l=next(l for l in c.call('library')['layers'] if l['id']==ref);assert l['folder']==root
  assert c.call('layer-original&id='+ref)==raw
+ styled=json.loads(geo);styled['features'][0]['properties'].update({'stroke':'#01579b','stroke-width':10.82,'stroke-opacity':1})
+ same=c.call('layer-upload',{'id':ref,'folder':root,'name':'Project line','color':'#ff8800','weight':4,'useSourceStyle':'true'},files={'file':('ref.geojson',json.dumps(styled).encode()),'source':('reference.kmz',raw)})
+ assert same['id']==ref and json.loads(c.call('layer-data&id='+ref))==styled and c.call('layer-original&id='+ref)==raw
+ c.call('layer-upload',{'id':ref,'folder':root,'name':'Project line'},files={'file':('ref.geojson',geo),'source':('reference.kmz',b'changed')},expected=409)
+
  c.call('layer-project',{'id':ref,'folder':'missing'},expected=404)
  view=c.call('share',{'folder':root,'role':'view'});v=Client(a.base);v.call('share-login',{'token':view['token']})
  edit=c.call('share',{'folder':root,'role':'edit'});e=Client(a.base);e.call('share-login',{'token':edit['token']})

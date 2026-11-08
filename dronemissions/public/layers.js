@@ -28,6 +28,16 @@
     const strong = document.createElement('strong'); strong.textContent = l.name; text.append(strong);
     const span = document.createElement('span'); span.textContent = l.kind === 'vector' ? `Vektor · ${l.config.features} Objekte${l.config.attribution ? ' · ' + l.config.attribution : ''}` : `${l.config.overlay ? 'Overlay' : 'Hintergrund'} · ${l.config.url}${l.config.keyHint ? ' · Schlüssel ' + l.config.keyHint : ''}`; text.append(span); item.append(text);
     if(l.kind==='vector'){const select=document.createElement('select');select.setAttribute('aria-label','Projektzuordnung für '+l.name);select.innerHTML=folderOptions(l.config.folder).replace('Ohne Projektordner','Global · alle Karten und Freigaben');select.value=l.config.folder||'';select.onchange=()=>run(async()=>{await api('layer-project',{id:l.id,folder:select.value});await refresh();await loadList();},select);item.append(select);if(l.config.source){const a=document.createElement('a');a.className='btn btn-outline btn-sm';a.href='api.php?action=layer-original&id='+encodeURIComponent(l.id);a.textContent='Original';item.append(a);}}
+    if(l.kind==='vector'){
+     const panel=document.createElement('details');panel.className='layer-style';const summary=document.createElement('summary');summary.textContent='Farbe & Breite';panel.append(summary);
+     const controls=document.createElement('div');controls.className='layer-style-controls';
+     const field=(text,input)=>{const label=document.createElement('label');label.append(document.createTextNode(text),input);controls.append(label);};
+     const color=document.createElement('input');color.type='color';color.value=l.config.color||'#2f8f4e';color.setAttribute('aria-label','Farbe für '+l.name);field('Farbe',color);
+     const width=document.createElement('input');width.type='number';width.min='.5';width.max='32';width.step='.5';width.value=l.config.weight??1.5;width.setAttribute('aria-label','Linienbreite für '+l.name);field('Breite · px',width);
+     const original=document.createElement('input');original.type='checkbox';original.checked=l.config.useSourceStyle!==false;original.setAttribute('aria-label','Originalstil für '+l.name);field('KMZ/KML-Stil verwenden',original);
+     const sample=document.createElement('span');sample.className='layer-line-sample';const update=()=>{sample.style.borderTopColor=color.value;sample.style.borderTopWidth=Math.min(32,Math.max(.5,Number(width.value)||1.5))+'px';color.disabled=width.disabled=original.checked;};original.onchange=update;color.oninput=width.oninput=update;update();controls.append(sample);
+     const save=document.createElement('button');save.type='button';save.className='btn btn-primary btn-sm';save.textContent='Stil speichern';save.onclick=()=>run(async()=>{if(!width.checkValidity()){width.reportValidity();return;}await api('layer-style',{id:l.id,color:color.value,weight:Number(width.value),useSourceStyle:original.checked});await refresh();await loadList();toast('Ebenenstil gespeichert.');},save);controls.append(save);panel.append(controls);item.append(panel);
+    }
     if (l.kind === 'tile') { const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'btn btn-outline btn-sm'; edit.textContent = 'Bearbeiten'; edit.onclick = () => { editing = l.id; el('layer-preset').value = ''; el('layer-name').value = l.name; el('layer-url').value = l.config.url; el('layer-key').value = ''; el('layer-key').placeholder = l.config.keyHint ? 'gespeichert (' + l.config.keyHint + '), leer lassen zum Behalten' : ''; el('layer-attribution').value = l.config.attribution || ''; el('layer-maxzoom').value = l.config.maxZoom || 19; el('layer-opacity').value = l.config.opacity ?? 1; el('layer-overlay').checked = Boolean(l.config.overlay); el('layer-save').textContent = 'Änderung speichern'; document.querySelector('.layer-add').open = true; el('layer-name').focus(); }; item.append(edit); }
     const order = document.createElement('span'); order.className = 'layer-order';
     for (const [label, delta, title] of [['▲', -1, 'Nach oben (weiter unten im Stapel)'], ['▼', 1, 'Nach unten (weiter oben im Stapel)']]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-icon btn-xs'; b.textContent = label; b.title = title; b.setAttribute('aria-label', title); b.disabled = (delta < 0 && layers[0] === l) || (delta > 0 && layers[layers.length - 1] === l); b.onclick = () => run(async () => { const ids = layers.map(x => x.id), i = ids.indexOf(l.id); ids.splice(i, 1); ids.splice(i + delta, 0, l.id); await api('layer-order', { ids }); await loadList(); await refresh(); }, b); order.append(b); }
@@ -59,7 +69,7 @@
    const file = el('vector-file').files[0]; if (!file) { tell('vector-status', 'Bitte eine Datei wählen.', true); return; }
    try {
     tell('vector-status', 'Datei wird gelesen …'); const geo = await toGeoJSON(file);
-    const fd = new FormData(); fd.set('name', el('vector-name').value.trim() || file.name.replace(/\.[^.]+$/, '')); fd.set('folder',el('vector-folder').value); fd.set('source',file); fd.set('color', el('vector-color').value); fd.set('attribution', el('vector-attribution').value.trim()); fd.set('file', new Blob([JSON.stringify(geo)], { type: 'application/geo+json' }), 'ebene.geojson');
+    const fd = new FormData(); fd.set('name', el('vector-name').value.trim() || file.name.replace(/\.[^.]+$/, '')); fd.set('folder',el('vector-folder').value); fd.set('source',file); fd.set('color', el('vector-color').value);fd.set('weight',el('vector-weight').value);fd.set('useSourceStyle',String(el('vector-source-style').checked)); fd.set('attribution', el('vector-attribution').value.trim()); fd.set('file', new Blob([JSON.stringify(geo)], { type: 'application/geo+json' }), 'ebene.geojson');
     const result = await api('layer-upload', fd, true); tell('vector-status', `${result.features} Objekte gespeichert.`); el('vector-file').value = ''; el('vector-name').value = ''; await loadList(); await refresh();
    } catch (err) { tell('vector-status', err.message, true); }
   }, e.target);
@@ -96,6 +106,14 @@
  }
  function kmlToGeoJSON(text) {
   const doc = new DOMParser().parseFromString(text, 'application/xml'); if (doc.querySelector('parsererror')) throw Error('KML nicht lesbar.');
+  const styles=new Map([...doc.getElementsByTagName('Style')].filter(e=>e.getAttribute('id')).map(e=>[e.getAttribute('id'),e]));
+  const maps=new Map([...doc.getElementsByTagName('StyleMap')].filter(e=>e.getAttribute('id')).map(e=>[e.getAttribute('id'),e]));
+  const resolve=(url,seen=new Set())=>{if(!url?.startsWith('#')||seen.has(url))return null;seen.add(url);const id=url.slice(1);if(styles.has(id))return styles.get(id);const map=maps.get(id);if(!map)return null;const pair=[...map.children].find(e=>e.localName==='Pair'&&e.querySelector('key')?.textContent.trim()==='normal');return resolve(pair?.querySelector('styleUrl')?.textContent.trim(),seen);};
+  const lineStyle=placemark=>{
+   const url=[...placemark.children].find(e=>e.localName==='styleUrl')?.textContent.trim();const reference=resolve(url),inline=[...placemark.children].find(e=>e.localName==='Style');const props={};
+   for(const style of [reference,inline]){const line=style?.querySelector('LineStyle');if(!line)continue;const color=line.querySelector('color')?.textContent.trim(),width=line.querySelector('width')?.textContent.trim();if(/^[0-9a-f]{8}$/i.test(color||'')){props.stroke='#'+color.slice(6,8)+color.slice(4,6)+color.slice(2,4);props['stroke-opacity']=parseInt(color.slice(0,2),16)/255;}if(width!==undefined&&width!==''&&Number.isFinite(Number(width))&&Number(width)>=0&&Number(width)<=32)props['stroke-width']=Number(width);}
+   return props;
+  };
   const coords = node => (node.textContent || '').trim().split(/\s+/).filter(Boolean).map(t => t.split(',').map(Number)).filter(c => c.length >= 2 && Number.isFinite(c[0]) && Number.isFinite(c[1])).map(c => [c[0], c[1]]);
   const geometries = placemark => { const out = [];
    for (const g of placemark.querySelectorAll('Point, LineString, Polygon')) { if (g.closest('Placemark') !== placemark) continue; const tag = g.localName;
@@ -104,7 +122,7 @@
     else { const rings = []; const outer = g.querySelector('outerBoundaryIs coordinates'); if (outer) rings.push(coords(outer)); for (const inner of g.querySelectorAll('innerBoundaryIs coordinates')) rings.push(coords(inner)); if (rings.length && rings[0].length > 2) out.push({ type: 'Polygon', coordinates: rings }); } }
    return out; };
   const features = [];
-  for (const p of doc.getElementsByTagName('Placemark')) { const gs = geometries(p); if (!gs.length) continue; const props = { name: p.querySelector(':scope > name')?.textContent?.trim() || '', description: (p.querySelector(':scope > description')?.textContent || '').replace(/<[^>]+>/g, ' ').trim().slice(0, 500) };
+  for (const p of doc.getElementsByTagName('Placemark')) { const gs = geometries(p); if (!gs.length) continue; const props = { ...lineStyle(p), name: p.querySelector(':scope > name')?.textContent?.trim() || '', description: (p.querySelector(':scope > description')?.textContent || '').replace(/<[^>]+>/g, ' ').trim().slice(0, 500) };
    for (const d of p.querySelectorAll('ExtendedData Data')) { const k = d.getAttribute('name'); if (k) props[k] = d.querySelector('value')?.textContent?.trim() || ''; }
    features.push({ type: 'Feature', geometry: gs.length === 1 ? gs[0] : { type: 'GeometryCollection', geometries: gs }, properties: props }); }
   for (const f of features) if (f.geometry.type === 'GeometryCollection') { const g = f.geometry.geometries; const types = new Set(g.map(x => x.type)); if (types.size === 1) { const t = [...types][0]; f.geometry = { type: 'Multi' + t, coordinates: g.map(x => x.coordinates) }; } else f.geometry = g[0]; }
