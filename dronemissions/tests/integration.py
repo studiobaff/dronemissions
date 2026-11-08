@@ -44,8 +44,39 @@ def synthetic_kmz(height=60):
         z.writestr('wpmz/waylines.wpml',f'<kml xmlns:wpml="http://www.dji.com/wpmz/1.0.6"><Document><Folder><wpml:waylineId>0</wpml:waylineId><wpml:executeHeightMode>relativeToStartPoint</wpml:executeHeightMode>{marks}</Folder></Document></kml>')
     return buf.getvalue()
 
+def test_layers(c,a,root):
+    """Eigene Kartenebenen: Validierung, Schlüssel, Vektor-Upload mit Bereinigung, Auslieferung, Rechte, CSP."""
+    assert c.call('layers')['layers']==[]
+    c.call('layer-save',{'name':'Kaputt','url':'http://tiles.example.org/{z}/{x}/{y}.png'},expected=400)   # kein https
+    c.call('layer-save',{'name':'Kaputt','url':'https://tiles.example.org/{z}/{x}.png'},expected=400)       # {y} fehlt
+    c.call('layer-save',{'name':'','url':'https://tiles.example.org/{z}/{x}/{y}.png'},expected=400)         # Name fehlt
+    c.call('layer-save',{'name':'Mapbox','url':'https://api.mapbox.com/{z}/{x}/{y}?access_token={key}'},expected=400)  # {key} ohne Schlüssel
+    tile=c.call('layer-save',{'name':'Mapbox','url':'https://api.mapbox.com/{z}/{x}/{y}?access_token={key}','key':'pk.secret','attribution':'© Mapbox','maxZoom':22,'overlay':False})['id']
+    listed=c.call('layers')['layers'];assert len(listed)==1 and 'key' not in listed[0]['config'] and listed[0]['config']['keyHint']=='pk.s…'
+    c.call('layer-save',{'id':tile,'name':'Mapbox Streets','url':'https://api.mapbox.com/{z}/{x}/{y}?access_token={key}','key':'','maxZoom':22})   # leerer Schlüssel behält den gespeicherten
+    public=[l for l in c.call('library')['layers'] if l['kind']=='tile'];assert public[0]['url'].endswith('access_token=pk.secret') and public[0]['name']=='Mapbox Streets'
+    html=c.opener.open(a.base.rstrip('/')+'/');csp=html.headers.get('Content-Security-Policy');assert 'https://api.mapbox.com' in csp,csp
+    geo=json.dumps({'type':'FeatureCollection','features':[{'type':'Feature','geometry':{'type':'Polygon','coordinates':[[[16.7,47.8],[16.71,47.8],[16.71,47.81],[16.7,47.8]]]},'properties':{'name':'Fläche','x':1,'nested':{'a':1}}},{'type':'Feature','geometry':{'type':'Weird','coordinates':[]},'properties':{}}]}).encode()
+    vec=c.call('layer-upload',{'name':'Schutzgebiete','color':'#2f8f4e','attribution':'Testdaten'},files={'file':('ebene.geojson',geo)});assert vec['features']==1
+    c.call('layer-upload',{'name':'Leer'},expected=400,files={'file':('leer.geojson',b'{"type":"FeatureCollection","features":[]}')})
+    c.call('layer-upload',{'name':'Kein GeoJSON'},expected=400,files={'file':('x.geojson',b'[1,2,3]')})
+    data=json.loads(c.call('layer-data&id='+vec['id']));assert data['features'][0]['properties']=={'name':'Fläche','x':1} and len(data['features'])==1
+    public=c.call('library')['layers'];assert any(l['kind']=='vector' and l['features']==1 and l['color']=='#2f8f4e' for l in public)
+    customer=c.call('share',{'folder':root,'role':'view'});cust=Client(a.base);cust.call('share-login',{'token':customer['token']})
+    assert json.loads(cust.call('layer-data&id='+vec['id']))['features'];cust.call('layers',expected=403);cust.call('layer-delete',{'id':vec['id']},expected=403);cust.call('layer-save',{'name':'x','url':'https://t.example/{z}/{x}/{y}.png'},expected=403)
+    c.call('wmts-capabilities',{'url':'http://127.0.0.1:1/wmts'},expected=400) if not a.wmts_fixture else None
+    if a.wmts_fixture:
+        layers=c.call('wmts-capabilities',{'url':a.wmts_fixture})['layers'];assert [l['id'] for l in layers]==['ortho','karte'],layers
+        assert layers[0]['url']=='https://tiles.example.org/normal/google3857/{z}/{y}/{x}.jpeg' and 'TILEMATRIX=EPSG:3857:{z}' in layers[1]['url'] and layers[0]['maxZoom']==18
+    c.call('layer-order',{'ids':[vec['id'],tile]});assert [l['id'] for l in c.call('layers')['layers']]==[vec['id'],tile];assert [l['kind'] for l in c.call('library')['layers']]==['vector','tile']
+    c.call('layer-order',{'ids':[tile]},expected=409);c.call('layer-order',{'ids':[tile,tile]},expected=400);cust.call('layer-order',{'ids':[tile,vec['id']]},expected=403)
+    c.call('layer-delete',{'id':vec['id']});c.call('layer-delete',{'id':tile});c.call('layer-delete',{'id':tile},expected=404);c.call('layer-data&id='+vec['id'],expected=404)
+    c.call('revoke',{'id':customer['id']})
+    assert c.call('layers')['layers']==[]
+    print('PASS: custom map layers: validation, key handling and masking, CSP host, vector upload cleanup, viewer read-only, ordering, WMTS import'+('' if a.wmts_fixture else ' (fixture skipped)'))
+
 def main():
-    p=argparse.ArgumentParser(); p.add_argument('--base',required=True); p.add_argument('--access',type=Path,required=True);p.add_argument('--fixture-dir',type=Path);p.add_argument('--allow-test-writes',action='store_true',required=True); a=p.parse_args()
+    p=argparse.ArgumentParser(); p.add_argument('--base',required=True); p.add_argument('--access',type=Path,required=True);p.add_argument('--fixture-dir',type=Path);p.add_argument('--allow-test-writes',action='store_true',required=True);p.add_argument('--wmts-fixture',help='http(s) URL of a WMTS capabilities document reachable from the server (DRONEMISSIONS_DEV allows loopback)'); a=p.parse_args()
     assert urlparse(a.base).hostname in ('127.0.0.1','localhost','::1'), 'Integration tests require a loopback-only dedicated test installation'
     c=Client(a.base); c.call('library',expected=401)
     c.call('login',{'password':'incorrect'},expected=401); c.call('login',json.loads(a.access.read_text()))
@@ -173,5 +204,6 @@ def main():
     c.call('folder-delete',{'id':sub,'name':'Routen','parent':root},expected=409)
     assert c.call('original&id='+m)==raw2
     print('PASS: empty folder deletion, nonempty/stale rejection, owner-only action, link revocation, originals retained')
+    test_layers(c,a,root)
     print('PASS: authentication, folders/cycles, parsing, versions/conflicts, exact KMZ, package hashes, previews, points/conflicts, read/edit scopes, revocation, archive and metadata conflicts')
 if __name__=='__main__': main()

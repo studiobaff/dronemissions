@@ -16,19 +16,20 @@ Branch: `claude/drone-missions-ui-handoff-4nsj6e`, letzter überprüfter Stand *
 - `d1513bc`: eigene Kachelquellen mit API-Schlüssel, WMTS-Import, Vektor-Upload und zusätzliche Geozonenkategorie.
 - `c185a2a`: gespeicherte Ebenenreihenfolge. Vektor-Ebenen liegen über Geozonen und unter Missionsrouten/Wegpunkten. Weiter unten gelistete Overlays liegen weiter oben auf der Karte. Ab der 19. Vektor-Ebene teilen sich weitere Ebenen eine Stapelstufe.
 
-Die Kartenebenen dieses Stands gelten installationsweit. Claudes Testbericht nennt erfolgreiche Integrations- und Browserprüfungen; das ersetzt nicht die erneute Prüfung des zusammengeführten Release-Stands. Diese Dokumentationsänderung veröffentlicht die drei Codeänderungen noch nicht.
+Die Kartenebenen dieses Stands gelten installationsweit. Claudes Testbericht nennt erfolgreiche Integrations- und Browserprüfungen; das ersetzt nicht die erneute Prüfung des zusammengeführten Release-Stands. Die drei Codeänderungen sind im Projektkarten-/POI-Kandidaten enthalten; der Live-Stand folgt erst nach geprüftem PR-Merge.
 
-## Noch fertigzustellen
+## Projektkarten und POIs: fertiger Release-Kandidat
 
-1. **Projektbezogene Kartenreferenzen:** vorhandene Kartenebenen um Projektzuordnung ergänzen, statt ein zweites Ebenensystem einzubauen. Eine My-Maps-KMZ mit Linie ist eine Kartenreferenz und keine ausführbare DJI-Mission. Originaldatei erhalten, Projektwechsel und Unterordnerverhalten prüfen. Kundenrechte ausdrücklich prüfen; private Linien nicht automatisch freigeben. Eine reine NetworkLink-KMZ enthält keine lokale Geometrie und wird nicht automatisch aus dem Internet nachgeladen.
-2. **POIs in beiden Vorschauen:** Bridge und Webarchiv sollen vorhandene aktive WPML-POIs unterscheiden und beschriften. `waypointPoiPoint` verwendet Breite, Länge, Höhe; inaktive Platzhalter und reine Kameraausrichtungen erzeugen keine erfundenen POIs. Mehrfache Verweise zusammenfassen und Bildausschnitt um POIs erweitern. Ein Höhenbezug darf nicht geraten werden. Lokale Änderungen sind begonnen, aber noch nicht als getestete Version veröffentlicht.
-3. Anschließend Parser-, Rechte-, Darstellungs- und Regressionstests ausführen; Web-Code per PR nach `main`, Bridge separat bauen, signieren, installieren und Download mit Prüfsumme aktualisieren. Vor neuen Geräte-Schreibtests DJI Fly schließen lassen.
+- Projektkarten verwenden Claudes bestehende Vektor-Ebenen mit einer Projektzuordnung. Im Projekt öffnet „Projektkarte …“ den Upload mit vorausgewähltem Ordner. Originaldatei mit Prüfsumme bleibt privat erhalten. Unterordner erben die Referenz; andere Projekte zeigen sie nicht. Kundenlinks können projektbezogene Vektoren weder sehen noch herunterladen. Details: [PROJECT-MAPS.md](PROJECT-MAPS.md).
+- Aktive WPML-POIs sind in der Web-Missionskarte, SVG-Vorschau sowie im 3D-/Karteneditor sichtbar. Alte KMZs werden bei Bedarf ohne neue Version nachgelesen. Bridge **0.6.2**, Quellstand `618aa5a`, enthält dieselbe POI-Auswertung für 3D und Luftbild. Bestehende eigene Fotos/Archivbilder bleiben unverändert. POIs zeigen die Lage; der Höhenbezug wird nicht geraten.
+- Prüfung: Archiv-Integration, Vorschaugeschichte und neue API-Rechte-/Projekt-/POI-Tests auf isolierter synthetischer Installation; Browserprüfung von Editor, Projektvorwahl, automatischer Referenzanzeige und Ausblendung beim Projektwechsel. Bridge: **113 isolierte Tests** einschließlich 3D- und Luftbildrendering mit Kachel-Fakes.
+- Veröffentlichung: Web-Kandidat geht über PR nach `main`, Bridge separat als Mac-Build. Der genaue installierte Paketstand steht in [BRIDGE.md](BRIDGE.md); ein Code-Commit allein bestätigt keine Installation. Neue Übertragungs-/Ersetzen-Gerätetests bleiben getrennt.
 
 ## Zusammenarbeit und Erhalt bestehender Arbeit
 
 - Claudes Branch nicht überschreiben oder zurücksetzen. Integration auf einem eigenen `codex/`-Branch, Konflikte gezielt lösen.
 - **PR #15** (`codex/ipad-mission-removal` → Claude) enthält die getestete iPad-Aufräumfunktion und den ADB-Verpackungsfix; beides muss in jedem neuen Bridge-Build erhalten bleiben.
-- Ein lokaler Integrationsversuch im Worktree `work/roundtrip-device-proof` ist bei `HANDOFF.md` unterbrochen. Dort liegen zusätzlich uncommittete POI-Änderungen und ein Sicherungs-Stash. Vor Fortsetzung Status prüfen, keine pauschalen Reset-/Clean-Befehle verwenden.
+- Die Kartenänderungen werden auf `codex/poi-project-maps` integriert; der frühere Dokumentationskonflikt ist gelöst. Bridge-POIs liegen auf `codex/poi-preview`. Sicherungs-Stashes und private Testdaten nicht ungeprüft löschen.
 - Private Missionsdateien, Gerätekennungen, echte Screenshots, Zugangsschlüssel, Datenbanken und Journale bleiben außerhalb von GitHub. Öffentliche Beispiele müssen synthetisch sein.
 
 Weitere Anleitungen: [UPDATE.md](UPDATE.md), [PREVIEWS.md](PREVIEWS.md), [BRIDGE.md](BRIDGE.md).

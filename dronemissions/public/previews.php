@@ -1,8 +1,13 @@
 <?php
 // Loaded after authentication. Viewer links never expose private pictures or routes.
-if(in_array($action,['previews','preview-save','preview-select','preview-image'],true)){
+if(in_array($action,['previews','preview-save','preview-select','preview-image','preview-details'],true)){
  if($current&&$current['role']==='view')problem('Vorschaubilder sind nicht für Kunden freigegeben.',403);
  $id=(string)($method==='GET'?($_GET['id']??''):($input['id']??''));$pm=mission($id,$method==='POST');
+ if($action==='preview-details'&&$method==='GET'){
+  $v=stmt('SELECT id,sha256,details FROM versions WHERE mission=? ORDER BY ordinal DESC LIMIT 1',[$id])->fetch();if(!$v)problem('Version nicht gefunden.',404);$d=json_decode($v['details'],true,512,JSON_THROW_ON_ERROR);
+  $pois=$d['pois']??null;if($pois===null){$pois=[];if(dm_format($d)==='kmz'){$path=dm_private().'/blobs/'.$v['sha256'].'.kmz';if(!is_file($path)||!hash_equals($v['sha256'],hash_file('sha256',$path)))problem('Archivdatei fehlt oder ist beschädigt.',500);$parsed=dm_inspect($path);$pois=$parsed['pois'];}}
+  respond(['versionId'=>$v['id'],'pois'=>$pois]);
+ }
  if($action==='previews'&&$method==='GET'){
   $rows=stmt('SELECT id,source_version,settings,created FROM mission_previews WHERE mission=? ORDER BY created DESC,id DESC',[$id])->fetchAll();foreach($rows as &$row)$row['settings']=json_decode($row['settings'],true,64,JSON_THROW_ON_ERROR);unset($row);
   $active=dm_active_preview($db,$id);respond(['images'=>$rows,'active'=>$active['id']??null,'revision'=>(int)$pm['revision']]);

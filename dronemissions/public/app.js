@@ -124,7 +124,24 @@ function visiblePoints() {
 
 /* ---------- Rendern ---------- */
 async function refresh() { data = await api('library'); loaded = true; if (folder && !folderById(folder)) { folder = null; view = 'all'; } render(); }
-function navigate(nextView, nextFolder = null) { view = nextView; folder = nextFolder; closeSidebar(); render(); window.scrollTo({ top: 0, behavior: 'auto' }); }
+function navigate(nextView, nextFolder = null) { view = nextView; folder = nextFolder; closeSidebar(); render(); window.scrollTo({ top: 0, behavior: 'auto' }); syncHash(); }
+/* Adresszeile: #projekt=<id>, #ansicht=archiv|ohne, #mission=<id>; Lesezeichen und geteilte Links öffnen dieselbe Ansicht. Kundenlinks (#share=) bleiben unverändert. */
+let hashSyncing = false;
+function syncHash() {
+ if (!loaded) return; const parts = [];
+ if (view === 'folder' && folder) parts.push('projekt=' + encodeURIComponent(folder)); else if (view === 'archive') parts.push('ansicht=archiv'); else if (view === 'unfiled') parts.push('ansicht=ohne');
+ if (selected && $('#detail-dialog').open) parts.push('mission=' + encodeURIComponent(selected.id));
+ const next = parts.length ? '#' + parts.join('&') : ''; if ((location.hash || '') === next) return;
+ hashSyncing = true; history.replaceState(null, '', location.pathname + location.search + next); hashSyncing = false;
+}
+function applyHash() {
+ const q = new URLSearchParams(location.hash.slice(1)); if (q.get('share')) return;
+ const project = q.get('projekt'), ansicht = q.get('ansicht'), mission = q.get('mission');
+ if (project && folderById(project)) { view = 'folder'; folder = project; } else if (ansicht === 'archiv') { view = 'archive'; folder = null; } else if (ansicht === 'ohne') { view = 'unfiled'; folder = null; }
+ render();
+ if (mission && data.missions.some(m => m.id === mission)) openMission(mission); else syncHash();
+}
+window.addEventListener('hashchange', () => { if (!hashSyncing && loaded) applyHash(); });
 
 function renderSidebar() {
  const active = data.missions.filter(m => !m.archived && !isArchived(m.folder));
@@ -224,6 +241,7 @@ function render() {
  }
  updateSelection();
  $('#cards').classList.toggle('hidden', showMap); $('#overview-map').classList.toggle('hidden', !showMap);
+ $('#project-reference').classList.toggle('hidden',data.role!=='owner'||!folder);
  if (showMap) renderOverview();
 }
 function renderSkeleton() { $('#cards').innerHTML = Array.from({ length: 6 }, () => '<article class="card skeleton" aria-hidden="true"><div class="card-media"></div><div class="card-body"><span class="sk" style="width:40%"></span><span class="sk" style="width:75%;height:1.1em"></span><span class="sk" style="width:55%"></span></div></article>').join(''); }
@@ -254,22 +272,34 @@ $('#folders').ondragleave = e => { const target = e.target.closest('[data-folder
 $('#folders').ondrop = e => { const target = e.target.closest('[data-folder]'); if (!target || !draggedMissions || !canEdit()) return; e.preventDefault(); const ids = draggedMissions; draggedMissions = null; target.classList.remove('drop-target'); run(() => moveMissions(ids, target.dataset.folder)); };
 
 /* ---------- Karte ---------- */
-function tiles(map) {
+function referenceLayers(projectFolder){
+ const ancestors=new Set();let f=folderById(projectFolder);while(f&&!ancestors.has(f.id)){ancestors.add(f.id);f=folderById(f.parent);}
+ return (data.layers||[]).filter(l=>!l.folder||ancestors.has(l.folder));
+}
+function tiles(map,projectFolder=folder) {
+ map.on('unload',()=>{map.dmDisposed=true;});
  const attribution = 'Datenquelle: <a href="https://basemap.at/#lizenz" target="_blank" rel="noreferrer">basemap.at</a> · CC BY 4.0';
  const austria = { bounds: [[46.35, 9.45], [49.05, 17.2]], maxNativeZoom: 19, maxZoom: 20, attribution };
  const base = {
   'Österreich · basemap.at': L.tileLayer('https://mapsneu.wien.gv.at/basemap/geolandbasemap/normal/google3857/{z}/{y}/{x}.png', austria),
   'Österreich · Luftbild': L.tileLayer('https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/{z}/{y}/{x}.jpeg', austria),
-  'Weltweit · OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>' }),
+  'Weltweit · OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin', attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>' }),
   'Weltweit · Esri Satellit': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community' })
  };
  const roads = L.tileLayer('https://mapsneu.wien.gv.at/basemap/bmapoverlay/normal/google3857/{z}/{y}/{x}.png', { ...austria, zIndex: 350 });
+ for (const l of referenceLayers(projectFolder)) if (l.kind === 'tile' && !l.overlay) base[l.name] = L.tileLayer(l.url, { maxZoom: l.maxZoom || 19, opacity: l.opacity ?? 1, attribution: esc(l.attribution || ''), referrerPolicy: 'strict-origin-when-cross-origin' });
  const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* privater Modus */ } } };
  const saved = store.get('dm-map-layer'); let activeBase = base[saved] ? saved : Object.keys(base)[0], syncingRoads = false; base[activeBase].addTo(map);
  const syncRoads = () => { const preference = store.get('dm-map-roads'), show = preference === null ? activeBase === 'Österreich · Luftbild' : preference === 'true'; syncingRoads = true; if (show) roads.addTo(map); else map.removeLayer(roads); syncingRoads = false; };
  map.on('baselayerchange', e => { activeBase = e.name; store.set('dm-map-layer', e.name); queueMicrotask(syncRoads); });
  map.on('overlayadd overlayremove', e => { if (e.layer === roads && !syncingRoads) store.set('dm-map-roads', String(e.type === 'overlayadd')); });
- dmMapControls(map, base, roads); syncRoads(); L.control.scale({ imperial: false }).addTo(map);
+ const overlays = {};
+ referenceLayers(projectFolder).forEach((l, index) => {
+  // Stapelung folgt der Reihenfolge aus den Einstellungen: Kachel-Overlays über den Straßen (350), Vektor-Ebenen in eigenen Panes zwischen Geozonen (380) und dem Routen-Pane (400), damit Missionsrouten und Wegpunkte immer oben bleiben.
+  if (l.kind === 'tile') { if (l.overlay) overlays[l.id] = { label: l.name, layer: L.tileLayer(l.url, { maxZoom: l.maxZoom || 19, opacity: l.opacity ?? 1, attribution: esc(l.attribution || ''), referrerPolicy: 'strict-origin-when-cross-origin', zIndex: 360 + index }) }; }
+  else overlays[l.id] = { defaultOn:Boolean(l.folder), label: `${l.name} (${l.features})`, layer: null, load: async () => { const r = await fetch(`api.php?action=layer-data&id=${encodeURIComponent(l.id)}`); if (!r.ok) throw Error('Ebene konnte nicht geladen werden.'); const geo = await r.json(); const pane = 'layer-' + l.id; if (!map.getPane(pane)) { map.createPane(pane); map.getPane(pane).style.zIndex = String(381 + Math.min(index, 18)); } const layer=L.geoJSON(geo, { pane, attribution: esc(l.attribution || ''), style: { color: l.color, weight: 1.5, fillOpacity: .15 }, pointToLayer: (f, latlng) => L.circleMarker(latlng, { radius: 5, color: l.color, fillOpacity: .7 }), onEachFeature: (f, layer) => { const rows = Object.entries(f.properties || {}).filter(([, v]) => v !== null && v !== '').slice(0, 12); if (rows.length) layer.bindPopup(`<strong>${esc(l.name)}</strong><br>` + rows.map(([k, v]) => `${esc(k)}: ${esc(String(v))}`).join('<br>')); } }); if(map===overview&&!map.dmDisposed&&l.folder&&layer.getBounds().isValid()){map.dmReferenceBounds=map.dmReferenceBounds?map.dmReferenceBounds.extend(layer.getBounds()):layer.getBounds();map.dmFitProject?.();}return layer; } };
+ });
+ dmMapControls(map, base, roads, overlays); syncRoads(); L.control.scale({ imperial: false }).addTo(map);
  let lastError = 0; [...Object.values(base), roads].forEach(layer => layer.on('tileerror', () => { if (Date.now() - lastError > 15000) { lastError = Date.now(); toast('Kartenkacheln nicht erreichbar. Bitte Verbindung oder Kartenebene prüfen.', true); } }));
 }
 function drawRoute(map, mission, group = null, numbered = true) {
@@ -279,21 +309,24 @@ function drawRoute(map, mission, group = null, numbered = true) {
   const stride = Math.max(1, Math.ceil(points.length / (window.innerWidth < 900 ? 60 : 150)));
   points.forEach((p, i) => { if (i % stride && i !== points.length - 1) return; const marker = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'waypoint-marker', html: `<span>${i + 1}</span>`, iconSize: [24, 24], iconAnchor: [12, 12] }), keyboard: false }).addTo(target); marker.bindTooltip(`Wegpunkt ${i + 1} · ${p.height === null ? 'Höhe unbekannt' : p.height + ' m'}`); marker.on('click', () => { const select = $('#mission-overview'); if (canEdit() && select && !select.disabled) { select.value = String(i); toast(`Wegpunkt ${i + 1} als Projektkarten-Punkt gewählt. Zum Übernehmen Änderungen speichern.`); } }); });
  }
- return points.map(p => [p.lat, p.lng]);
+ (mission.details.pois || []).forEach(p => L.marker([p.lat,p.lng], {icon:L.divIcon({className:'poi-marker',html:`<span>◆ ${esc(p.label)}</span>`,iconSize:[80,28],iconAnchor:[12,14]})}).addTo(target).bindTooltip(esc(p.label)+' · Blickziel (Lage)'));
+ return points.concat(mission.details.pois||[]).map(p => [p.lat,p.lng]);
 }
 function renderOverview() {
+ if(overview){overview.remove();overview=null;}
  if (!overview) {
   overview = L.map('overview-map').setView([47.8968, 16.3674], 13); tiles(overview); overviewLayers = L.layerGroup().addTo(overview);
   overview.on('click', e => { if (picking) { stopPicking(); openPoint(null, e.latlng); } });
  }
  overviewLayers.clearLayers(); const coords = [];
  for (const m of visibleMissions()) {
-  if (canEdit() && m.details.points.length) drawRoute(overview, m, overviewLayers, false);
+  if (canEdit() && m.details.points.length) coords.push(...drawRoute(overview, m, overviewLayers, false));
   const p = m.overviewPoint; if (!p) continue; coords.push([p.lat, p.lng]);
   L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'mission-marker-wrap', html: '<span class="mission-marker"></span>', iconSize: [16, 16], iconAnchor: [8, 8] }), keyboard: false }).addTo(overviewLayers).bindTooltip(esc(m.name)).on('click', () => run(() => openMission(m.id)));
  }
  for (const p of visiblePoints()) { coords.push([p.lat, p.lng]); L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'pano-marker', html: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>', iconSize: [30, 30], iconAnchor: [15, 15] }), keyboard: false }).addTo(overviewLayers).bindTooltip(esc(p.name)).on('click', () => canEdit() ? openPoint(p) : openCustomerMission({ ...p, overviewPoint: p, locationOnly: true })); }
- setTimeout(() => { overview.invalidateSize(); if (coords.length && !picking) overview.fitBounds(L.latLngBounds(coords), { padding: [45, 45], maxZoom: 17 }); }, 80);
+ const currentMap=overview;currentMap.dmFitProject=()=>{if(currentMap.dmDisposed||picking)return;const bounds=L.latLngBounds(coords);if(currentMap.dmReferenceBounds)bounds.extend(currentMap.dmReferenceBounds);if(bounds.isValid())currentMap.fitBounds(bounds,{padding:[45,45],maxZoom:17});};
+ setTimeout(()=>{if(currentMap.dmDisposed)return;currentMap.invalidateSize();currentMap.dmFitProject();},80);
 }
 function stopPicking() { picking = false; $('#overview-map').classList.remove('picking'); $('#add-point span').textContent = 'Planungspunkt'; }
 
@@ -336,13 +369,20 @@ function openCustomerMission(m) {
  $('#detail-content').innerHTML = `<div class="dialog-head"><div><div class="eyebrow">${esc(pathFor(m.folder) || 'Standort')}</div><h2>${esc(m.name)}</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Schließen">${icon('i-close')}</button></div><div class="dialog-body"><div id="customer-map" class="detail-map"></div><p class="num hint" style="margin-top:.6rem">${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}</p>${navigation(m)}<p class="notice">${icon('i-info')}<span>Navigation zum freigegebenen Ort. Flugroute und Missionsdatei sind nicht Teil dieser Freigabe.</span></p></div>`;
  if (detailMap) { detailMap.remove(); detailMap = null; }
  const dlg = $('#detail-dialog'); dlg.classList.add('dialog-customer'); if (!dlg.open) dlg.showModal();
- setTimeout(() => { if (!$('#customer-map')) return; detailMap = L.map('customer-map').setView([p.lat, p.lng], 16); tiles(detailMap); L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'mission-marker-wrap', html: '<span class="mission-marker"></span>', iconSize: [18, 18], iconAnchor: [9, 9] }), keyboard: false }).addTo(detailMap).bindTooltip(esc(m.name)); }, 60);
+ setTimeout(() => { if (!$('#customer-map')) return; detailMap = L.map('customer-map').setView([p.lat, p.lng], 16); tiles(detailMap,m.folder); L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'mission-marker-wrap', html: '<span class="mission-marker"></span>', iconSize: [18, 18], iconAnchor: [9, 9] }), keyboard: false }).addTo(detailMap).bindTooltip(esc(m.name)); }, 60);
 }
 
 /* ---------- Missionsdetails ---------- */
 async function openMission(id) {
  selected = data.missions.find(m => m.id === id); if (!selected) return; const m = selected;
  if (!canEdit()) { openCustomerMission(m); return; }
+ if (sourceType(m)==='KMZ' && !Array.isArray(m.details.pois)) {
+  const extra=await api('preview-details&id='+encodeURIComponent(m.id));
+  if (!selected || selected.id!==id) return;
+  if (extra.versionId!==m.versionId) throw Error('Mission wurde inzwischen geändert. Bitte Bibliothek neu laden.');
+  m.details.pois=extra.pois;
+ }
+
  $('#detail-dialog').classList.remove('dialog-customer');
  const native = isNative(m), type = sourceType(m), archived = m.archived, kmz = type === 'KMZ';
  const sources = data.missions.filter(x => isProject(x) && !x.archived && x.id !== m.id);
@@ -394,13 +434,13 @@ async function openMission(id) {
    <span class="hint">USB-Übertragung über die Bridge-App</span>
   </div>`;
  if (detailMap) { detailMap.remove(); detailMap = null; }
- const dlg = $('#detail-dialog'); if (!dlg.open) dlg.showModal(); $('.dialog-body', dlg).scrollTop = 0;
+ const dlg = $('#detail-dialog'); if (!dlg.open) dlg.showModal(); $('.dialog-body', dlg).scrollTop = 0; syncHash();
  bindChart($('#chart-root'), m.details);
  setTimeout(() => {
   if (!dlg.open || selected?.id !== m.id) return;
   const el = $('#detail-map');
   if (!m.details.points.length) { el.innerHTML = `${icon('i-file')}<span>Originalprojekt gesichert. Für die Routenvorschau einen DJI-KMZ-Export zuordnen.</span>`; el.classList.add('native-preview'); return; }
-  detailMap = L.map('detail-map'); tiles(detailMap); const coords = drawRoute(detailMap, m); detailMap.fitBounds(coords, { padding: [35, 35], maxZoom: 18 });
+  detailMap = L.map('detail-map'); tiles(detailMap,m.folder); const coords = drawRoute(detailMap, m); detailMap.fitBounds(coords, { padding: [35, 35], maxZoom: 18 });
  }, 60);
  $('#save-mission').onclick = e => run(async () => { await api('mission', { id: m.id, revision: m.revision, name: $('#mission-name').value, folder: $('#mission-folder').value, notes: $('#mission-notes').value, overviewWaypoint: $('#mission-overview').value === '' ? null : Number($('#mission-overview').value), litchiURL: $('#mission-litchi').value.trim() }); dlg.close(); await refresh(); toast('Name und Metadaten gespeichert. Originaldatei unverändert.'); }, e.currentTarget);
  $('#new-version').onclick = () => openUpload(m);
@@ -466,7 +506,7 @@ $('#sidebar-toggle').onclick = () => { const collapsed = !document.body.classLis
 function showLibrary() { $('#login').classList.add('hidden'); $('#shell').classList.remove('hidden'); if (!loaded) renderSkeleton(); }
 
 /* ---------- Ereignisse ---------- */
-$('#login-form').onsubmit = e => { e.preventDefault(); const b = $('button[type=submit]', e.target); run(async () => { try { const d = await api('login', { password: $('#password').value }); csrf = d.csrf; $('#password').value = ''; $('#login-error').textContent = ''; showLibrary(); await refresh(); } catch (err) { $('#login-error').textContent = err.message; $('#password').focus(); } }, b); };
+$('#login-form').onsubmit = e => { e.preventDefault(); const b = $('button[type=submit]', e.target); run(async () => { try { const d = await api('login', { password: $('#password').value }); csrf = d.csrf; $('#password').value = ''; $('#login-error').textContent = ''; showLibrary(); await refresh(); applyHash(); } catch (err) { $('#login-error').textContent = err.message; $('#password').focus(); } }, b); };
 $('#settings').onclick = () => run(async () => { const d = await api('settings'); $('#settings-form').elements.authorName.value = d.authorName; $('#settings-dialog').showModal(); });
 $('#settings-form').onsubmit = e => { e.preventDefault(); run(async () => { await api('settings', { authorName: e.target.elements.authorName.value }); location.reload(); }, $('button[type=submit]', e.target)); };
 $('#logout').onclick = () => run(async () => { await api('logout', {}); location.href = location.pathname; });
@@ -527,7 +567,7 @@ document.addEventListener('click', e => {
  const copy = e.target.closest('[data-copy]'); if (copy) run(async () => { await navigator.clipboard.writeText(copy.dataset.copy); toast('Prüfsumme kopiert.'); });
  if (e.target instanceof HTMLDialogElement && e.target.open) { const r = e.target.getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) e.target.close(); }
 });
-$('#detail-dialog').addEventListener('close', () => { if (detailMap) { detailMap.remove(); detailMap = null; } selected = null; });
+$('#detail-dialog').addEventListener('close', () => { if (detailMap) { detailMap.remove(); detailMap = null; } selected = null; syncHash(); });
 
 /* ---------- Start ---------- */
 run(async () => {
@@ -539,5 +579,7 @@ run(async () => {
   catch (e) { $('#shell').classList.add('hidden'); $('#login').classList.remove('hidden'); $('#login-error').textContent = e.message; }
   return;
  }
- if (s.authenticated) { showLibrary(); await refresh(); } else { $('#login').classList.remove('hidden'); $('#password').focus(); }
+ if (s.authenticated) { showLibrary(); await refresh(); applyHash(); } else { $('#login').classList.remove('hidden'); $('#password').focus(); }
 });
+
+$('#project-reference').onclick=()=>{$('#settings').click();setTimeout(()=>{const f=$('#vector-folder');f.value=folder||'';f.closest('details').open=true;f.scrollIntoView({block:'center'});f.focus();},100);};

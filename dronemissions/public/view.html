@@ -15,6 +15,7 @@
 <script defer src="zones.js"></script>
 <script defer src="app.js"></script>
 <script defer src="previews.js"></script>
+<script defer src="layers.js"></script>
 </head>
 <body>
 <svg class="sprite" aria-hidden="true" focusable="false">
@@ -155,6 +156,7 @@
      <button id="map-toggle" type="button" aria-pressed="false" title="Alle Missionen auf der Karte"><svg class="icon"><use href="#i-map"/></svg><span>Karte</span></button>
     </div>
     <label id="subfolders-control" class="check hidden"><input id="include-subfolders" type="checkbox" checked><span>Unterordner einbeziehen</span></label>
+    <button id="project-reference" class="btn btn-outline hidden" type="button">Projektkarte …</button>
     <button id="add-point" class="btn btn-outline hidden" type="button"><svg class="icon"><use href="#i-crosshair"/></svg><span>Planungspunkt</span></button>
    </div>
   </div>
@@ -186,6 +188,33 @@
   <div class="dialog-body">
    <label class="field"><span>Name</span><input name="authorName" maxlength="100" placeholder="Dein Name oder Firmenname" autocomplete="organization"></label>
    <p class="hint">Erscheint auf dieser Installation und als Autor in neuen Archivpaketen. Leer lassen für eine neutrale Ansicht.</p>
+   <section class="layer-settings" id="layer-settings">
+    <h3>Kartenebenen</h3>
+    <p class="hint">Eigene Hintergrundkarten und Overlays für alle Karten dieser Installation: Kachel-Dienste (XYZ oder WMTS, auch mit eigenem API-Schlüssel) und Vektor-Ebenen aus GeoJSON, KML/KMZ oder Shapefile-ZIP, etwa Schutzgebiete oder ein Export aus Google My Maps. Änderungen gelten sofort; Karten werden beim nächsten Öffnen neu aufgebaut.</p>
+    <div id="layer-list" class="layer-list" aria-live="polite"></div>
+    <details class="layer-add"><summary>Kachel-Ebene hinzufügen</summary>
+     <label class="field"><span>Vorlage</span><select id="layer-preset"><option value="">Eigene URL</option><option value="mapbox-streets">Mapbox Streets (Token nötig)</option><option value="mapbox-satellite">Mapbox Satellite Streets (Token nötig)</option><option value="basemapde">Deutschland · basemap.de Web Raster (BKG)</option><option value="topplus">Deutschland · TopPlusOpen (BKG)</option><option value="swisstopo-karte">Schweiz · swisstopo Pixelkarte</option><option value="swisstopo-luftbild">Schweiz · swisstopo SWISSIMAGE</option><option value="osm-hot">Weltweit · OpenStreetMap Humanitarian</option></select></label>
+     <label class="field"><span>Name</span><input id="layer-name" maxlength="60" placeholder="z. B. Deutschland · basemap.de"></label>
+     <label class="field"><span>Kachel-URL <em>https, mit {z}/{x}/{y}; {s} für Subdomains, {key} für den Schlüssel</em></span><input id="layer-url" maxlength="600" placeholder="https://…/{z}/{x}/{y}.png"></label>
+     <label class="field"><span>API-Schlüssel <em>optional, wird in {key} eingesetzt; alle Kartennutzer sehen ihn in den Kachel-Adressen</em></span><input id="layer-key" maxlength="400" autocomplete="off" placeholder="z. B. Mapbox-Token (pk.…)"></label>
+     <label class="field"><span>Quellenangabe</span><input id="layer-attribution" maxlength="300" placeholder="© Anbieter · Lizenz"></label>
+     <div class="layer-row"><label class="field"><span>Max. Zoom</span><input id="layer-maxzoom" type="number" min="1" max="22" value="19"></label><label class="field"><span>Deckkraft</span><input id="layer-opacity" type="number" min="0.1" max="1" step="0.1" value="1"></label><label class="field layer-check"><input id="layer-overlay" type="checkbox"> Als Overlay (über der Karte)</label></div>
+     <div class="layer-actions"><button type="button" class="btn btn-primary btn-sm" id="layer-save">Ebene speichern</button><span class="hint" id="layer-status" role="status"></span></div>
+     <details class="layer-wmts"><summary>Aus WMTS-Dienst wählen</summary>
+      <label class="field"><span>GetCapabilities-Adresse</span><input id="wmts-url" maxlength="600" placeholder="https://…/wmts/1.0.0/WMTSCapabilities.xml"></label>
+      <div class="layer-actions"><button type="button" class="btn btn-outline btn-sm" id="wmts-load">Ebenen lesen</button><span class="hint" id="wmts-status" role="status"></span></div>
+      <div id="wmts-list" class="wmts-list"></div>
+     </details>
+    </details>
+    <details class="layer-add"><summary>Vektor-Ebene hochladen</summary>
+     <label class="field"><span>Projektkarte für</span><select id="vector-folder"></select></label><p class="hint">Projektkarten erscheinen in diesem Projekt und seinen Unterordnern. Für Kundenlinks bleiben sie privat. Das Original wird mitgesichert; es entsteht keine Flugmission.</p>
+     <label class="field"><span>Datei <em>GeoJSON, KML, KMZ oder Shapefile als ZIP (WGS84), bis 8 MB</em></span><input id="vector-file" type="file" accept=".geojson,.json,.kml,.kmz,.zip,application/geo+json,application/json,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz,application/zip"></label>
+     <div class="layer-row"><label class="field"><span>Name</span><input id="vector-name" maxlength="60" placeholder="z. B. Naturschutzgebiete NÖ"></label><label class="field"><span>Farbe</span><input id="vector-color" type="color" value="#2f8f4e"></label></div>
+     <label class="field"><span>Quellenangabe</span><input id="vector-attribution" maxlength="300" placeholder="z. B. Umweltbundesamt · CC BY 4.0"></label>
+     <div class="layer-actions"><button type="button" class="btn btn-primary btn-sm" id="vector-save">Hochladen</button><span class="hint" id="vector-status" role="status"></span></div>
+     <p class="hint">Google My Maps: dort „Exportieren als KML/KMZ“ wählen und die Datei hier hochladen. Shapefiles müssen in WGS84 (EPSG:4326) vorliegen; die .prj wird geprüft.</p>
+    </details>
+   </section>
   </div>
   <div class="dialog-foot"><button type="button" class="btn btn-outline" data-close>Abbrechen</button><button class="btn btn-primary" type="submit">Speichern</button></div>
  </form>
