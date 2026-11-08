@@ -60,4 +60,8 @@ def main():
  video['plan']['params']['captureMode']='photo';c.call('planner-archive',video,expected=409)
  print('PASS: video draft persistence, endpoint grid export and archive mode conflict')
  print('PASS: planner catalog, preview, draft CAS/reopen, device profile, KMZ/section ZIP, archive idempotency/linkage, customer/foreign-project denial, delete guard and OSM bounds')
-if __name__=='__main__':main()
+if __name__=='__main__':
+ main()
+ # The existing archive/planner CI entry point also checks versioned KMZ editing.
+ import subprocess,sys
+ subprocess.run([sys.executable,str(Path(__file__).with_name('kmz-editor-api.py')),*sys.argv[1:]],check=True)

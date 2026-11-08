@@ -45,6 +45,7 @@ try {
  require __DIR__.'/previews.php';
  require __DIR__.'/layers.php';
  require __DIR__.'/planner.php';
+ require __DIR__.'/kmz-editor.php';
  if($action==='settings'){
   owner();if($method==='GET')respond(['authorName'=>$config['authorName']??'']);
   $config['authorName']=dm_text($input['authorName']??'',100);$tmp=tempnam(dm_private(),'.config-');

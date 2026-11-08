@@ -1,3 +1,7 @@
+# KMZ-Editor · 8. November 2026
+
+Neu: Archivmission öffnen → **Wegpunkte bearbeiten**. Punkte ziehen, Koordinaten/Höhen ändern, kontrolliert löschen/einfügen und als neue Version speichern. Originale bleiben erhalten. Separate Module `kmz-editor*`; Claudes Planer-UI wird nicht verändert. Umfang, Grenzen und Prüfungen: [KMZ-EDITOR.md](KMZ-EDITOR.md). Veröffentlichung über geprüften PR nach main; nur Web-App, kein Bridge-Build nötig.
+
 ## Missionsplaner 0.6 · Oberfläche nach Litchi-Vorbild · 8.11.2026
 
 Branch `claude/planner-ui-litchi`, eigener PR nach `main`; Codex prüft und veröffentlicht. Nur `public/planner.js`, Planer-Regeln in `public/style.css` und Doku; keine Änderung an Berechnung, API, Export oder Datenformaten, kein Bridge-Build nötig. Große Karte mit Werkzeuggruppen an der Karte, Slider-Leiste mit Zahlenfeldern, größenveränderliche Seitenleiste mit fünf Abschnitten, Stepper an Zahlenfeldern, Ergebnis-Pille in der Karte, Prüfseite in der Seitenleiste. Tests: `node --check`, `planner-live.cjs`, `planner.php`, `parser.php`, Deploy-Tests, Integration/Vorschauen/Projektkarten/Planner-API auf frischer Loopback-Installation, Browserläufe bei 1280 × 720, 1440 × 900, 1180 × 820 und 430 × 860 mit Screenshots unter `docs/screenshots/planner/`. Gestaltungsregeln: `docs/PLANNER-UI-DESIGN.md`.

@@ -436,6 +436,7 @@ async function openMission(id) {
    <a class="btn btn-primary" href="api.php?action=original&id=${m.id}">${icon('i-download')}<span>${type} herunterladen</span></a>
    <a class="btn btn-outline" href="api.php?action=package&id=${m.id}">${icon('i-download')}<span>Archivpaket</span></a>
    ${litchiLink}
+   ${type==='KMZ'&&canEdit()?'<button id="edit-kmz" class="btn btn-outline" type="button">Wegpunkte bearbeiten</button>':''}
    <button id="new-version" class="btn btn-outline" type="button">${icon('i-plus')}<span>Neue Version</span></button>
    <button id="archive-mission" class="btn btn-outline" type="button">${icon(archived ? 'i-restore' : 'i-archive')}<span>${archived ? 'Wiederherstellen' : 'Archivieren'}</span></button>
    <span class="hint">USB-Übertragung über die Bridge-App</span>
@@ -451,6 +452,7 @@ async function openMission(id) {
  }, 60);
  $('#save-mission').onclick = e => run(async () => { await api('mission', { id: m.id, revision: m.revision, name: $('#mission-name').value, folder: $('#mission-folder').value, notes: $('#mission-notes').value, overviewWaypoint: $('#mission-overview').value === '' ? null : Number($('#mission-overview').value), litchiURL: $('#mission-litchi').value.trim() }); dlg.close(); await refresh(); toast('Name und Metadaten gespeichert. Originaldatei unverändert.'); }, e.currentTarget);
  $('#new-version').onclick = () => openUpload(m);
+ const editKmz=$('#edit-kmz');if(editKmz)editKmz.onclick=()=>run(()=>window.dmKmzEditor.open(m.id));
  $('#archive-mission').onclick = e => run(async () => { await api('mission', { id: m.id, revision: m.revision, archived: !m.archived }); dlg.close(); await refresh(); toast(m.archived ? 'Mission wiederhergestellt.' : 'Mission archiviert. Originaldateien bleiben erhalten.'); }, e.currentTarget);
  const attach = $('#attach-source'); if (attach) attach.onclick = e => run(async () => { const source = data.missions.find(x => x.id === $('#source-attachment').value); if (!source) throw Error('Bitte eine Projektdatei auswählen.'); await api('attach-source', { target: m.id, targetRevision: m.revision, source: source.id, sourceRevision: source.revision }); await refresh(); await openMission(m.id); toast('Projektdatei und KMZ gehören jetzt zu einem Missionseintrag. Originale unverändert.'); }, e.currentTarget);
  await renderVersions(m.id);
