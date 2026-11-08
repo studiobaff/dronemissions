@@ -75,6 +75,7 @@
   }, e.target);
  });
 
+ window.dmReadReference=toGeoJSON;
  /* ---------- Umwandlung nach GeoJSON ---------- */
  async function toGeoJSON(file) {
   const name = file.name.toLowerCase();

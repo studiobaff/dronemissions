@@ -6,6 +6,8 @@ Private Web-Bibliothek für DJI-WPML-Missionen aus Litchi Hub oder Map Creator s
 
 ## Funktionen
 
+- **Web-Missionsplaner (erste Fassung):** QGIS-/OSM-Umrisse und Zeichnen, Grid, Kreis, Helix/Doppelhelix, POI-Polygon und Fassade, nominelle Überlappungsberechnung, Fotoabschnitte, gespeicherte Planung und DJI-WPML/KMZ-Export mit vorhandenem Geräteprofil. Details und noch offene Geräte-/Terrain-Prüfung: [PLANNER.md](docs/PLANNER.md).
+
 - Projekte und Unterordner mit Pfadnavigation, Suche (Tastenkürzel `/`), Typfilter (KMZ, CSV, Litchi, MPROJ, Punkte), Sortierung, Notizen, Archivieren und Wiederherstellen; leere Ordner löschen.
 - Mehrfachauswahl: Missionen gemeinsam in einen Ordner verschieben oder per Ziehen auf einen Projektordner in der Seitenleiste.
 - DJI-KMZ, Litchi-CSV, native LCHM/LCHZ und Map-Creator-Projekte (MPROJ) mit unveränderter Originaldatei und SHA-256-Prüfsumme; getrennte Versionen mit Konflikterkennung. Projektdateien lassen sich einer KMZ-Mission zuordnen und landen mit im Archivpaket.
@@ -31,7 +33,7 @@ Unter **Einstellungen → Autor / Betreiber** trägt der Eigentümer seinen eige
 
 Native LCHM/LCHZ-Dateien werden unverändert archiviert und heruntergeladen. Für diese proprietären Formate werden noch keine Wegpunkte, Routen oder Höhenprofile dargestellt und keine DJI-KMZ erzeugt.
 
-Dies ist ein Archiv und eine Vorschau, keine Flugfreigabe. Dateiintegrität bestätigt weder DJI-Fly-Kompatibilität noch Flugsicherheit. Das Höhenprofil zeigt gespeicherte Missionshöhen, keine Geländehöhen. Für ältere Litchi-CSV-Dateien wird der Höhenbezug ausdrücklich als nicht verifiziert angezeigt; die ursprünglichen Einstellungen bleiben in der Originaldatei erhalten. Die Strecke berücksichtigt weder Start-/Rückflug noch Aktionspausen. Planungspunkte erzeugen noch keine ausführbaren DJI-Flug- oder Panoramaaktionen. Die USB-/DJI-Fly-Bridge wird separat entwickelt; es werden hier noch keine Bridge-Downloads angeboten.
+Archiv, Vorschau und die erste Planungsfassung erteilen keine Flugfreigabe. Dateiintegrität bestätigt weder DJI-Fly-Kompatibilität noch Flugsicherheit. Das Höhenprofil zeigt gespeicherte Missionshöhen, keine Geländehöhen. Für ältere Litchi-CSV-Dateien wird der Höhenbezug ausdrücklich als nicht verifiziert angezeigt; die ursprünglichen Einstellungen bleiben in der Originaldatei erhalten. Die Strecke berücksichtigt weder Start-/Rückflug noch Aktionspausen. Planungspunkte erzeugen noch keine ausführbaren DJI-Flug- oder Panoramaaktionen. Die USB-/DJI-Fly-Bridge wird separat entwickelt; es werden hier noch keine Bridge-Downloads angeboten.
 
 ## Installation
 

@@ -33,3 +33,7 @@ Die Kartenebenen dieses Stands gelten installationsweit. Claudes Testbericht nen
 - Private Missionsdateien, Gerätekennungen, echte Screenshots, Zugangsschlüssel, Datenbanken und Journale bleiben außerhalb von GitHub. Öffentliche Beispiele müssen synthetisch sein.
 
 Weitere Anleitungen: [UPDATE.md](UPDATE.md), [PREVIEWS.md](PREVIEWS.md), [BRIDGE.md](BRIDGE.md).
+
+## Web-Missionsplaner · erster Stand
+
+Branch `codex/web-mission-planner`: QGIS-/Projektreferenzen, Zeichnen und OSM-Gebäude; Grid, Kreis, Helix/Doppelhelix, POI-Polygon und Fassadenbahnen; sechs DJI-Hauptkameraprofile plus eigene Eingaben; nominelle Überlappung, Fotoaufteilung und 3D-Prüfung. Planungen mit Konfliktschutz, referenzbasiertes WPML/KMZ und wiederholsichere Archivierung im selben Projekt. Rechen-/API-/Browser-Rundlauf geprüft, 496-Foto-ZIP vom Bridge-Parser gelesen. Kein neuer Geräte-/Flugtest und keine automatische DEM-/AGL-Anpassung. Vollständige Bedienung und Grenzen: [PLANNER.md](PLANNER.md).

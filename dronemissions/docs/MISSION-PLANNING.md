@@ -1,4 +1,6 @@
-# Nächster Ausbau: Missionsplanung auf künftigen Projektumrissen
+# Missionsplanung auf künftigen Projektumrissen
+
+**Umsetzungsstand:** Die erste Web-Fassung ist unter [PLANNER.md](PLANNER.md) dokumentiert. Die folgenden Abschnitte halten Anforderungen und die ursprüngliche Bestandsaufnahme fest; sie sind keine aktuelle Freigabeaussage.
 
 Anforderung des Eigentümers, 8. November 2026: Missionen müssen anhand geplanter, noch nicht gebauter Objekte entstehen können. Aktuelle Satellitenbilder zeigen diese Umrisse nicht. Projektbezogene Kartenreferenzen sind deshalb die Planungsgrundlage, nicht nur Dekoration.
 

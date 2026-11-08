@@ -241,6 +241,7 @@ function render() {
  }
  updateSelection();
  $('#cards').classList.toggle('hidden', showMap); $('#overview-map').classList.toggle('hidden', !showMap);
+ $('#planner-open').classList.toggle('hidden',!canEdit());
  $('#project-reference').classList.toggle('hidden',data.role!=='owner'||!folder);
  if (showMap) renderOverview();
 }
@@ -402,7 +403,7 @@ async function openMission(id) {
      <div id="detail-map" class="detail-map"></div>
      <section class="detail-section"><div class="detail-section-head"><h3>${icon('i-route')}Höhenprofil</h3><p class="hint">Zeiger über das Profil bewegen für Wegpunkt-Details.</p></div><div id="chart-root">${chart(m.details)}</div></section>
      <section class="detail-section files">
-      <div class="detail-section-head"><h3>${icon('i-file')}Dateien dieser Mission</h3><button type="button" class="btn btn-outline btn-sm" id="edit-preview">Vorschau einstellen</button></div>
+      <div class="detail-section-head"><h3>${icon('i-file')}Dateien dieser Mission</h3>${m.details.plannerId?`<button type="button" class="btn btn-outline btn-sm" data-planner-id="${esc(m.details.plannerId)}">Planung bearbeiten</button>`:''}<button type="button" class="btn btn-outline btn-sm" id="edit-preview">Vorschau einstellen</button></div>
       <div class="file-row"><span class="badge badge-muted">${type}</span><span class="name">${esc(m.filename)}</span><span class="size">${fmtBytes(Number(m.bytes))}</span><a class="btn btn-outline btn-sm" href="api.php?action=original&id=${m.id}">${icon('i-download')}<span>Original</span></a></div>
       ${(m.attachments || []).map(a => `<div class="file-row"><span class="badge badge-muted">${esc(a.format.toUpperCase())}</span><span class="name">${esc(a.filename)}<small>Projektdatei</small></span><span class="size">${fmtBytes(Number(a.bytes))}</span><a class="btn btn-outline btn-sm" href="api.php?action=attachment&id=${m.id}&version=${a.id}">${icon('i-download')}<span>Projektdatei</span></a></div>`).join('')}
       ${kmz && sources.length ? `<div class="attach-row"><label class="field"><span>Projektdatei zuordnen</span><select id="source-attachment"><option value="">Vorhandene Projektdatei auswählen …</option>${sources.map(x => `<option value="${x.id}">${esc(pathFor(x.folder) || 'Ohne Projekt')} / ${esc(x.name)} · ${esc(x.filename)}</option>`).join('')}</select></label><button id="attach-source" class="btn btn-outline" type="button" data-busy="Wird zugeordnet …">${icon('i-link')}<span>Zugehörige Dateien hinzufügen</span></button></div><p class="hint">Die Projektdatei (MPROJ, LCHM, LCHZ) gehört danach zu dieser KMZ-Mission. Ihr bisheriger Eintrag wandert ins Archiv, Originale bleiben unverändert.</p>` : kmz ? '<p class="hint">Map-Creator- oder Litchi-Projektdateien lassen sich dieser Mission zuordnen, sobald eine als eigener Eintrag hochgeladen wurde.</p>' : '<p class="hint">Für die Übertragung auf DJI Fly wird ein DJI-KMZ-Export benötigt. Diese Projektdatei kann einer KMZ-Mission zugeordnet werden.</p>'}
