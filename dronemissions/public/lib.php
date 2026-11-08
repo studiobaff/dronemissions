@@ -39,7 +39,7 @@ function dm_layer_visible(PDO $db,array $layer,?array $scope): bool {
 function dm_layers_public(PDO $db,?array $scope=null): array {
  $out=[];foreach(dm_layers($db) as $l){if(!dm_layer_visible($db,$l,$scope))continue;$c=$l['config'];
   if($l['kind']==='tile')$out[]=['id'=>$l['id'],'kind'=>'tile','name'=>$l['name'],'url'=>dm_layer_url($c),'attribution'=>$c['attribution']??'','maxZoom'=>$c['maxZoom']??19,'overlay'=>!empty($c['overlay']),'opacity'=>$c['opacity']??1];
-  else $out[]=['id'=>$l['id'],'kind'=>'vector','folder'=>$c['folder']??null,'name'=>$l['name'],'color'=>$c['color']??'#2f8f4e','features'=>$c['features']??0,'attribution'=>$c['attribution']??''];
+  else $out[]=['id'=>$l['id'],'kind'=>'vector','folder'=>$c['folder']??null,'name'=>$l['name'],'color'=>$c['color']??'#2f8f4e','weight'=>$c['weight']??1.5,'useSourceStyle'=>$c['useSourceStyle']??true,'features'=>$c['features']??0,'attribution'=>$c['attribution']??''];
  }return $out;
 }
 function dm_layer_hosts(PDO $db): array {

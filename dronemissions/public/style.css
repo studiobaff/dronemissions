@@ -613,3 +613,5 @@ kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.6875rem;b
 
 .poi-marker{background:none;border:0;white-space:nowrap}.poi-marker span{display:inline-block;background:#44245e;color:#fff;border:2px solid #fff;border-radius:5px;padding:3px 6px;font-size:12px;font-weight:700;box-shadow:0 1px 5px #0006}
 .layer-item select{max-width:220px;min-width:120px}
+
+.layer-item{flex-wrap:wrap}.layer-style{flex-basis:100%;border-top:1px solid var(--line);padding-top:.5rem}.layer-style summary{cursor:pointer;font-size:var(--fs-sm);font-weight:600}.layer-style-controls{display:flex;align-items:center;flex-wrap:wrap;gap:1rem;padding:.8rem 0}.layer-style-controls label{display:flex;align-items:center;gap:.5rem;font-size:var(--fs-sm)}.layer-style-controls input[type=number]{width:5rem}.layer-style-controls input[type=color]{width:3rem;height:2.3rem}.layer-line-sample{width:70px;border-top:2px solid;display:inline-block}
