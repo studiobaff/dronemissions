@@ -1,3 +1,14 @@
+## Missionsplaner 0.5.0 · Höhenreferenzen und FOV · 8.11.2026
+
+Branch `codex/planner-height-references`. Nur Web-App; kein Bridge-Build. Veröffentlichung über eigenen PR nach bestandenen Checks.
+
+- DJI-KMZ-Höhenreferenzen mit explizitem Startbezug/Offset, Auswahl, Sicherheitsabstand und serverseitiger Mindesthöhenprüfung. Save/Reopen und JSON behalten Referenzpunkte; Originaldatei bleibt unberührt. Gestrichelte Referenzroute mit getrennten Strecken, keine Höheninterpolation.
+- FOV-gesteuerte Halbkugel/Doppelhelix mit Nadir; −70°-Trapezprojektion für Raster. Winkel-/nominale Überdeckung nicht als nachgewiesene 3D-Oberflächenüberdeckung darstellen.
+- Kreuzraster, Footprint, längste Kante, ±1°/+90°, verkettete Meterabstände, optionaler Startort zur Umkehrung der Routenreihenfolge. Status zweizeilig über der Karte. Neue Startorte werden bei neuer Planung verworfen.
+- Geschwindigkeitsvorgaben Grid 2,6 / Helix 4,3 m/s aus bereitgestellten Referenzdateien; manuell änderbar. API-Default unverändert.
+- Behebung zweier Browser-/Persistenzfehler: Höhenreferenzen fehlten in gespeicherten Planungen; Import konnte durch den generischen Dialog-Backdrop-Handler das Planerfenster schließen.
+- PHP-/API-/Scheduler-Tests und isolierte Browserprüfung bestanden. Geräte-/Flugprüfung weiterhin offen. Details und Grenzen: `PLANNER.md`.
+
 ## Missionsplaner: kompakte Werkzeugleisten, Kalotte und POI-AGL · 8.11.2026
 
 Branch `codex/planner-cap-corridor`, Generator 0.4.0. Eigener PR nach `main`, Web-Deployment; Bridge unverändert.
@@ -7,7 +18,7 @@ Branch `codex/planner-cap-corridor`, Generator 0.4.0. Eigener PR nach `main`, We
 - Eigene Flugarten Linie/Korridor. POI relativ Start oder AGL am Ziel plus Offset; getrennt vom Flug-Höhenbezug. Feste Kalotte + Gelände-Folgen wird abgelehnt.
 - Optionale Zusatzpause nach Foto standardmäßig 0; Ausrichten/Anhalten bleibt. Nominale Überlappung ist ausdrücklich keine 3D-Oberflächenmessung.
 - PHP-Geometrie-/DEM-/KMZ-Regressionen, Scheduler-Test und Planner-API-Integration bestanden. Browser bei 1280 × 720: Polygon ziehen, automatische Neuberechnung, Wechsel zur Doppelhelix, Kalotte mit 292 Fotos nach Speichern/Wiederöffnen identisch, Linie/Korridor, fehlender POI-AGL-Start sperrt Speichern. Neue Testfälle in `tests/planner.php`. Kein Gerätetest/Flugtest.
-- Anforderung „abgeflogene Höhenreferenzpunkte als Planungsgrundlage“ in `docs/PLANNER.md` dokumentiert, **noch nicht implementiert**; keine automatische Höhenableitung aus vier Wegpunkten behaupten.
+- Anforderung „abgeflogene Höhenreferenzpunkte als Planungsgrundlage“ in `docs/PLANNER.md` dokumentiert, inzwischen in Generator 0.5.0 umgesetzt, siehe Abschnitt oben; kein Hindernismodell aus vier Wegpunkten ableiten.
 
 ## Missionsplaner: automatische Vorschau und verständliche Aufnahmeabstände · 8.11.2026
 

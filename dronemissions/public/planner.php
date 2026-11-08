@@ -4,18 +4,24 @@ require_once __DIR__.'/planner-terrain.php';
 function dm_planner_schema(PDO $db): void {
  $db->exec('CREATE TABLE IF NOT EXISTS mission_plans(id TEXT PRIMARY KEY,folder TEXT REFERENCES folders(id),name TEXT NOT NULL,body TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,created TEXT NOT NULL,updated TEXT NOT NULL); CREATE TABLE IF NOT EXISTS mission_plan_runs(id TEXT PRIMARY KEY,plan TEXT NOT NULL REFERENCES mission_plans(id),missions TEXT NOT NULL,created TEXT NOT NULL)');
 }
-function dm_planner_body(array $p): array {return array_intersect_key($p,array_flip(['format','generatorVersion','routeSha256','name','type','geometry','cameraId','camera','params']));}
+function dm_planner_body(array $p): array {return array_intersect_key($p,array_flip(['format','generatorVersion','routeSha256','name','type','geometry','cameraId','camera','params','heightReference']));}
 function dm_planner_profile(string $id): array {
  if($id==='')problem('Passende DJI-KMZ als Geräteprofil auswählen.');
  $m=mission($id);$v=stmt('SELECT sha256,details FROM versions WHERE mission=? ORDER BY ordinal DESC LIMIT 1',[$id])->fetch();if(!$v)problem('Profilmission fehlt.',404);$d=json_decode($v['details'],true,512,JSON_THROW_ON_ERROR);if(dm_format($d)!=='kmz')problem('Geräteprofil benötigt eine DJI-KMZ.');$path=dm_private().'/blobs/'.$v['sha256'].'.kmz';if(!is_file($path)||!hash_equals($v['sha256'],hash_file('sha256',$path)))problem('Profilmission beschädigt.',500);return dm_plan_device($path)+['sourceMission'=>$id,'sourceHash'=>$v['sha256']];
 }
-if(in_array($action,['planner-catalog','planner-list','planner-load','planner-save','planner-preview','planner-export','planner-archive','planner-osm'],true)){
+if(in_array($action,['planner-catalog','planner-list','planner-load','planner-save','planner-preview','planner-export','planner-archive','planner-osm','planner-height-import'],true)){
  if($current&&$current['role']!=='edit')problem('Der Missionsplaner ist nicht für Kunden freigegeben.',403);
  dm_planner_schema($db);
  if($action==='planner-catalog'&&$method==='GET')respond(['cameras'=>dm_plan_catalog(),'version'=>1]);
  if($action==='planner-list'&&$method==='GET'){$rows=stmt('SELECT id,folder,name,revision,updated FROM mission_plans ORDER BY updated DESC')->fetchAll();if($current){$ids=dm_folder_ids($db,$current['folder']);$rows=array_values(array_filter($rows,fn($r)=>in_array($r['folder'],$ids,true)));}respond(['plans'=>$rows]);}
  if($action==='planner-load'&&$method==='GET'){$row=stmt('SELECT * FROM mission_plans WHERE id=?',[(string)($_GET['id']??'')])->fetch();if(!$row)problem('Planung nicht gefunden.',404);may_folder($row['folder']);$row['body']=json_decode($row['body'],true,64,JSON_THROW_ON_ERROR);respond($row);}
  if($method!=='POST')problem('Methode nicht unterstützt.',405);
+ if($action==='planner-height-import'){
+  may_folder(($input['folder']??null)?:null,true);$file=$_FILES['file']??null;
+  if(!$file||$file['error']!==UPLOAD_ERR_OK||!is_uploaded_file($file['tmp_name'])||$file['size']>8388608)problem('KMZ-Höhenreferenz hochladen, maximal 8 MB.');
+  $name=basename(str_replace('\\','/',$file['name']));if(strtolower(pathinfo($name,PATHINFO_EXTENSION))!=='kmz')problem('Bitte eine DJI-Waypoint-KMZ wählen.');
+  respond(['heightReference'=>dm_plan_height_import($file['tmp_name'],$name)]);
+ }
  if($action==='planner-osm'){
   $s=dm_pnum($input,'south',-80,80);$n=dm_pnum($input,'north',$s+.000001,80);$w=dm_pnum($input,'west',-180,180);$e=dm_pnum($input,'east',$w+.000001,180);$area=dm_distance(['lat'=>$s,'lng'=>$w],['lat'=>$n,'lng'=>$w])*dm_distance(['lat'=>$s,'lng'=>$w],['lat'=>$s,'lng'=>$e]);if($area>4000000||$n-$s>.04||$e-$w>.08)problem('Für OSM auf einen kleinen Bereich zoomen (höchstens 4 km²).');
   $key=hash('sha256',json_encode([$s,$w,$n,$e]));$dir=dm_private().'/planner-cache';if(!is_dir($dir))mkdir($dir,0700);$file=$dir.'/'.$key.'.json';
