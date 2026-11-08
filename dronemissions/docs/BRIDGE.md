@@ -4,9 +4,9 @@ Stand: 8. November 2026.
 
 ## Aktueller Stand und offene Gerätetests
 
-Der aktuelle Mac-Download und die installierte App sind **0.6.1**:
+Der aktuelle Mac-Download und die installierte App sind **0.6.2**:
 **`dronemissions-bridge.app`**, Quellstand
-[`55bbdaa`](https://github.com/studiobaff/dronemissions/tree/55bbdaa/bridge).
+[`618aa5a`](https://github.com/studiobaff/dronemissions/tree/618aa5a/bridge).
 Er enthält Claudes
 [`21bd381`](https://github.com/studiobaff/dronemissions/commit/21bd381)
 und zusätzlich den ADB-Verpackungsfix. Das vorherige Bundle
@@ -14,11 +14,17 @@ und zusätzlich den ADB-Verpackungsfix. Das vorherige Bundle
 Rückfallkopie verschoben. Kennungen für Einstellungen und Schlüsselbund bleiben
 unverändert; vorhandene Zugangsdaten gelten weiterhin.
 
-**109 isolierte Tests** bestehen. Paket und ADB-Prüfsumme wurden geprüft, die App
+**113 isolierte Tests** bestehen. Paket und ADB-Prüfsumme wurden geprüft, die App
 wurde installiert und gestartet. Am verbundenen iPad wurden **44 Missionen samt
 DJI-Fly-Titelbildern** erfolgreich gelesen (Bestand zum Testzeitpunkt). Bei diesem Bildlesetest
 wurden keine Missionen geändert oder übertragen. Der Vorschau-Upload ins
 Webarchiv und die unten genannten Übertragungsfälle bleiben offen.
+
+## Neu in 0.6.2: POIs
+
+3D und Luftbild zeichnen vorhandene aktive WPML-Blickziele als lila Rauten mit „POI N“. Wiederholte Verweise werden zusammengefasst und der Ausschnitt berücksichtigt die POIs. Es entstehen keine zusätzlichen Flugpunkte, und Original-KMZs bleiben unverändert. In 3D ist die horizontale Lage auf der unteren Routenebene gemeint; ein unbestätigter Höhenbezug wird nicht geraten. Vorhandene Fotos und Archivbilder bleiben unverändert. Für die neuen Marker eine 3D-/Luftbildvorschau erzeugen oder im Webarchiv ein neues Bild speichern.
+
+Die installierte App 0.6.2 wurde mit einer synthetischen KMZ geöffnet und die POI-Zeichnung visuell geprüft. Es wurde dabei nichts aufs iPad übertragen. 113 isolierte Tests bestehen, einschließlich aktiv/inaktiv, Koordinatenreihenfolge, Zusammenfassung, ungültigen Werten und 3D-/Luftbildrendering mit Kachel-Fakes. App-Signatur, gebündelter ADB-Hash und vollständiger authentifizierter ZIP-Download sind geprüft. Der zuvor bestätigte Geräte-Rundlauf bezieht sich weiterhin auf 0.6.1; neue Geräteänderungen wurden für den Vorschauwechsel nicht vorgenommen.
 
 ## Download und Zugang
 
