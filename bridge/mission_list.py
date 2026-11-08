@@ -33,3 +33,34 @@ def metadata(mission):
         try:out.append(datetime.fromtimestamp(date).strftime('%d.%m.%Y'))
         except (OverflowError,OSError,ValueError):pass
     return ' · '.join(out)
+
+
+# ---------- Ordnerbaum des Webarchivs ----------
+def folder_tree(folders):
+    """Nested folder nodes from the archive's flat folder list (parent ids); orphans become roots."""
+    by_id={f['id']:{'id':f['id'],'name':f.get('name') or (f.get('path') or '').split(' / ')[-1] or 'Ordner','path':f.get('path',''),'archived':bool(f.get('archived')),'children':[]} for f in folders}
+    roots=[]
+    for f in folders:
+        node=by_id[f['id']];parent=f.get('parent')
+        if parent in by_id and parent!=f['id']:by_id[parent]['children'].append(node)
+        else:roots.append(node)
+    def sort(nodes):
+        nodes.sort(key=lambda n:n['name'].casefold())
+        for n in nodes:sort(n['children'])
+    sort(roots);return roots
+
+def folder_descendants(folders,folder_id):
+    """The folder itself plus every folder below it."""
+    ids={folder_id};changed=True
+    while changed:
+        changed=False
+        for f in folders:
+            if f.get('parent') in ids and f['id'] not in ids:ids.add(f['id']);changed=True
+    return ids
+
+def in_selected_folder(mission,selection,folders,include_subfolders=True):
+    """selection: 'all', 'none' (missions without a project) or a folder id."""
+    if selection=='all':return True
+    if selection=='none':return not mission.get('folderId')
+    allowed=folder_descendants(folders,selection) if include_subfolders else {selection}
+    return mission.get('folderId') in allowed

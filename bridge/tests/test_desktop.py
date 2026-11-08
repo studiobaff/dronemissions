@@ -7,7 +7,7 @@ from test_core import fixture,helix_fixture
 try:
     from PySide6.QtWidgets import QApplication,QPushButton
     from PySide6.QtCore import QSettings,Qt
-    from desktop import Window,TAB_TRANSFER,TAB_ARCHIVE
+    from desktop import Window,TAB_TRANSFER,TAB_ARCHIVE,TAB_RUN,TAB_DEVICE
     from PySide6.QtWidgets import QMessageBox
     import desktop as desktop_module
     HAS_QT=True
@@ -17,7 +17,8 @@ except ImportError:
 UID='12345678-1234-1234-1234-123456789ABC'
 
 @unittest.skipUnless(HAS_QT,'Desktop dependencies not installed')
-class Tests(unittest.TestCase):
+class DesktopCase(unittest.TestCase):
+    """Gemeinsame Isolierung: temporäre INI-Einstellungen, Fake-Schlüsselbund, temporärer Datenordner."""
     @classmethod
     def setUpClass(cls):
         # Tests must never touch the user's real settings or keychain.
@@ -38,7 +39,8 @@ class Tests(unittest.TestCase):
         # an explicit temporary INI instance, before any Window is constructed.
         settings=QSettings(str(Path(self.tmp.name)/'settings.ini'),QSettings.IniFormat);settings.clear()
         guard=patch('desktop.QSettings',return_value=settings);guard.start();self.addCleanup(guard.stop)
-        self.window=Window(autosearch=False,credential_store=self.FakeStore())
+        self.root=tempfile.TemporaryDirectory();self.addCleanup(self.root.cleanup)
+        self.window=Window(autosearch=False,credential_store=self.FakeStore(),root=self.root.name)
     def tearDown(self):self.window.close();self.app.processEvents()
     def select(self,kind,serial='demo'):
         self.window.device.addItem('Demo',{'kind':kind,'serial':serial,'state':'device','name':'Demo'})
@@ -48,10 +50,12 @@ class Tests(unittest.TestCase):
         while (w.job and w.job.isRunning()) or w.stack.currentIndex()!=1:
             self.app.processEvents()
             if time.monotonic()>deadline:self.fail('Review did not complete')
+
+class Tests(DesktopCase):
     def test_confirmation_is_required_and_source_edit_invalidates_it(self):
-        w=self.window;self.select('ios');w.start_new();self.assertEqual(w.tabs.currentIndex(),TAB_TRANSFER);self.assertEqual(w.mode,'new')
+        w=self.window;self.select('ios');w.start_new();self.assertEqual(w.tabs.currentIndex(),TAB_ARCHIVE);self.assertEqual(w.mode,'new')
         with tempfile.TemporaryDirectory() as t:
-            source=Path(t)/'Demo.kmz';source.write_bytes(fixture());w.set_source(source);w.prepare();self.wait_review()
+            source=Path(t)/'Demo.kmz';source.write_bytes(fixture());w.set_source(source);w.start_new();self.assertEqual(w.tabs.currentIndex(),TAB_TRANSFER);w.prepare();self.wait_review()
             self.assertFalse(w.apply_button.isEnabled());self.assertFalse(w.closed.isChecked());self.assertEqual(w.transfer['mode'],'ios-new');self.assertIsNone(w.transfer['replace'])
             w.closed.setChecked(True);self.assertTrue(w.apply_button.isEnabled())
             w.name.setText('Different mission');self.assertIsNone(w.transfer);self.assertFalse(w.apply_button.isEnabled());self.assertEqual(w.stack.currentIndex(),0)
@@ -129,7 +133,7 @@ class Tests(unittest.TestCase):
         self.app.processEvents();self.assertEqual(store.data,{'https://example.com/dronemissions/':'geheim'});self.assertTrue(w.archive_forget.isEnabled())
         w.archive_forget_key();self.assertEqual(store.data,{});self.assertEqual(w.archive_key.text(),'')
         # A stored key is restored on start and used when the tab opens.
-        store.data['https://example.com/dronemissions/']='geheim';w2=Window(autosearch=False,credential_store=store,client_factory=FakeClient);w2.archive_url.setText('https://example.com/dronemissions/');w2.archive_restore_key()
+        store.data['https://example.com/dronemissions/']='geheim';w2=Window(autosearch=False,credential_store=store,client_factory=FakeClient,root=self.root.name);w2.archive_url.setText('https://example.com/dronemissions/');w2.archive_restore_key()
         self.assertEqual(w2.archive_key.text(),'geheim');self.assertTrue(w2.archive_auto);w2.tabs.setCurrentIndex(TAB_ARCHIVE)
         deadline=time.monotonic()+10
         while w2.job and w2.job.isRunning() or w2.archive is None:
@@ -138,7 +142,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(logins[-1],('https://example.com/dronemissions/','geheim'));w2.close()
     def test_loopback_archive_url_from_tests_is_not_restored(self):
         self.window.settings.setValue('archiveURL','http://127.0.0.1/dronemissions/')
-        w=Window(autosearch=False,credential_store=self.FakeStore());self.assertTrue(w.archive_url.text().startswith('https://'));w.close()
+        w=Window(autosearch=False,credential_store=self.FakeStore(),root=self.root.name);self.assertTrue(w.archive_url.text().startswith('https://'));w.close()
 
     def test_search_multiselect_and_save_to_archive(self):
         from unittest.mock import patch
@@ -182,8 +186,9 @@ class Tests(unittest.TestCase):
     def test_menu_offers_main_functions_with_shortcuts(self):
         w=self.window;titles=[m.title() for m in w.menuBar().findChildren(type(w.menuBar().addMenu('x')))]
         self.assertTrue({'Datei','Gerät','Webarchiv','Übertragen','Ansicht','Hilfe'}<=set(titles))
-        self.assertEqual(w.menu_actions['KMZ auswählen …'].shortcut().toString(),'Ctrl+O');self.assertEqual(w.menu_actions['Im Webarchiv sichern …'].shortcut().toString(),'Ctrl+S')
-        w.menu_actions['Übertragen'].trigger();self.assertEqual(w.tabs.currentIndex(),TAB_TRANSFER);w.menu_actions['Modus: Ersetzen'].trigger();self.assertEqual(w.mode,'replace')
+        self.assertEqual(w.menu_actions['KMZ-Dateien hinzufügen …'].shortcut().toString(),'Ctrl+O');self.assertEqual(w.menu_actions['Im Webarchiv sichern …'].shortcut().toString(),'Ctrl+S');self.assertEqual(w.menu_actions['Einstellungen …'].shortcut().toString(),'Ctrl+,')
+        w.menu_actions['4  Übertragen'].trigger();self.assertEqual(w.tabs.currentIndex(),TAB_RUN);w.menu_actions['3  Vorschauen prüfen'].trigger();self.assertEqual(w.tabs.currentIndex(),TAB_TRANSFER);w.menu_actions['Modus: Ersetzen'].trigger();self.assertEqual(w.mode,'replace')
+        w.menu_actions['Einstellungen …'].trigger();self.assertTrue(w.settings_dialog.isVisible());self.assertIs(w.archive_url.window(),w.settings_dialog);w.settings_dialog.close()
 
 
     def test_config_button_opens_chooser_and_imports_file(self):
@@ -198,7 +203,7 @@ class Tests(unittest.TestCase):
             self.assertEqual(w.settings.value('archiveURL'),w.archive_url.text())
     def test_reserved_example_setting_is_repaired_on_start(self):
         self.window.settings.setValue('archiveURL','https://example.com/dronemissions/')
-        w=Window(autosearch=False,credential_store=self.FakeStore())
+        w=Window(autosearch=False,credential_store=self.FakeStore(),root=self.root.name)
         self.assertEqual(w.archive_url.text(),'https://service.studiobaff.com/dronemissions/')
         self.assertEqual(w.settings.value('archiveURL'),w.archive_url.text());w.close()
 

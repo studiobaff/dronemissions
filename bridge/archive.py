@@ -58,7 +58,7 @@ class ArchiveClient:
   for m in data['missions']:
    details=m.get('details') or {};fmt={'litchi-csv':'CSV','litchi-lchm':'LCHM','litchi-lchz':'LCHZ','mapcreator-project':'MPROJ'}.get(details.get('sourceFormat'),'KMZ')
    missions.append({'id':m['id'],'revision':int(m.get('revision') or 0),'folderId':m.get('folder'),'name':m['name'],'folder':path(m.get('folder')) or 'Ohne Projekt','archived':bool(m.get('archived')),'format':fmt,'filename':m.get('filename',''),'sha256':m.get('sha256',''),'bytes':int(m.get('bytes') or 0),'versionId':m.get('versionId'),'version':m.get('version'),'updated':m.get('updated',''),'waypoints':details.get('count'),'distance':details.get('distance') or 0,'transferable':fmt=='KMZ'})
-  self.folders=[{'id':f['id'],'path':path(f['id']),'archived':bool(f.get('archived'))} for f in data['folders']];self.folders.sort(key=lambda f:f['path'].lower());self.missions=missions
+  self.folders=[{'id':f['id'],'name':f.get('name',''),'parent':f.get('parent') or None,'path':path(f['id']),'archived':bool(f.get('archived'))} for f in data['folders']];self.folders.sort(key=lambda f:f['path'].lower());self.missions=missions
   return missions
  def find_by_sha(self,sha256:str):
   return next((m for m in self.missions if m.get('sha256')==sha256),None)

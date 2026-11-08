@@ -71,6 +71,12 @@ Anforderungen des Eigentümers für die Bridge-Oberfläche (unverändert überno
 
 Nächste Schritte: Auf dem Mac `python bridge/build_desktop.py` ausführen, die App am iPad („Neu anlegen“) und an der RC Pro 2 („Ersetzen“) durchspielen, Rückmeldung zur Logik einarbeiten. Windows-11-Paket auf einem Windows-Rechner bauen (siehe `bridge/README.md`). Gerätetests kann nur der Eigentümer machen. Erst danach den Hinweis „USB-Übertragung über die Bridge-App“ in der Web-UI um einen echten Download- oder Kopplungsweg ergänzen.
 
+## Bridge 0.5.0 (Branch `claude/drone-missions-ui-handoff-4nsj6e`, Stand 2026-11-08)
+
+Umgesetzt nach `bridge/docs/UI-HANDOFF-2026-11-08.md` und PR #6: Einstellungsfenster (`⌘,`) für Archiv, Schlüssel, Konfiguration und ADB; Schritt 2 mit Projektbaum wie die Website, kombinierter Suche/Sortierung, großen Vorschauen und echten Checkboxen (nur KMZ); Pfeilleiste „Gerät wählen → Missionen auswählen → Vorschauen prüfen → Übertragen“; Warteschlange mit getrenntem „Neu anlegen“/„Ersetzen“, eindeutigen Zielen, serieller Übertragung, Fehlerstopp, Anhalten, Fortsetzen ohne Doppelanlage; Wegpunktnummern in beiden Vorschauen; Luftbild mit basemap.at-Beschriftung in Österreich und Esri/OSM-Rückfall weltweit. Details und Bildschirmfotos: `bridge/README.md` (Abschnitte 0.5.0) und `bridge/docs/screenshots-0.5/`.
+
+Nicht geprüft: Übertragung an echte Geräte (iPad neu anlegen, iPad ersetzen, RC Pro 2). Die Gerätewege selbst (`ios.apply_new`, `core.plan/apply`) sind gegenüber 0.4.4 unverändert, nur die Aufrufe laufen jetzt seriell aus der Warteschlange. Das Luftbild wurde nur gegen Kachel-Fakes getestet, weil die Cloud-Umgebung keine Kartenserver erreicht.
+
 ## Server-Update
 
 Siehe `docs/UPDATE.md`: Nur `public/` wird auf den Server kopiert, private Daten bleiben unberührt, das Schema wird automatisch ergänzt.

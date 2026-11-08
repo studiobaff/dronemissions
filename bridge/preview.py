@@ -51,6 +51,29 @@ def route_scene(details):
     return {'points':projected,'ground':footprint,'is3d':use_height,'heightMin':bottom,'heightMax':top,'exaggeration':exaggeration,
             'project':lambda e,n,h:fit(project(e,n,h)),'spread':spread}
 
+def draw_markers(painter,points,starts=frozenset(),dark_background=True):
+    """Wegpunktmarker wie im Webarchiv: Start und Ende als nummerierte Kreise, dazwischen kleine Punkte.
+
+    Bei sehr vielen Wegpunkten werden die kleinen Punkte ausgedünnt, Start und Ende bleiben immer lesbar.
+    Mehrere Flugrouten in einer Datei bekommen je einen eigenen nummerierten Startpunkt.
+    """
+    if not points:return
+    n=len(points);stride=1 if n<=60 else (2 if n<=150 else max(3,n//60))
+    numbered={0:'1',n-1:str(n)}
+    for s in starts:
+        if 0<s<n-1:numbered[s]=str(s+1)
+    painter.save();painter.setRenderHint(QPainter.Antialiasing)
+    small_fill=QColor('#d9ff63') if dark_background else QColor('#ffffff');small_edge=QColor('#0b2422') if dark_background else QColor('#20392d')
+    for i,(x,y) in enumerate(points):
+        if i in numbered or (i%stride):continue
+        painter.setPen(QPen(small_edge,1.2));painter.setBrush(QBrush(small_fill));painter.drawEllipse(QPointF(x,y),3.2,3.2)
+    font=QFont('Helvetica Neue',11,QFont.Bold);painter.setFont(font)
+    for i,text in sorted(numbered.items()):
+        x,y=points[i];r=12 if len(text)<3 else 15
+        painter.setPen(QPen(QColor('#ffffff'),2.5));painter.setBrush(QBrush(QColor('#d9ff63') if i==0 else QColor('#254e3b')));painter.drawEllipse(QPointF(x,y),r,r)
+        painter.setPen(QColor('#17372b') if i==0 else QColor('#ffffff'));painter.drawText(QRectF(x-r,y-r,2*r,2*r),Qt.AlignCenter,text)
+    painter.restore()
+
 def draw_route(painter,details):
     scene=route_scene(details);points=scene['points'];starts={s['start'] for s in details['segments']}
     painter.save();painter.setClipRect(QRectF(PLOT.left()-30,PLOT.top()-30,PLOT.width()+60,PLOT.height()+40));painter.setRenderHint(QPainter.Antialiasing)
@@ -80,8 +103,7 @@ def draw_route(painter,details):
         t=((a[3]+b[3])/2-low)/span
         colour=QColor(round(70+145*t),round(190+34*t),round(196-93*t)) if scene['is3d'] else QColor('#b5d969')
         painter.setPen(QPen(colour,3.8,Qt.SolidLine,Qt.RoundCap,Qt.RoundJoin));painter.drawLine(QPointF(a[0],a[1]),QPointF(b[0],b[1]))
-    painter.setPen(QPen(QColor('#20392d'),2));painter.setBrush(QBrush(QColor('#d9ff63')));painter.drawEllipse(QPointF(points[0][0],points[0][1]),7,7)
-    painter.setBrush(QBrush(QColor('#ffffff')));painter.drawEllipse(QPointF(points[-1][0],points[-1][1]),5.5,5.5)
+    draw_markers(painter,[(p[0],p[1]) for p in points],starts)
     painter.restore()
     painter.setFont(QFont('Helvetica Neue',14));painter.setPen(QColor('#b1c6bc'))
     if scene['is3d']:label=f'3D · Höhe {low:.0f}–{scene["heightMax"]:.0f} m · {len(points)} Wegpunkte'

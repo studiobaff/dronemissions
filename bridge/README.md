@@ -1,4 +1,4 @@
-# Drone Missions Bridge 0.4
+# Drone Missions Bridge 0.5
 
 Lokale Mac-Oberfläche für DJI-KMZ-Dateien. Der Kern verwendet für Android separat installiertes ADB; der iPad/iPhone-Adapter verwendet pymobiledevice3 über USB. Keine Injector-Bibliotheken werden gebündelt.
 
@@ -7,7 +7,7 @@ Lokale Mac-Oberfläche für DJI-KMZ-Dateien. Der Kern verwendet für Android sep
 1. Gerät per Kabel verbinden, entsperren und diesem Computer vertrauen.
 2. DJI Fly vollständig schließen. Andere Übertragungsprogramme für den Vergleich schließen.
 3. In der Bridge Geräte suchen und das iPad/iPhone auswählen. Missionen lesen zeigt die DJI-Fly-Namen.
-4. Eine gültige DJI-KMZ auswählen, Namen eingeben und das Titelbild wählen: „3D-Ansicht“ (offline, Route schräg mit echten Wegpunkthöhen, siehe „Automatische 3D-Titelvorschau“), „Luftbild“ (Route auf dem basemap.at-Orthofoto, nur Österreich, braucht Internet; fällt sonst mit Hinweis auf die 3D-Ansicht zurück) oder „Eigenes Bild“. Die Wahl wird gemerkt. DJI Fly zeigt das Bild fest; drehen lässt es sich dort nicht.
+4. In Schritt 2 Missionen aus dem Webarchiv anhaken oder „KMZ-Dateien vom Mac …“ wählen; in Schritt 3 je Mission Namen prüfen und das Titelbild wählen: „3D-Ansicht“ (offline, Route schräg mit echten Wegpunkthöhen, siehe „Automatische 3D-Titelvorschau“), „Luftbild“ (Route auf dem Orthofoto, braucht Internet, siehe „Kartenquellen“; ohne Kartenquelle 3D-Ansicht) oder „Eigenes Bild“. Die Wahl wird gemerkt. DJI Fly zeigt das Bild fest; drehen lässt es sich dort nicht.
 5. „Vorschau prüfen“ zeigt den dritten Schritt mit großer Titelvorschau und Zielgerät.
 6. DJI Fly vollständig schließen, das im dritten Schritt bestätigen und „Jetzt übertragen“ wählen. Nach vollständiger Sicherung wird ein neuer Eintrag angelegt. Bestehende Missionen werden nicht ersetzt oder gelöscht.
 7. DJI Fly öffnen; Mission, Speichern und Cloud-Synchronisation prüfen.
@@ -97,3 +97,31 @@ Die Geräteliste kennzeichnet **Lokal**, **Nur Cloud**, **Im Webarchiv**, **Nich
 Beim erneuten Sichern wird nach der Zielordner-Auswahl eine identische, bereits vorhandene Archiv-Mission in diesen Ordner verschoben. Es entsteht keine doppelte Mission; Name, Missions-ID, Versionen und Originaldatei bleiben erhalten. Liegt ein identischer Eintrag schon im Zielordner, wird nichts geändert. Bei mehreren Treffern außerhalb des Zielordners wird keine automatische Auswahl getroffen. Die Verschiebung verwendet die geladene Revision; zwischenzeitliche Änderungen werden vom Server mit Konflikt abgelehnt. Das Ergebnis unterscheidet neu gesichert, verschoben, bereits im Zielordner und fehlgeschlagen.
 
 **Löschen auf dem Gerät ist nicht eingebaut.** Dafür DJI Fly verwenden. Ein Download aus der DJI-Cloud bleibt ebenfalls eine Aktion in DJI Fly; die Bridge erklärt dafür den Weg und liest danach den lokalen Bestand neu.
+
+## Einstellungsfenster, Ordnerbaum und Warteschlange (0.5.0)
+
+Die Oberfläche folgt jetzt vier Schritten, die als Pfeilleiste über die ganze Breite laufen: **1 Gerät wählen → 2 Missionen auswählen → 3 Vorschauen prüfen → 4 Übertragen**. Jeder Schritt ist jederzeit anklickbar (auch über `⌘1`–`⌘4`), Schritt 4 wird erst mit gefüllter Warteschlange aktiv. Bildschirmfotos mit synthetischen Daten liegen unter `docs/screenshots-0.5/`.
+
+**Einstellungen (`⌘,` oder „Einstellungen …“)**: Archiv-Adresse, Zugangsschlüssel, „Schlüssel merken in“ (macOS-Schlüsselbund, 1Password, Windows DPAPI), „Schlüssel vergessen“, „Konfiguration laden …“, ADB-Pfad und Ablageordner liegen in einem eigenen, nicht blockierenden Fenster. Die Archiv-Adresse wird beim Verlassen des Felds normalisiert und gemerkt; Schlüssel landen nie in den Einstellungen. Schritt 2 zeigt nur noch den Verbindungsstatus („verbunden als Eigentümer · 6 Missionen · Adresse“), „Verbinden“/„Neu laden“ und einen Link ins Einstellungsfenster. Ohne hinterlegten Schlüssel öffnet „Verbinden“ die Einstellungen.
+
+**Schritt 2 wie die Website**: links der Projektbaum („Alle Missionen“, „Ohne Projekt“, Ordner mit Unterordnern und Anzahl, archivierte Ordner markiert), darunter „Unterordner einbeziehen“. Rechts Suche (Name, Projekt, Dateiname), Sortierung (zuletzt geändert, Name, Strecke, Wegpunkte), „Nur DJI-KMZ“ und „Archivierte zeigen“; die Filter wirken zusammen. Jede Zeile hat eine große Vorschau, Projektpfad, Format, Version, Wegpunkte und Strecke sowie eine echte Checkbox; LCHZ/MPROJ und andere Nicht-KMZ bleiben ohne Checkbox und lassen sich nicht übernehmen. „Alle sichtbaren“ hakt nur die sichtbaren KMZ an; die Zahl unten nennt Angehakte außerhalb von Ordner oder Filter („3 ausgewählt · 1 außerhalb von Ordner oder Filter“). „Zur Übertragung übernehmen“ lädt jede angehakte KMZ mit Prüfsummenabgleich und stellt sie in die Warteschlange. Lokale KMZ-Dateien lassen sich ohne Archivanmeldung wählen (`⌘O`, mehrere auf einmal).
+
+**Schritt 3, Warteschlange**: Links die Aufträge in Reihenfolge mit Vorschau, Quelle (Webarchiv-Ordner oder lokale Datei), Wegpunkten, Strecke, Modus und Status; rechts der Editor des markierten Auftrags: „Neu anlegen“ oder „Ersetzen“ als getrennte Segmente, bei Ersetzen die Zielkarte („Zu ersetzender Eintrag auf dem Gerät“, Bild, Wegpunkte, lokal vorhanden, Kennung). Ein Ziel wird in Schritt 1 markiert und mit „Ausgewählte ersetzen“ dem Auftrag zugeordnet; jedes Ziel darf nur einem Auftrag gehören, nur lokal vorhandene Einträge sind zulässig. „Vorschauen erzeugen und prüfen“ rendert alle Titelbilder und prüft alle Aufträge, dann folgt die Prüfseite mit Liste, großer Vorschau, Zusammenfassung („1 von 4“, Zielgerät, Ziel) und der Bestätigung „DJI Fly ist vollständig geschlossen“. Jede Änderung an Name, Quelle, Bild, Modus, Ziel oder Gerät verwirft die Prüfung aller noch nicht übertragenen Aufträge.
+
+**Schritt 4, Übertragung**: Ein Start, dann seriell: sichern, schreiben, zurücklesen, nächste Mission. Je Auftrag Status *bereit*, *geprüft*, *läuft*, *erfolgreich*, *fehlgeschlagen* oder *nicht gestartet*; oben „2 von 4 übertragen“. Beim ersten Fehler stoppt die Übertragung, der Rest bleibt „nicht gestartet“, Sicherung und Journal liegen im Ablageordner. „Nach dem aktuellen Auftrag anhalten“ stoppt nach dem laufenden Auftrag, „Fortsetzen“ überträgt nur nicht gestartete Aufträge; erfolgreiche Missionen werden nie erneut angelegt (Namensregister `names.json`). „Fehlgeschlagene erneut prüfen …“ setzt sie auf *bereit* zurück, sie müssen in Schritt 3 neu geprüft werden. Ein Gerätewechsel oder eine geleerte Warteschlange überträgt nichts; auch Ersetzen-Ziele werden beim Gerätewechsel gelöst. Ein Android-Neuimport bleibt experimentell, das Ersetzen am iPad ist weiter nicht am Gerät geprüft.
+
+**Ehrliche Beschriftungen**: „So lädst du Cloud-Missionen herunter …“ erklärt den Weg in DJI Fly; die Bridge lädt nichts aus der DJI-Cloud. Löschen auf dem Gerät gibt es nicht. Das Fenster bleibt mindestens 1020 × 720 Punkte groß; der Menüpunkt „Übertragen“ führt zu Schritt 4, „Vorschauen prüfen“ zu Schritt 3.
+
+**Tests**: `python3 -m unittest discover -s bridge/tests` (83 Tests) läuft mit `QT_QPA_PLATFORM=offscreen`, temporären INI-Einstellungen, einem Fake-Schlüsselbund und einem temporären Ablageordner; echter Schlüsselbund, echte Einstellungen und `names.json` des Nutzers werden nie gelesen oder beschrieben. `tests/test_queue.py` deckt Ordnerfilter mit und ohne Unterordner, Mehrfachauswahl mit verdeckten Treffern, Reihenfolge der Übernahme, lokale KMZ ohne Anmeldung, Zielprüfung beim Ersetzen, Gerätewechsel, seriellen Ablauf mit Fehlerstopp, Anhalten, Fortsetzen ohne Doppelanlage, Dateiänderung vor dem Start sowie die Lage der Verbindungsfelder im Einstellungsfenster ab. Gerätetests wurden in dieser Version nicht ausgeführt.
+
+## Wegpunktmarker und Kartenquellen (0.5.0)
+
+Beide Titelvorschauen (3D und Luftbild) zeichnen die Wegpunkte wie das Webarchiv: Start als nummerierter heller Kreis „1“, Ende als dunkler Kreis mit der letzten Nummer, alle übrigen Wegpunkte als kleine Punkte (bei sehr vielen Wegpunkten ausgedünnt, Start und Ende bleiben immer lesbar). Mehrere Flugrouten in einer Datei bekommen je einen eigenen nummerierten Startpunkt.
+
+Kartenquellen für „Luftbild“ (`map_preview.py`, nur der Ausschnitt von wenigen Kacheln, kein Offline-Download, Kacheln werden je Quelle zwischengespeichert):
+
+- **Österreich**: basemap.at Orthofoto (`bmaporthofoto30cm`) mit dem Beschriftungs-Overlay `bmapoverlay` (Straßennamen, Orte) darüber, CC BY 4.0. Quellenangabe im Bild.
+- **Außerhalb Österreichs** (Italien, Frankreich usw.): Esri World Imagery als weltweites Luftbild, Quellenangabe „Esri, Maxar, Earthstar Geographics, GIS User Community“ im Bild; die Nutzung richtet sich nach den Esri-Bedingungen für Basiskarten mit Quellenangabe.
+- **Rückfall**: ist auch das nicht erreichbar, die OpenStreetMap-Standardkarte (ODbL, © OpenStreetMap-Mitwirkende). Fällt alles aus, erscheint die 3D-Ansicht mit Hinweis im Protokoll.
+
+Eine weitere WMTS-Quelle lässt sich in `PROVIDERS` als Liste von Kachel-URLs (`{z}/{x}/{y}`) mit Quellenangabe und maximaler Zoomstufe ergänzen, etwa die französische Geoplateforme (ORTHOIMAGERY.ORTHOPHOTOS) oder regionale italienische Orthofotos; `provider_for()` wählt die Reihenfolge nach der Lage der Route.
