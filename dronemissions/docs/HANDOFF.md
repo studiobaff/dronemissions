@@ -1,5 +1,7 @@
 # Übergabe: Oberfläche, Gestaltung und offene Punkte
 
+**Aktueller Stand:** [STATUS.md](STATUS.md) (8. November 2026). Die folgenden Abschnitte dokumentieren den früheren UI-Stand; aktuelle Release- und Testaussagen stehen in STATUS.md und BRIDGE.md.
+
 Stand: 7. November 2026, Branch `claude/drone-missions-ui-handoff-4nsj6e`. Enthält den Merge des lokalen Stands des Eigentümers (Branch `lokaler-stand`: Geozonen, Adresssuche, Standortansicht, Mehrfachauswahl, Projektdateien, MPROJ, Kundenfreigaben, Ordner löschen, Bridge-Quellcode).
 
 Diese Datei ist die Übergabe für die nächste Sitzung, egal ob Mensch oder Agent. Sie beschreibt, was an der Web-Oberfläche geändert wurde, nach welchen Regeln, wie geprüft wird, und was offen ist. Die ursprüngliche Übergabe-ZIP (`.local/claude-ui-handoff/`) liegt nur lokal auf dem Mac des Eigentümers und ist nicht im Repository; ihre Inhalte konnten in dieser Sitzung nicht gelesen werden.
