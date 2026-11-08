@@ -37,5 +37,12 @@ def main():
  for n in kmzs:
   inner=zipfile.ZipFile(io.BytesIO(z.read(n)));route=E.fromstring(inner.read('wpmz/waylines.wpml'));points=[e for e in route.iter() if e.tag.rsplit('}',1)[-1]=='Placemark'];assert 1<=len(points)<=150
  missing=plan();missing['params']['terrainMode']='follow';c.call('planner-preview',{'folder':folder,'plan':missing},expected=400)
+ video={'folder':folder,'profileMission':profile,'plan':plan()};video['plan']['params']['captureMode']='video'
+ vr=c.call('planner-preview',video);assert vr['summary']['photos']==0 and len(vr['points'])==2*vr['summary']['rows']
+ vs=c.call('planner-save',video);video.update(vs);vl=c.call('planner-load&id='+vs['id']);assert vl['body']['params']['captureMode']=='video'
+ exported=c.call('planner-export',video);vz=zipfile.ZipFile(io.BytesIO(exported));vx=E.fromstring(vz.read('wpmz/waylines.wpml'));vf=[e.text for e in vx.iter() if e.tag.rsplit('}',1)[-1]=='actionActuatorFunc'];assert vf.count('startRecord')==vf.count('stopRecord')==1 and 'takePhoto' not in vf
+ va=c.call('planner-archive',video);assert len(va['ids'])==1
+ video['plan']['params']['captureMode']='photo';c.call('planner-archive',video,expected=409)
+ print('PASS: video draft persistence, endpoint grid export and archive mode conflict')
  print('PASS: planner catalog, preview, draft CAS/reopen, device profile, KMZ/section ZIP, archive idempotency/linkage, customer/foreign-project denial, delete guard and OSM bounds')
 if __name__=='__main__':main()
