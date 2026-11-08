@@ -1,8 +1,14 @@
 <?php
 // Eigene Kartenebenen. Nach der Anmeldung geladen; Schreiben nur für den Eigentümer, Lesen für alle Kartennutzer.
-if(in_array($action,['layers','layer-save','layer-upload','layer-delete','layer-data','layer-order','wmts-capabilities'],true)){
- if($action==='layer-data'&&$method==='GET'){
+if(in_array($action,['layers','layer-save','layer-upload','layer-delete','layer-data','layer-order','layer-project','layer-original','wmts-capabilities'],true)){
+ if(in_array($action,['layer-data','layer-original'],true)&&$method==='GET'){
   $row=stmt('SELECT * FROM map_layers WHERE id=? AND kind=?',[(string)($_GET['id']??''),'vector'])->fetch();if(!$row)problem('Ebene nicht gefunden.',404);
+  $row['config']=json_decode($row['config'],true,32,JSON_THROW_ON_ERROR);if(!dm_layer_visible($db,$row,$current))problem('Kein Zugriff auf diese Projektkarte.',403);
+  if($action==='layer-original'){
+   owner();$source=$row['config']['source']??null;if(!$source)problem('Für diese ältere Ebene ist keine Originaldatei gespeichert.',404);
+   $path=dm_private().'/blobs/'.$source['sha256'].'.reference';if(!is_file($path)||!hash_equals($source['sha256'],hash_file('sha256',$path)))problem('Original fehlt oder ist beschädigt.',500);
+   stream_file($path,'application/octet-stream',$source['filename']);
+  }
   $path=dm_private().'/blobs/'.$row['hash'].'.geojson';if(!is_file($path)||!hash_equals($row['hash'],hash_file('sha256',$path)))problem('Ebene fehlt oder ist beschädigt.',500);
   stream_file($path,'application/geo+json','ebene.geojson',true);
  }
@@ -26,21 +32,34 @@ if(in_array($action,['layers','layer-save','layer-upload','layer-delete','layer-
   else{$id=dm_id();stmt('INSERT INTO map_layers(id,kind,name,config,hash,ordinal,created) VALUES(?,?,?,?,NULL,?,?)',[$id,'tile',$name,json_encode($config,JSON_THROW_ON_ERROR),(int)stmt('SELECT COALESCE(MAX(ordinal),0)+1 FROM map_layers')->fetchColumn(),gmdate('c')]);}
   respond(['ok'=>true,'id'=>$id]);
  }
+ if($action==='layer-project'){
+  $id=(string)($input['id']??'');$row=stmt('SELECT * FROM map_layers WHERE id=? AND kind=?',[$id,'vector'])->fetch();if(!$row)problem('Ebene nicht gefunden.',404);
+  $c=json_decode($row['config'],true,32,JSON_THROW_ON_ERROR);$folder=($input['folder']??null)?:null;may_folder($folder,true);$c['folder']=$folder;
+  stmt('UPDATE map_layers SET config=? WHERE id=?',[json_encode($c,JSON_THROW_ON_ERROR),$id]);respond(['ok'=>true]);
+ }
  if($action==='layer-upload'){
+  $folder=($input['folder']??null)?:null;may_folder($folder,true);
   $f=$_FILES['file']??null;if(!$f||$f['error']!==UPLOAD_ERR_OK||!is_uploaded_file($f['tmp_name'])||$f['size']>8388608)problem('GeoJSON-Datei fehlt oder ist größer als 8 MB.');
   $raw=file_get_contents($f['tmp_name']);$geo=json_decode($raw,true,64);if(!is_array($geo)||($geo['type']??'')!=='FeatureCollection'||!is_array($geo['features']??null))problem('Die Datei ist keine GeoJSON-FeatureCollection.');
   if(count($geo['features'])>20000)problem('Maximal 20000 Objekte je Ebene.');
   $clean=['type'=>'FeatureCollection','features'=>[]];$allowed=['Point','MultiPoint','LineString','MultiLineString','Polygon','MultiPolygon'];
   foreach($geo['features'] as $feature){if(!is_array($feature)||!is_array($feature['geometry']??null)||!in_array($feature['geometry']['type']??'',$allowed,true)||!isset($feature['geometry']['coordinates']))continue;
-   $props=[];foreach((array)($feature['properties']??[]) as $k=>$v){if(count($props)>=40)break;if(is_scalar($v)||$v===null)$props[dm_text((string)$k,60)]=is_string($v)?mb_substr($v,0,500):$v;}
-   $clean['features'][]=['type'=>'Feature','geometry'=>['type'=>$feature['geometry']['type'],'coordinates'=>$feature['geometry']['coordinates']],'properties'=>$props];}
+   $props=[];foreach((array)($feature['properties']??[]) as $k=>$v){if(count($props)>=40)break;if(is_scalar($v)||$v===null)$props[dm_text((string)$k,60)]=is_string($v)?implode('',array_slice(preg_split('//u',$v,-1,PREG_SPLIT_NO_EMPTY)?:[],0,500)):$v;}
+   $geometry=dm_layer_geometry($feature['geometry']);$clean['features'][]=['type'=>'Feature','geometry'=>$geometry,'properties'=>$props];}
   if(!$clean['features'])problem('Keine darstellbaren Objekte (Punkte, Linien, Flächen in WGS84) gefunden.');
   $json=json_encode($clean,JSON_THROW_ON_ERROR);if(strlen($json)>16777216)problem('Ebene ist nach der Bereinigung größer als 16 MB.');
   $hash=hash('sha256',$json);$path=dm_private().'/blobs/'.$hash.'.geojson';if(!is_file($path)&&file_put_contents($path,$json,LOCK_EX)===false)throw new RuntimeException('Ebene nicht gespeichert.');
   $name=dm_text($input['name']??'',60);if($name==='')$name=dm_text(pathinfo($f['name'],PATHINFO_FILENAME),60)?:'Ebene';
   $color=dm_text($input['color']??'#2f8f4e',9);if(!preg_match('/^#[0-9a-fA-F]{6}$/',$color))$color='#2f8f4e';
   if((int)stmt('SELECT COUNT(*) FROM map_layers')->fetchColumn()>=30)problem('Maximal 30 eigene Ebenen.');
-  $id=dm_id();stmt('INSERT INTO map_layers(id,kind,name,config,hash,ordinal,created) VALUES(?,?,?,?,?,?,?)',[$id,'vector',$name,json_encode(['color'=>$color,'features'=>count($clean['features']),'attribution'=>dm_text($input['attribution']??'',300)],JSON_THROW_ON_ERROR),$hash,(int)stmt('SELECT COALESCE(MAX(ordinal),0)+1 FROM map_layers')->fetchColumn(),gmdate('c')]);
+  $source=null;$sf=$_FILES['source']??null;
+  if($sf&&$sf['error']!==UPLOAD_ERR_NO_FILE){
+   if($sf['error']!==UPLOAD_ERR_OK||!is_uploaded_file($sf['tmp_name'])||$sf['size']>8388608)problem('Originaldatei fehlt oder ist größer als 8 MB.');
+   $original=basename(str_replace('\\','/',$sf['name']));if(!in_array(strtolower(pathinfo($original,PATHINFO_EXTENSION)),['kmz','kml','geojson','json','zip'],true))problem('Originalformat nicht unterstützt.');
+   $sh=hash_file('sha256',$sf['tmp_name']);$sp=dm_private().'/blobs/'.$sh.'.reference';if(!is_file($sp)&&!move_uploaded_file($sf['tmp_name'],$sp))throw new RuntimeException('Original nicht gespeichert.');chmod($sp,0600);
+   if(!hash_equals($sh,hash_file('sha256',$sp)))throw new RuntimeException('Original-Prüfsumme stimmt nicht.');$source=['filename'=>$original,'sha256'=>$sh,'bytes'=>(int)$sf['size']];
+  }
+  $id=dm_id();stmt('INSERT INTO map_layers(id,kind,name,config,hash,ordinal,created) VALUES(?,?,?,?,?,?,?)' ,[$id,'vector',$name,json_encode(['folder'=>$folder,'source'=>$source,'color'=>$color,'features'=>count($clean['features']),'attribution'=>dm_text($input['attribution']??'',300)],JSON_THROW_ON_ERROR),$hash,(int)stmt('SELECT COALESCE(MAX(ordinal),0)+1 FROM map_layers')->fetchColumn(),gmdate('c')]);
   respond(['ok'=>true,'id'=>$id,'features'=>count($clean['features'])]);
  }
  if($action==='layer-order'){
@@ -96,4 +115,15 @@ function dm_wmts_layers(string $xml,string $capabilitiesUrl): array {
  }
  if(!$out)problem('Keine Ebene mit Web-Mercator-Kacheln (EPSG:3857) im Dienst gefunden.');
  return $out;
+}
+
+// Validate every coordinate before storing client-converted KML/GeoJSON; never trust browser conversion alone.
+function dm_layer_geometry(array $g): array {
+ $depth=match($g['type']){'Point'=>0,'MultiPoint','LineString'=>1,'MultiLineString','Polygon'=>2,'MultiPolygon'=>3,default=>throw new InvalidArgumentException('Geometrie nicht unterstützt.')};
+ $vertices=0;$walk=function($c,int $level)use(&$walk,&$vertices){
+  if(!is_array($c)||!array_is_list($c))throw new InvalidArgumentException('Koordinatenformat prüfen.');
+  if($level===0){if(count($c)<2||count($c)>3)throw new InvalidArgumentException('Koordinaten benötigen Länge und Breite.');foreach($c as $v)if(!is_numeric($v)||!is_finite((float)$v))throw new InvalidArgumentException('Ungültige Koordinaten.');if(abs((float)$c[0])>180||abs((float)$c[1])>90)throw new InvalidArgumentException('WGS84-Koordinaten in Grad erwartet.');if(++$vertices>100000)throw new InvalidArgumentException('Zu viele Koordinaten.');return array_map('floatval',$c);}
+  if(!$c)throw new InvalidArgumentException('Leere Geometrie.');return array_map(fn($v)=>$walk($v,$level-1),$c);
+ };
+ return ['type'=>$g['type'],'coordinates'=>$walk($g['coordinates'],$depth)];
 }

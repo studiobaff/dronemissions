@@ -27,7 +27,7 @@ function dmMapControls(map,base,roads,overlays={}){
  const control=L.control({position:'topright'});let root,zoneLayer=null,dataset=null,enabled=false,sequence=0,showOutsideDates=false,addressMarker=null,addressResults=[];
  const filters=new Set(Object.keys(dmZoneKinds));
  const status=()=>root.querySelector('.zone-status');
- const syncInputs=()=>{root.querySelectorAll('[data-map-base]').forEach(input=>input.checked=map.hasLayer(base[input.value]));root.querySelector('[data-roads]').checked=map.hasLayer(roads);root.querySelectorAll('[data-overlay]').forEach(input=>{const o=overlays[input.dataset.overlay];input.checked=Boolean(o&&o.layer&&map.hasLayer(o.layer));});};
+ const syncInputs=()=>{root.querySelectorAll('[data-map-base]').forEach(input=>input.checked=map.hasLayer(base[input.value]));root.querySelector('[data-roads]').checked=map.hasLayer(roads);root.querySelectorAll('[data-overlay]').forEach(input=>{const o=overlays[input.dataset.overlay];if(o?.layer)input.checked=map.hasLayer(o.layer);});};
  function showZonesAt(latlng,force=false,label=''){
   if((!enabled||!dataset)&&!force||picking)return;
   const found=enabled&&dataset?dataset.zones.filter(z=>filters.hasdmZoneCategory(z)&&(showOutsideDates||dmZoneInDate(z))&&(z.geometry||[]).some(g=>dmZoneContains(g.horizontalProjection,latlng.lng,latlng.lat))):[];
@@ -56,7 +56,7 @@ function dmMapControls(map,base,roads,overlays={}){
   root.addEventListener('change',e=>{
    const input=e.target;if(input.matches('[data-map-base]')){Object.values(base).forEach(layer=>map.removeLayer(layer));base[input.value].addTo(map);map.fire('baselayerchange',{name:input.value,layer:base[input.value]});}
    if(input.matches('[data-roads]')){if(input.checked)roads.addTo(map);else map.removeLayer(roads);map.fire(input.checked?'overlayadd':'overlayremove',{layer:roads});}
-   if(input.matches('[data-overlay]')){const o=overlays[input.dataset.overlay];if(!o)return;if(input.checked){Promise.resolve(o.layer||(o.load&&o.load())).then(layer=>{if(!layer)return;o.layer=layer;layer.addTo(map);map.fire('overlayadd',{layer,name:o.label});}).catch(err=>{input.checked=false;if(typeof toast==='function')toast(err.message,true);});}else if(o.layer){map.removeLayer(o.layer);map.fire('overlayremove',{layer:o.layer,name:o.label});}}
+   if(input.matches('[data-overlay]')){const o=overlays[input.dataset.overlay];if(!o)return;if(input.checked){Promise.resolve(o.layer||(o.load&&o.load())).then(layer=>{if(!layer||!input.checked||map.dmDisposed||!map._loaded)return;o.layer=layer;layer.addTo(map);map.fire('overlayadd',{layer,name:o.label});}).catch(err=>{input.checked=false;if(typeof toast==='function')toast(err.message,true);});}else if(o.layer){map.removeLayer(o.layer);map.fire('overlayremove',{layer:o.layer,name:o.label});}}
    if(input.matches('[data-zones]')){enabled=input.checked;root.querySelector('.zone-filters').hidden=!enabled;if(enabled)loadZones();else{sequence++;drawZones();map.closePopup();status().textContent='Geozonen ausgeblendet.';}}
    if(input.matches('[data-outside-dates]')){showOutsideDates=input.checked;map.closePopup();drawZones();}
    if(input.matches('[data-kind]')){if(input.checked)filters.add(input.dataset.kind);else filters.delete(input.dataset.kind);map.closePopup();drawZones();}
@@ -64,7 +64,7 @@ function dmMapControls(map,base,roads,overlays={}){
   root.querySelector('.address-results').onclick=e=>{e.stopPropagation();const button=e.target.closest('[data-address-result]');if(!button)return;const item=addressResults[Number(button.dataset.addressResult)];if(!item)return;if(addressMarker)map.removeLayer(addressMarker);addressMarker=L.marker([item.lat,item.lng]).addTo(map).bindTooltip(esc(item.label)).on('click',()=>showZonesAt(L.latLng(item.lat,item.lng),true,item.label));map.setView([item.lat,item.lng],17);root.querySelector('.address-status').textContent='Adresse auf der Karte markiert.';root.querySelector('.address-results').innerHTML='';root.querySelector('details').open=false;showZonesAt(L.latLng(item.lat,item.lng),true,item.label);};
   root.querySelector('[data-retry]').onclick=()=>{dmZoneRequest=null;loadZones();};return root;
  };
- control.addTo(map);syncInputs();map.on('layeradd layerremove',syncInputs);map.on('click',e=>showZonesAt(e.latlng));
+ control.addTo(map);for(const [id,o] of Object.entries(overlays))if(o.defaultOn){const input=[...root.querySelectorAll('[data-overlay]')].find(e=>e.dataset.overlay===id);if(input){input.checked=true;input.dispatchEvent(new Event('change',{bubbles:true}));}}syncInputs();map.on('layeradd layerremove',syncInputs);map.on('click',e=>showZonesAt(e.latlng));
  /* Die Leiste darf nie über die Karte hinauslaufen: Körperhöhe aus der tatsächlichen Kartenhöhe ableiten, danach scrollt sie. */
  const fit=()=>{const body=root&&root.querySelector('.map-panel-body');if(!body)return;const h=map.getSize().y;body.style.maxHeight=Math.max(140,Math.min(360,h-86))+'px';};fit();map.on('resize',fit);
  map.on('unload',()=>{sequence++;map.off('layeradd layerremove',syncInputs);});return control;

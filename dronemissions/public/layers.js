@@ -18,7 +18,7 @@
  async function loadList() {
   const list = el('layer-list'); if (!list) return;
   try {
-   const { layers } = await api('layers'); list.replaceChildren();
+   const { layers } = await api('layers'); list.replaceChildren(); el('vector-folder').innerHTML=folderOptions(folder).replace('Ohne Projektordner','Global · alle Karten und Freigaben');
    if (!layers.length) { list.textContent = 'Noch keine eigenen Ebenen. Die eingebauten Karten (basemap.at, OpenStreetMap, Esri) bleiben immer verfügbar.'; return; }
    const note = document.createElement('p'); note.className = 'hint'; note.textContent = 'Reihenfolge wie hier: so erscheinen die Ebenen in der Kartenwahl; Overlays weiter unten in der Liste liegen auf der Karte weiter oben.'; list.append(note);
    for (const l of layers) {
@@ -27,6 +27,7 @@
     const text = document.createElement('div'); text.className = 'layer-text';
     const strong = document.createElement('strong'); strong.textContent = l.name; text.append(strong);
     const span = document.createElement('span'); span.textContent = l.kind === 'vector' ? `Vektor · ${l.config.features} Objekte${l.config.attribution ? ' · ' + l.config.attribution : ''}` : `${l.config.overlay ? 'Overlay' : 'Hintergrund'} · ${l.config.url}${l.config.keyHint ? ' · Schlüssel ' + l.config.keyHint : ''}`; text.append(span); item.append(text);
+    if(l.kind==='vector'){const select=document.createElement('select');select.setAttribute('aria-label','Projektzuordnung für '+l.name);select.innerHTML=folderOptions(l.config.folder).replace('Ohne Projektordner','Global · alle Karten und Freigaben');select.value=l.config.folder||'';select.onchange=()=>run(async()=>{await api('layer-project',{id:l.id,folder:select.value});await refresh();await loadList();},select);item.append(select);if(l.config.source){const a=document.createElement('a');a.className='btn btn-outline btn-sm';a.href='api.php?action=layer-original&id='+encodeURIComponent(l.id);a.textContent='Original';item.append(a);}}
     if (l.kind === 'tile') { const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'btn btn-outline btn-sm'; edit.textContent = 'Bearbeiten'; edit.onclick = () => { editing = l.id; el('layer-preset').value = ''; el('layer-name').value = l.name; el('layer-url').value = l.config.url; el('layer-key').value = ''; el('layer-key').placeholder = l.config.keyHint ? 'gespeichert (' + l.config.keyHint + '), leer lassen zum Behalten' : ''; el('layer-attribution').value = l.config.attribution || ''; el('layer-maxzoom').value = l.config.maxZoom || 19; el('layer-opacity').value = l.config.opacity ?? 1; el('layer-overlay').checked = Boolean(l.config.overlay); el('layer-save').textContent = 'Änderung speichern'; document.querySelector('.layer-add').open = true; el('layer-name').focus(); }; item.append(edit); }
     const order = document.createElement('span'); order.className = 'layer-order';
     for (const [label, delta, title] of [['▲', -1, 'Nach oben (weiter unten im Stapel)'], ['▼', 1, 'Nach unten (weiter oben im Stapel)']]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-icon btn-xs'; b.textContent = label; b.title = title; b.setAttribute('aria-label', title); b.disabled = (delta < 0 && layers[0] === l) || (delta > 0 && layers[layers.length - 1] === l); b.onclick = () => run(async () => { const ids = layers.map(x => x.id), i = ids.indexOf(l.id); ids.splice(i, 1); ids.splice(i + delta, 0, l.id); await api('layer-order', { ids }); await loadList(); await refresh(); }, b); order.append(b); }
@@ -58,7 +59,7 @@
    const file = el('vector-file').files[0]; if (!file) { tell('vector-status', 'Bitte eine Datei wählen.', true); return; }
    try {
     tell('vector-status', 'Datei wird gelesen …'); const geo = await toGeoJSON(file);
-    const fd = new FormData(); fd.set('name', el('vector-name').value.trim() || file.name.replace(/\.[^.]+$/, '')); fd.set('color', el('vector-color').value); fd.set('attribution', el('vector-attribution').value.trim()); fd.set('file', new Blob([JSON.stringify(geo)], { type: 'application/geo+json' }), 'ebene.geojson');
+    const fd = new FormData(); fd.set('name', el('vector-name').value.trim() || file.name.replace(/\.[^.]+$/, '')); fd.set('folder',el('vector-folder').value); fd.set('source',file); fd.set('color', el('vector-color').value); fd.set('attribution', el('vector-attribution').value.trim()); fd.set('file', new Blob([JSON.stringify(geo)], { type: 'application/geo+json' }), 'ebene.geojson');
     const result = await api('layer-upload', fd, true); tell('vector-status', `${result.features} Objekte gespeichert.`); el('vector-file').value = ''; el('vector-name').value = ''; await loadList(); await refresh();
    } catch (err) { tell('vector-status', err.message, true); }
   }, e.target);
@@ -107,7 +108,7 @@
    for (const d of p.querySelectorAll('ExtendedData Data')) { const k = d.getAttribute('name'); if (k) props[k] = d.querySelector('value')?.textContent?.trim() || ''; }
    features.push({ type: 'Feature', geometry: gs.length === 1 ? gs[0] : { type: 'GeometryCollection', geometries: gs }, properties: props }); }
   for (const f of features) if (f.geometry.type === 'GeometryCollection') { const g = f.geometry.geometries; const types = new Set(g.map(x => x.type)); if (types.size === 1) { const t = [...types][0]; f.geometry = { type: 'Multi' + t, coordinates: g.map(x => x.coordinates) }; } else f.geometry = g[0]; }
-  if (!features.length) throw Error('KML enthält keine Punkte, Linien oder Flächen.');
+  if (!features.length) throw Error(doc.getElementsByTagName('NetworkLink').length?'Diese KMZ enthält nur einen Online-Verweis. Bitte in Google My Maps die tatsächlichen Kartendaten als KML/KMZ exportieren.':'KML enthält keine Punkte, Linien oder Flächen.');
   return { type: 'FeatureCollection', features };
  }
  function shpToGeoJSON(shp, dbf) {

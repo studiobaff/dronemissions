@@ -25,3 +25,9 @@ Geräteverhalten ist getrennt: DJI Fly kann ein importiertes Titelbild nach dem 
 ## Ordner im Archiv
 
 Archivieren behält die Projektzuordnung bei. Die Archivansicht gruppiert Missionen und archivierte Planungspunkte deshalb nach dem vollständigen Ordnerpfad. Ordnergruppen lassen sich per Maus oder Tastatur auf- und zuklappen; die aufgeklappten Gruppen werden während der Sitzung gemerkt. Eine Namenssuche klappt passende Gruppen auf. Auch leere archivierte Ordner bleiben sichtbar. Aktive Projektansichten weisen auf ausgeblendete archivierte Missionen hin; ein nicht leerer Ordner lässt sich weiterhin nicht versehentlich löschen.
+
+## Vorhandene POIs
+
+Aktive WPML-Blickziele erscheinen auf der Missionskarte, in der automatisch gezeichneten SVG-Vorschau und im 3D-/Karteneditor als beschriftete lila Rauten. Wiederholte Verweise werden zusammengefasst; inaktive Platzhalter und reine Kameraausrichtungen erzeugen keine POIs. WPML verwendet Breite, Länge, Höhe. Für ältere Archiv-KMZs liest der Detaildialog die POIs bei Bedarf aus dem geprüften Original nach, ohne Version oder Original zu ändern.
+
+3D zeigt POIs als horizontale Lage auf der unteren Routenebene, da der Höhenbezug nicht zugesichert ist. Bestehende Fotos und gespeicherte Bilder werden nicht automatisch überzeichnet: bei Bedarf im Editor ein zusätzliches Vorschaubild erzeugen. Kundenlinks erhalten weiterhin nur den ausgewählten Navigationspunkt, keine privaten POIs.

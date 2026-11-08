@@ -70,6 +70,7 @@ try {
   owner();$id=(string)($input['id']??'');may_folder($id,true);$db->beginTransaction();$f=stmt('SELECT * FROM folders WHERE id=?',[$id])->fetch();
   if(!$f||$f['name']!==($input['name']??null)||$f['parent']!==(($input['parent']??null)?:null)){$db->rollBack();problem('Ordner wurde inzwischen geändert. Bitte neu laden.',409);}
   foreach(['SELECT COUNT(*) FROM folders WHERE parent=?','SELECT COUNT(*) FROM missions WHERE folder=?','SELECT COUNT(*) FROM points WHERE folder=?'] as $sql)if((int)stmt($sql,[$id])->fetchColumn()){$db->rollBack();problem('Ordner ist nicht leer. Inhalte zuerst verschieben oder den Ordner archivieren.',409);}
+  foreach(dm_layers($db) as $layer)if(($layer['config']['folder']??null)===$id){$db->rollBack();problem('Projekt enthält noch Kartenreferenzen. Diese zuerst entfernen oder anders zuordnen.',409);}
   stmt('DELETE FROM shares WHERE folder=?',[$id]);stmt('DELETE FROM folders WHERE id=?',[$id]);$db->commit();respond(['ok'=>true]);
  }
  if($action==='folder-archive'&&$method==='POST'){$id=(string)($input['id']??'');may_folder($id,true);stmt('UPDATE folders SET archived=? WHERE id=?',[(int)(bool)($input['archived']??false),$id]);respond(['ok'=>true]);}

@@ -156,6 +156,7 @@
      <button id="map-toggle" type="button" aria-pressed="false" title="Alle Missionen auf der Karte"><svg class="icon"><use href="#i-map"/></svg><span>Karte</span></button>
     </div>
     <label id="subfolders-control" class="check hidden"><input id="include-subfolders" type="checkbox" checked><span>Unterordner einbeziehen</span></label>
+    <button id="project-reference" class="btn btn-outline hidden" type="button">Projektkarte …</button>
     <button id="add-point" class="btn btn-outline hidden" type="button"><svg class="icon"><use href="#i-crosshair"/></svg><span>Planungspunkt</span></button>
    </div>
   </div>
@@ -206,6 +207,7 @@
      </details>
     </details>
     <details class="layer-add"><summary>Vektor-Ebene hochladen</summary>
+     <label class="field"><span>Projektkarte für</span><select id="vector-folder"></select></label><p class="hint">Projektkarten erscheinen in diesem Projekt und seinen Unterordnern. Für Kundenlinks bleiben sie privat. Das Original wird mitgesichert; es entsteht keine Flugmission.</p>
      <label class="field"><span>Datei <em>GeoJSON, KML, KMZ oder Shapefile als ZIP (WGS84), bis 8 MB</em></span><input id="vector-file" type="file" accept=".geojson,.json,.kml,.kmz,.zip,application/geo+json,application/json,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz,application/zip"></label>
      <div class="layer-row"><label class="field"><span>Name</span><input id="vector-name" maxlength="60" placeholder="z. B. Naturschutzgebiete NÖ"></label><label class="field"><span>Farbe</span><input id="vector-color" type="color" value="#2f8f4e"></label></div>
      <label class="field"><span>Quellenangabe</span><input id="vector-attribution" maxlength="300" placeholder="z. B. Umweltbundesamt · CC BY 4.0"></label>
