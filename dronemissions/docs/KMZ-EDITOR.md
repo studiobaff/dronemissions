@@ -38,3 +38,24 @@ python3 dronemissions/tests/kmz-editor-api.py --base http://127.0.0.1:18764/dron
 Die Tests prüfen Original-/Asset-Erhalt, Aktionen und POIs, Vorlagen-/Höhenkonsistenz, Strukturverweise, ungültige Änderungen, neue Versionen, alte Downloads, konkurrierende Änderungen, Vorschauhistorie, Projektkartenpunkt und Rechte/CSRF. API-Tests erlauben ausschließlich eine isolierte Loopback-Testinstallation mit synthetischen Missionen.
 
 Browserprüfung am 8.11.2026: Ziehen, Dezimalhöhe, Löschen, Einfügen, Undo/Redo, Speichern und erneutes Öffnen (84,5 m bestätigt), Desktop 1280×720 und iPad-Größe 1024×768. Keine JavaScript-Fehler in diesem Durchlauf. Keine Geräte- oder Flugprüfung; bearbeitete Missionen vor Ausführung in DJI Fly kontrollieren.
+
+## Oberfläche im Stil des Missionsplaners (8. November 2026)
+
+Der Editor verwendet dieselben Dialogmaße, Farben, kompakten Knöpfe und
+Werkzeuggruppen wie der Missionsplaner. Links stehen die Punktwahl sowie
+aufklappbare Abschnitte für Position/Höhe, Aktionen und Hinweise. Die 310 px breite
+Seitenleiste ist vergrößerbar und über den Knopf rechts oben auf der Karte ausblendbar.
+Auf schmalen Bildschirmen steht die Karte über den scrollbaren Punktdetails.
+
+- Links auf der Karte: Rückgängig, Wiederholen, Zwischenpunkt einfügen, Punkt löschen.
+- Rechts: Route zentrieren und Seitenleiste ein-/ausblenden; darunter die Kartenwahl.
+- Höhe: direkt eingeben oder in Schritten von einem Meter ändern. Die Anzeige nennt
+  weiterhin den ursprünglichen Höhenbezug (kein AGL).
+- Unten auf der Karte: Punktzahl, Änderungszustand und ausgewählter Punkt mit Höhe.
+- Schließen und „Als neue Version speichern“ bleiben sichtbar. Das Original bleibt erhalten.
+
+Die Änderung betrifft die Oberfläche; API, KMZ-Verarbeitung, Rechteprüfung und
+Versionsschutz bleiben gleich. Browserprüfung mit synthetischer Mission: Auswahl,
+Höhe 66 → 67 m, Rückgängig/Wiederholen, Einfügen/Löschen, Marker ziehen mit
+Rückgängig, Seitenleiste ein-/ausblenden, Speichern als V4 und Wiederöffnen mit 67 m.
+Desktop und 430 × 860 px geprüft. Der reale iPad-Test bleibt separat ausstehend.
