@@ -58,3 +58,21 @@ Was Codex als Nächstes tun soll: PR #33 prüfen, KMZ-Editor nach
 - Template am Anfang (`dlg.innerHTML`), danach der Zusammenbau: Slider-Leiste (`.pl-flight-controls`), obere Werkzeuge (`.pl-top-tools`), Stepper (`.pl-stepper`), Startort-Panel, Footprint- und Prüfen-Knopf. `setStage()` blendet in Schritt 3 Werkzeugleisten und Umriss-Gruppe aus und setzt `pl-stage-review`.
 - `editState()` hält den Zustand von „Ecken bearbeiten“ (`aria-pressed`, Tooltip). `syncViewButtons()` markiert die aktive Ansicht.
 - Keine neuen API-Aufrufe; `input()`, `showResult()`, `typeFields()` und die Höhenreferenz-Funktionen sind unverändert.
+
+## Codex-Abnahme · 8. November 2026
+
+PR #33 wurde gegen den vorhandenen KMZ-Editor geprüft. Im isolierten Testarchiv
+bestehen `planner-api.py` einschließlich KMZ-Editor-Rundlauf, Versionsschutz und
+Berechtigungsprüfungen. Browserprüfung mit synthetischem Entwurf: Grid, automatische
+Höhenänderung (60 → 80 m), Umrissecke ziehen, Doppelhelix/Halbkugel, 3D, Höhenprofil,
+Foto/Video, Prüfseite und 430-Pixel-Ansicht. Keine JavaScript-Konsolenfehler.
+
+Kleine Nachkorrekturen auf separatem Review-Branch:
+- Video blendet nur die Fotopause aus; Kameramodell und Bildformat bleiben zugänglich.
+- Reglerbeschriftungen und Höhenfeldtexte verwenden das umgebende Feld auch nach
+  dem Einfügen der Plus/Minus-Knöpfe.
+- Koordinatenschritte für den Routenbeginn betragen 0,000001° statt eines ganzen Grads.
+- Auf schmalen Bildschirmen liegt die Ansichtsleiste oberhalb der Ergebnisanzeige.
+
+Berechnung und KMZ-Editor bleiben unverändert. Der reale iPad-Test der bearbeiteten
+KMZ ist auf Wunsch des Eigentümers verschoben. Keine Änderung der Repo-Sichtbarkeit.
