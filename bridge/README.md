@@ -1,4 +1,4 @@
-# Drone Missions Bridge 0.6
+# dronemissions-bridge 0.6
 
 Lokale Mac-Oberfläche für DJI-KMZ-Dateien. Der Kern verwendet für Android separat installiertes ADB; der iPad/iPhone-Adapter verwendet pymobiledevice3 über USB. Keine Injector-Bibliotheken werden gebündelt.
 
@@ -140,3 +140,14 @@ Die Oberfläche folgt den Gestaltungsgrundsätzen aus Apples WWDC-Vorträgen (Ve
 - **Archivbild als Titelbild**: Missionen aus dem Webarchiv bringen ihre Vorschau mit (Routenzeichnung als SVG oder Bild aus dem Vorschau-Editor). Sie wird als JPEG abgelegt, ist Standard-Titelbild für Archivmissionen und steht als vierte Option „Archivbild“ neben 3D-Ansicht, Luftbild und eigenem Bild; für lokale Dateien ist die Option ausgeblendet.
 
 Tests dazu: `tests/test_theme.py` (beide Schemata ohne offene Platzhalter, Icons, Symbolleiste, Infoblock) und `tests/test_queue.py` (Archivbild als Listenbild und Titelbild). Gesamt 89 Tests, ohne Gerät.
+
+## Name, Wortmarke und Gerätebilder (0.6.0, Nachtrag)
+
+- **Name**: Die App heißt wie die Web-App-Marke: `dronemissions-bridge` (Fenstertitel, Über-Dialog, Bundle-Name `dronemissions-bridge.app`). Einstellungen und Schlüsselbund behalten ihre bisherigen Kennungen, gespeicherte Schlüssel bleiben gültig. Die alte „Drone Missions Bridge.app“ kann nach der Installation gelöscht werden. Die Web-App trägt im Fenstertitel ebenfalls `dronemissions`.
+- **Wortmarke** links in der Symbolleiste wie auf der Website: Zeichen auf dunklem Grund, „drone“ fett, „missions“ normal, dazu „-bridge“, engere Laufweite.
+- **Symbolleiste wie macOS 26**: Icon im Kreis, Beschriftung darunter; Knöpfe als Kapseln, Schritte als Kapseln, Felder stärker gerundet; Infoblock mit Rahmen. Die dunkle Palette ist neutral grau mit grünem Akzent. Nach Apples Human Interface Guidelines (Toolbars, Buttons, Segmented Controls, gelesen 2026-11-08): einfarbige Symbolleiste ohne getönte Knöpfe, je Ansicht nur ein hervorgehobener Knopf (in Schritt 1 ist das „Neu anlegen“, „Ausgewählte ersetzen“ ist jetzt ein normaler Knopf), Auslassungspunkte bei Knöpfen, die ein weiteres Fenster öffnen, Tooltips für jedes Segment.
+- **Gerätebilder**: „Missionen lesen“ liest auf dem iPad jetzt auch DJI Flys Titelbild je Mission (JPEG, gleiches Lesebudget wie die KMZ-Dateien). Fehlt das Bild auf dem Gerät, zeigt die Liste das Vorschaubild der identischen Archivmission (Tooltip nennt die Quelle).
+- **Vorschauen ins Webarchiv**: Für angehakte (sonst alle sichtbaren) Missionen mit Gerätebild und identischer Archivkopie speichert der Knopf das DJI-Fly-Titelbild als aktive Vorschau im Webarchiv (Vorschau-Editor, Modus „Foto“, über `preview-save` mit Revision und Version). KMZ-Dateien und bisherige Vorschauen bleiben erhalten; bei zwischenzeitlichen Änderungen im Archiv lehnt der Server ab und nichts wird überschrieben.
+- **Schritt 4 vor der Übertragung**: Die Warteschlange ist dort schon sichtbar; „Aus Warteschlange entfernen“ nimmt den markierten Auftrag heraus, ohne die Prüfung der übrigen zu verwerfen. Während der Übertragung ist Entfernen gesperrt.
+
+Tests: 97, davon neu iPad-Bildlesen (`test_ios.py`), `save_preview` gegen den API-Fake (`test_archive.py`), Archivbild-Rückfall, Vorschau-Sync und Entfernen in Schritt 4 (`test_queue.py`).

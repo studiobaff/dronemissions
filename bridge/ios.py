@@ -145,7 +145,15 @@ async def list_missions(serial,work):
             result=[];total=0
             for uid,name,count,distance,updated in rows:
                 path=f'{BASE}/{uid}/{uid}.kmz';local=path in found
-                mission={'uuid':uid,'name':name,'waypoints':count,'distance':distance,'updated':updated,'localState':'local' if local else 'cloud-or-missing','preview':f'{BASE}/map_preview/{uid}/{uid}.jpg' in found}
+                image=f'{BASE}/map_preview/{uid}/{uid}.jpg';mission={'uuid':uid,'name':name,'waypoints':count,'distance':distance,'updated':updated,'localState':'local' if local else 'cloud-or-missing','preview':image in found}
+                if mission['preview']:
+                    # DJI Flys Titelbild für die Liste mitlesen; kleine JPEGs, gleiches Gesamtbudget wie die KMZ-Dateien.
+                    try:
+                        stat=await afc.stat(image);size=int(stat.get('st_size',0))
+                        if 0<size<=3*1024*1024 and total+size<=64*1024*1024:
+                            raw=await afc.get_file_contents(image);total+=len(raw)
+                            if raw.startswith(b'\xff\xd8'):mission['image']=raw
+                    except Exception:pass
                 if local:
                     try:
                         stat=await afc.stat(path);size=int(stat.get('st_size',0))

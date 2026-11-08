@@ -35,11 +35,11 @@ class Tests(unittest.TestCase):
         from core import digest
         with tempfile.TemporaryDirectory() as t:
             p=Path(t);db=database(p/'db.sqlite');afc=Afc(db)
-            afc.content[ios.BASE+'/original/original.kmz']=fixture()
+            afc.content[ios.BASE+'/original/original.kmz']=fixture();afc.content[ios.BASE+'/map_preview/original/original.jpg']=b'\xff\xd8titelbild'
             @asynccontextmanager
             async def fake_connect(serial):yield afc,'container','test-version'
             with patch.object(ios,'connect',fake_connect):rows=asyncio.run(ios.list_missions('demo',p/'reads'))
-            self.assertEqual(rows[0]['sha256'],digest(fixture()));self.assertEqual(rows[0]['updated'],'1')
+            self.assertEqual(rows[0]['sha256'],digest(fixture()));self.assertEqual(rows[0]['updated'],'1');self.assertTrue(rows[0]['preview']);self.assertEqual(rows[0]['image'],b'\xff\xd8titelbild')
             self.assertEqual(afc.content[ios.DB],db)
 
     def test_new_row_preserves_original(self):

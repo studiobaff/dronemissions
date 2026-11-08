@@ -177,3 +177,42 @@ class QueueTests(test_desktop.DesktopCase):
         w.settings_dialog.close()
 
 if __name__=='__main__':unittest.main()
+
+@unittest.skipUnless(HAS_QT,'Desktop dependencies not installed')
+class DeviceListTests(QueueTests.__bases__[0]):
+    def test_run_tab_removes_an_entry_without_dropping_other_plans(self):
+        w=self.window;self.select('ios')
+        with tempfile.TemporaryDirectory() as t,patch('desktop.QMessageBox.information'):
+            for n in ('A','B','C'):
+                path=Path(t)/(n+'.kmz');path.write_bytes(KMZ);w.add_entry(path)
+            w.prepare();QueueTests.wait_review(self);w.tabs.setCurrentIndex(TAB_RUN);self.assertFalse(w.run_remove_button.isEnabled())
+            w.run_list.setCurrentRow(1);self.assertTrue(w.run_remove_button.isEnabled());w.remove_run_selected()
+            self.assertEqual([e['name'] for e in w.queue],['A','C']);self.assertEqual([e['status'] for e in w.queue],['prepared','prepared']);self.assertEqual(w.stack.currentIndex(),1);self.assertEqual(w.review_list.count(),2)
+            w.closed.setChecked(True);self.assertTrue(w.apply_button.isEnabled())
+            calls=[]
+            def apply_new(serial,source,name,preview,dest,fly_closed,replace=None):return {'name':name}
+            def run(job):calls.append(job['name']);return {'uuid':'u-'+job['name'],'status':'verified'}
+            with patch.object(desktop_module.ios,'apply_new',apply_new),patch.object(desktop_module.ios,'run',run):
+                w.execute();QueueTests.wait(self,lambda:not (w.job and w.job.isRunning()),'execute')
+            self.assertEqual(calls,['A','C']);w.run_list.setCurrentRow(0);w.remove_run_selected();self.assertEqual([e['name'] for e in w.queue],['C'])
+    def test_device_rows_fall_back_to_the_archive_picture_and_sync_previews_to_the_archive(self):
+        from core import digest
+        from PySide6.QtGui import QPixmap
+        w=self.window;self.select('ios');sha=digest(KMZ);saved=[];reloaded=[]
+        class FakeClient:
+            role='owner';folders=[]
+            def __init__(self,url=''):self.missions=[]
+            def login(self,key):pass
+            def library(self):reloaded.append(1);self.missions=[mission('m1','Rundflug','f1','Demo','2026-11-07T10:00:00+00:00')|{'sha256':sha,'revision':2}];return self.missions
+            def preview(self,m):return b'<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>','image/svg+xml'
+            def save_preview(self,m,image,title=None):saved.append((m['id'],image,title));return {'ok':True,'revision':3}
+        w.archive=FakeClient();w.archive_rows=w.archive.library();pix=QPixmap(4,4);pix.fill(Qt.red);w.archive_rows[0]['pixmap']=pix
+        rows=[{'uuid':UID,'name':'Ohne Bild','waypoints':2,'localState':'local','preview':False,'sha256':sha},{'uuid':UID.replace('A','B'),'name':'Mit Bild','waypoints':2,'localState':'local','preview':True,'sha256':sha,'image':b'\xff\xd8bild'},{'uuid':UID.replace('A','C'),'name':'Fremd','waypoints':2,'localState':'local','preview':True,'sha256':'andere','image':b'\xff\xd8x'}]
+        w.show_rows(w.device.currentData(),rows)
+        pictures=[widget.findChildren(type(w.brand))[0] for m,widget in w.device_rows_widgets]
+        self.assertIn('Webarchiv',pictures[0].toolTip());self.assertEqual(pictures[1].toolTip(),'');self.assertEqual(pictures[2].toolTip(),'')
+        self.assertEqual([m['name'] for m,_ in w.preview_sync_candidates()],['Mit Bild']);self.assertTrue(w.sync_preview_button.isEnabled())
+        with patch('desktop.QMessageBox.question',return_value=QMessageBox.Yes):
+            w.sync_previews_to_archive();QueueTests.wait(self,lambda:not (w.job and w.job.isRunning()),'sync')
+        self.assertEqual(saved,[('m1',b'\xff\xd8bild','Mit Bild')]);self.assertGreaterEqual(len(reloaded),2);self.assertIn('1 Vorschau(en)',w.status.text())
+        w.archive=None;w.update_checked();self.assertFalse(w.sync_preview_button.isEnabled())

@@ -10,7 +10,7 @@ from test_core import fixture
 
 KMZ=fixture();SHA=hashlib.sha256(KMZ).hexdigest()
 LIBRARY={'role':'owner','folders':[{'id':'f1','parent':None,'name':'Demo'},{'id':'f2','parent':'f1','name':'Süd'}],
- 'missions':[{'id':'m1','name':'Rundflug','folder':'f2','archived':False,'filename':'a.kmz','sha256':SHA,'bytes':len(KMZ),'versionId':'v1','version':2,'updated':'2026-11-07T10:00:00+00:00','details':{'sourceFormat':'dji-kmz','count':2,'distance':150.0}},
+ 'missions':[{'id':'m1','name':'Rundflug','folder':'f2','revision':2,'archived':False,'filename':'a.kmz','sha256':SHA,'bytes':len(KMZ),'versionId':'v1','version':2,'updated':'2026-11-07T10:00:00+00:00','details':{'sourceFormat':'dji-kmz','count':2,'distance':150.0}},
   {'id':'m2','name':'Projekt','folder':None,'archived':True,'filename':'b.mproj','sha256':'x','bytes':10,'versionId':'v2','version':1,'updated':'','details':{'sourceFormat':'mapcreator-project','count':None,'distance':0}}]}
 
 class Handler(BaseHTTPRequestHandler):
@@ -32,6 +32,9 @@ class Handler(BaseHTTPRequestHandler):
   if action=='upload':
    body=self.rfile.read(0);raw=self.raw_body;assert b'name="kmz"; filename="a.kmz"' in raw and b'name="name"\r\n\r\nRundflug' in raw and b'name="folder"\r\n\r\nf2' in raw and b'name="preview"; filename="preview.jpg"' in raw and KMZ in raw,'multipart body'
    return self.send(200,b'{"id":"m3","version":1}')
+  if action=='preview-save':
+   raw=self.raw_body;assert b'name="id"\r\n\r\nm1' in raw and b'name="revision"\r\n\r\n2' in raw and b'name="sourceVersion"\r\n\r\nv1' in raw and b'"mode": "photo"' in raw and b'name="image"; filename="vorschau.jpg"' in raw and b'name="photo"; filename="foto.jpg"' in raw and b'\xff\xd8bild' in raw,'preview multipart'
+   return self.send(200,b'{"ok":true,"image":"p1","revision":3}')
   if action=='login':
    if body.get('password')!='richtig':return self.send(401,b'{"error":"Zugangsschl\\u00fcssel nicht korrekt."}')
    self.state['logged']=True;self.state['csrf']='token-2';return self.send(200,json.dumps({'ok':True,'csrf':'token-2'}).encode())
@@ -78,6 +81,13 @@ class UploadTests(Tests):
   with self.assertRaises(BridgeError):c.upload('Groß','b.kmz',b'x'*(16*1024*1024+1))
 
 if __name__=='__main__':unittest.main()
+
+class PreviewSyncTests(Tests):
+ def test_save_preview_posts_photo_mode_with_revision_and_version(self):
+  c=ArchiveClient(self.url);c.login('richtig');rows=c.library();self.assertEqual(rows[0]['revision'],2)
+  result=c.save_preview(rows[0],b'\xff\xd8bild','Rundflug');self.assertEqual(result['image'],'p1');self.assertEqual(rows[0]['revision'],3)
+  with self.assertRaisesRegex(BridgeError,'JPEG'):c.save_preview(rows[0],b'<svg/>')
+  with self.assertRaisesRegex(BridgeError,'Version'):c.save_preview({**rows[0],'revision':0},b'\xff\xd8bild')
 
 class MoveTests(unittest.TestCase):
  def test_move_uses_revision_and_verifies_same_file_and_id(self):

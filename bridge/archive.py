@@ -80,6 +80,19 @@ class ArchiveClient:
   fields={'name':name[:200],'folder':folder or ''};files={'kmz':(safe_filename(filename,'Mission.kmz'),raw,'application/vnd.google-earth.kmz')}
   if preview and preview.startswith(b'\xff\xd8') and len(preview)<=3*1024*1024:files['preview']=('preview.jpg',preview,'image/jpeg')
   result=self._request('upload',multipart=(fields,files));self.library();return result
+ def save_preview(self,mission,image:bytes,title:str|None=None):
+  """Gerätebild (JPEG) als aktive Vorschau einer bestehenden Archivmission speichern (Vorschau-Editor, Modus „Foto“).
+
+  Nutzt die geladene Revision und Version; bei Änderungen im Archiv antwortet der Server mit 409 und nichts wird überschrieben.
+  """
+  if not image or not image.startswith(b'\xff\xd8'):raise BridgeError('Kein JPEG-Vorschaubild vom Gerät.')
+  if len(image)>3*1024*1024:raise BridgeError('Vorschaubild ist größer als 3 MB.')
+  revision=mission.get('revision');version=mission.get('versionId')
+  if not isinstance(revision,int) or revision<1 or not version:raise BridgeError('Archiv-Version fehlt. Bitte Bibliothek neu laden.')
+  settings={'mode':'photo','title':(title or mission.get('name') or '')[:200],'provider':'map','yaw':0,'pitch':0,'zoom':1,'x':0,'y':0,'mapZoom':15}
+  fields={'id':mission['id'],'revision':str(revision),'sourceVersion':version,'settings':json.dumps(settings)}
+  files={'image':('vorschau.jpg',image,'image/jpeg'),'photo':('foto.jpg',image,'image/jpeg')}
+  result=self._request(f'preview-save&id={urllib.parse.quote(mission["id"])}',multipart=(fields,files));mission['revision']=int(result.get('revision') or revision+1);return result
  def preview(self,mission):
   payload,content_type=self._request(f'preview&id={urllib.parse.quote(mission["id"])}&version={urllib.parse.quote(str(mission.get("versionId") or ""))}',raw=True,limit=3*1024*1024)
   return payload,content_type

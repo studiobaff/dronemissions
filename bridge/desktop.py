@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from PySide6.QtCore import QThread,Signal,QSettings,QStandardPaths,Qt,QUrl,QTimer,QSize,QRectF
 from PySide6.QtGui import QDesktopServices,QPixmap,QPainter,QColor,QFont,QIcon,QAction,QKeySequence,QImage
-from PySide6.QtWidgets import (QLayout,QToolBar,QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,QDialog,
+from PySide6.QtWidgets import (QLayout,QToolBar,QToolButton,QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,QDialog,
  QLabel,QPushButton,QComboBox,QLineEdit,QFileDialog,QListWidget,QListWidgetItem,QPlainTextEdit,QTreeWidget,QTreeWidgetItem,
  QMessageBox,QCheckBox,QStackedWidget,QFrame,QProgressBar,QTabWidget,QTabBar,QButtonGroup,QSizePolicy,QScrollArea,QInputDialog,QSplitter)
 from PySide6.QtSvg import QSvgRenderer
@@ -25,6 +25,7 @@ import ios
 import theme
 
 VERSION='0.6.0'
+APP_NAME='dronemissions-bridge'  # Wortmarke wie die Web-App: drone·missions, dazu -bridge
 THUMB=QSize(176,118)
 TAB_DEVICE,TAB_ARCHIVE,TAB_TRANSFER,TAB_RUN=0,1,2,3
 STEP_TITLES=['Gerät wählen','Missionen auswählen','Vorschauen prüfen','Übertragen']
@@ -119,7 +120,8 @@ class ArchiveRow(QWidget):
 
 class MissionRow(QWidget):
  """Eine Zeile der Geräteliste: Hakerl, Vorschaubild, Name, Wegpunkte, Bestand, Archivstatus."""
- def __init__(self,label,mission,image=None,checked=False,on_toggle=None):
+ def __init__(self,label,mission,image=None,checked=False,on_toggle=None,fallback=None):
+  """image: JPEG vom Gerät; fallback: fertiges Pixmap (Archivbild der identischen Archivmission), wenn das Gerät kein Bild hat."""
   super().__init__();layout=QHBoxLayout(self);layout.setContentsMargins(10,8,10,8);layout.setSpacing(16)
   self.check=QCheckBox();self.check.setChecked(checked);self.check.setToolTip('Für „Im Webarchiv sichern“ auswählen')
   if on_toggle:self.check.toggled.connect(lambda state:on_toggle(mission['uuid'],state))
@@ -127,6 +129,7 @@ class MissionRow(QWidget):
   picture=QLabel();picture.setFixedSize(THUMB);picture.setObjectName('thumb');picture.setAlignment(Qt.AlignCenter)
   pixmap=QPixmap()
   if image and pixmap.loadFromData(image):picture.setPixmap(pixmap.scaled(THUMB,Qt.KeepAspectRatioByExpanding,Qt.SmoothTransformation))
+  elif fallback is not None and not fallback.isNull():picture.setPixmap(fallback.scaled(THUMB,Qt.KeepAspectRatioByExpanding,Qt.SmoothTransformation));picture.setToolTip('Vorschaubild aus dem Webarchiv (identische KMZ); auf dem Gerät fehlt das Bild.')
   else:picture.setPixmap(placeholder(THUMB,'Kein Vorschaubild'))
   layout.addWidget(picture)
   text=QVBoxLayout();text.setSpacing(4);title=QLabel(label);title.setObjectName('rowTitle');title.setWordWrap(True);text.addWidget(title)
@@ -154,7 +157,7 @@ class QueueRow(QWidget):
 
 class Window(QMainWindow):
  def __init__(self,autosearch=True,credential_store=None,client_factory=None,root=None):
-  super().__init__();self.setWindowTitle(f'Drone Missions Bridge · {VERSION}');self.setWindowIcon(app_icon());self.resize(1240,860);self.setMinimumSize(1020,720)
+  super().__init__();self.setWindowTitle(f'{APP_NAME} · {VERSION}');self.setWindowIcon(app_icon());self.resize(1240,860);self.setMinimumSize(1020,720)
   # root: Anwendungsdatenordner; Tests übergeben einen temporären Ordner, damit weder names.json noch Sicherungen des Nutzers berührt werden.
   self.settings=QSettings('studiobaff','DroneMissionsBridge');self.root=Path(root) if root else Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation));self.root.mkdir(parents=True,exist_ok=True)
   self.rows=[];self.registry={};self.job=None;self.prepared=None;self.stop_requested=False
@@ -176,11 +179,18 @@ class Window(QMainWindow):
  def build_header(self,outer):
   """Symbolleiste wie in macOS-Programmen: Gerät links, Aktionen mit Icon und Beschriftung rechts."""
   bar=QToolBar('Hauptfunktionen');bar.setMovable(False);bar.setFloatable(False);bar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon);bar.setIconSize(QSize(22,22));bar.setContextMenuPolicy(Qt.PreventContextMenu);self.toolbar=bar;self.addToolBar(Qt.TopToolBarArea,bar)
-  holder=QWidget();row=QHBoxLayout(holder);row.setContentsMargins(4,0,12,0);row.setSpacing(8);row.addWidget(QLabel('Gerät'))
+  holder=QWidget();row=QHBoxLayout(holder);row.setContentsMargins(4,0,12,0);row.setSpacing(8)
+  # Wortmarke wie in der Web-App: Zeichen auf dunklem Grund, „drone“ fett, „missions“ normal, dazu „-bridge“.
+  mark=QLabel();mark.setObjectName('brandMark');mark.setFixedSize(30,30);mark.setPixmap(app_icon().pixmap(30,30));row.addWidget(mark)
+  self.brand=QLabel(f'<span style="font-weight:700">drone</span><span style="font-weight:400">missions</span><span style="font-weight:400">-bridge</span>');self.brand.setObjectName('brandName');self.brand.setTextFormat(Qt.RichText);row.addWidget(self.brand);row.addSpacing(14);row.addWidget(QLabel('Gerät'))
   self.device=QComboBox();self.device.setMinimumHeight(40);self.device.setMinimumWidth(300);self.device.currentIndexChanged.connect(self.changed_device);row.addWidget(self.device,1);bar.addWidget(holder)
-  self.tool_actions={}
+  self.tool_actions={};self.tool_buttons={}
   def add(name,text,slot,icon_name):
-   action=QAction(text,self);action.triggered.connect(lambda *_:slot());action.setProperty('iconName',icon_name);bar.addAction(action);self.tool_actions[name]=action;return bar.widgetForAction(action)
+   # Wie in macOS 26: Icon im Kreis, Beschriftung darunter. Die QAction hält Icon und Zustand, der Kreis-Knopf löst sie aus.
+   action=QAction(text,self);action.triggered.connect(lambda *_:slot());action.setProperty('iconName',icon_name);self.tool_actions[name]=action
+   box=QWidget();box.setObjectName('toolAction');column=QVBoxLayout(box);column.setContentsMargins(6,2,6,2);column.setSpacing(3)
+   button=QToolButton();button.setObjectName('circleButton');button.setDefaultAction(action);button.setToolButtonStyle(Qt.ToolButtonIconOnly);button.setIconSize(QSize(20,20));button.setAutoRaise(False);button.setToolTip(text);button.setText(text);button.setCursor(Qt.PointingHandCursor);column.addWidget(button,0,Qt.AlignHCenter)
+   label=QLabel(text);label.setObjectName('toolLabel');label.setAlignment(Qt.AlignHCenter);column.addWidget(label);bar.addWidget(box);self.tool_buttons[name]=button;return button
   self.refresh_button=add('refresh','Neu suchen',self.refresh_devices,'refresh');add('list','Missionen lesen',self.list_missions,'list');add('backup','Gerät sichern',self.backup,'backup');bar.addSeparator()
   add('log','Protokoll',self.show_log,'log');add('settings','Einstellungen',self.show_settings,'settings')
   self.theme_changed(theme.scheme_for(QApplication.instance()))
@@ -192,9 +202,9 @@ class Window(QMainWindow):
   self.setProperty('dmScheme',scheme)
  def key_values(self,rows):
   """Infoblock wie im Festplattendienstprogramm: Schlüssel links in Grau, Wert rechts, Zeilen durch feine Linien getrennt."""
-  box=QWidget();layout=QVBoxLayout(box);layout.setContentsMargins(0,4,0,0);layout.setSpacing(0)
-  for key,value in rows:
-   frame=QFrame();frame.setObjectName('kvRow');row=QHBoxLayout(frame);row.setContentsMargins(0,7,0,7);row.setSpacing(12)
+  box=QFrame();box.setObjectName('kvBox');layout=QVBoxLayout(box);layout.setContentsMargins(12,2,12,2);layout.setSpacing(0)
+  for n,(key,value) in enumerate(rows):
+   frame=QFrame();frame.setObjectName('kvRow');frame.setProperty('last','true' if n==len(rows)-1 else 'false');row=QHBoxLayout(frame);row.setContentsMargins(0,8,0,8);row.setSpacing(12)
    label=QLabel(key);label.setObjectName('kvKey');label.setMinimumWidth(96);row.addWidget(label);value.setObjectName('kvValue');value.setAlignment(Qt.AlignRight|Qt.AlignTop);row.addWidget(value,1);layout.addWidget(frame)
   return box
  def card(self,parent_layout,stretch=0):
@@ -213,23 +223,24 @@ class Window(QMainWindow):
   self.list_note=QLabel('Gerät oben wählen und die Liste lesen: Bild, Wegpunkte und Bestand jeder Mission.');self.list_note.setObjectName('muted');self.list_note.setWordWrap(True);text.addWidget(self.list_note);row.addLayout(text,1)
   self.list_button=QPushButton('Missionen lesen');self.list_button.clicked.connect(self.list_missions);row.addWidget(self.list_button)
   self.backup_button=QPushButton('Gerät sichern');self.backup_button.setObjectName('quiet');self.backup_button.clicked.connect(self.backup);row.addWidget(self.backup_button);card.addLayout(row)
-  tools=QHBoxLayout();self.device_search=QLineEdit();self.device_search.setPlaceholderText('Name oder Kennung suchen …');self.device_search.textChanged.connect(self.render_device_list);tools.addWidget(self.device_search,1)
-  self.device_local_only=QCheckBox('Nur lokal vorhanden');self.device_local_only.setToolTip('Nur Missionen mit heruntergeladener KMZ anzeigen; reine Cloud-Einträge ausblenden.');self.device_local_only.setChecked(self.settings.value('deviceLocalOnly',False,type=bool));self.device_local_only.toggled.connect(self.local_filter_changed);tools.addWidget(self.device_local_only)
-  self.device_cloud_only=QCheckBox('Nur Cloud');self.device_cloud_only.setToolTip('Einträge ohne lokale KMZ; zum Herunterladen in DJI Fly öffnen.');self.device_cloud_only.toggled.connect(self.cloud_filter_changed);tools.addWidget(self.device_cloud_only)
-  self.device_unsaved_only=QCheckBox('Nicht im Webarchiv');self.device_unsaved_only.setEnabled(False);self.device_unsaved_only.setToolTip('Nach Anmeldung: lokale Dateien ohne identische Prüfsumme im geladenen Archivbestand.');self.device_unsaved_only.toggled.connect(self.unsaved_filter_changed);tools.addWidget(self.device_unsaved_only)
+  tools=QHBoxLayout();self.device_search=QLineEdit();self.device_search.setMinimumWidth(220);self.device_search.setPlaceholderText('Name oder Kennung suchen …');self.device_search.textChanged.connect(self.render_device_list);tools.addWidget(self.device_search,1)
+  self.device_local_only=QCheckBox('Nur lokal vorhanden');self.device_local_only.setToolTip('Nur Missionen mit heruntergeladener KMZ anzeigen; reine Cloud-Einträge ausblenden.');self.device_local_only.setChecked(self.settings.value('deviceLocalOnly',False,type=bool));self.device_local_only.toggled.connect(self.local_filter_changed)
+  self.device_cloud_only=QCheckBox('Nur Cloud');self.device_cloud_only.setToolTip('Einträge ohne lokale KMZ; zum Herunterladen in DJI Fly öffnen.');self.device_cloud_only.toggled.connect(self.cloud_filter_changed)
+  self.device_unsaved_only=QCheckBox('Nicht im Webarchiv');self.device_unsaved_only.setEnabled(False);self.device_unsaved_only.setToolTip('Nach Anmeldung: lokale Dateien ohne identische Prüfsumme im geladenen Archivbestand.');self.device_unsaved_only.toggled.connect(self.unsaved_filter_changed)
   self.select_all=QCheckBox('Alle sichtbaren');self.select_all.setTristate(True);self.select_all.toggled.connect(self.toggle_all_visible);tools.addWidget(self.select_all)
   self.checked_label=QLabel('0 ausgewählt');self.checked_label.setObjectName('muted');tools.addWidget(self.checked_label)
-  self.save_web_button=QPushButton('Im Webarchiv sichern …');self.save_web_button.setEnabled(False);self.save_web_button.clicked.connect(self.save_to_archive);tools.addWidget(self.save_web_button);card.addLayout(tools)
+  self.save_web_button=QPushButton('Im Webarchiv sichern …');self.save_web_button.setEnabled(False);self.save_web_button.clicked.connect(self.save_to_archive);tools.addWidget(self.save_web_button)
+  self.sync_preview_button=QPushButton('Vorschauen ins Webarchiv');self.sync_preview_button.setObjectName('quiet');self.sync_preview_button.setEnabled(False);self.sync_preview_button.setToolTip('DJI-Fly-Titelbilder der angehakten (sonst aller sichtbaren) Missionen, die identisch im Webarchiv liegen, dort als Vorschau speichern.');self.sync_preview_button.clicked.connect(self.sync_previews_to_archive);tools.addWidget(self.sync_preview_button);card.addLayout(tools)
   sorting=QHBoxLayout();sorting.addWidget(QLabel('Sortieren nach'));self.device_sort=QComboBox()
   for text,key in [('Gerätereihenfolge','device'),('Name A–Z','name-asc'),('Name Z–A','name-desc'),('Datum: neueste zuerst','date-desc'),('Datum: älteste zuerst','date-asc'),('Strecke: kürzeste zuerst','distance-asc'),('Strecke: längste zuerst','distance-desc'),('Wegpunkte: wenige zuerst','points-asc'),('Wegpunkte: viele zuerst','points-desc')]:self.device_sort.addItem(text,key)
-  saved=self.device_sort.findData(self.settings.value('deviceSort','device'));self.device_sort.setCurrentIndex(max(0,saved));self.device_sort.currentIndexChanged.connect(lambda _:(self.settings.setValue('deviceSort',self.device_sort.currentData()),self.render_device_list()));sorting.addWidget(self.device_sort);sorting.addStretch();self.device_count=QLabel('');self.device_count.setObjectName('muted');sorting.addWidget(self.device_count);card.addLayout(sorting)
+  saved=self.device_sort.findData(self.settings.value('deviceSort','device'));self.device_sort.setCurrentIndex(max(0,saved));self.device_sort.currentIndexChanged.connect(lambda _:(self.settings.setValue('deviceSort',self.device_sort.currentData()),self.render_device_list()));sorting.addWidget(self.device_sort);sorting.addSpacing(10);sorting.addWidget(self.device_local_only);sorting.addWidget(self.device_cloud_only);sorting.addWidget(self.device_unsaved_only);sorting.addStretch();self.device_count=QLabel('');self.device_count.setObjectName('muted');sorting.addWidget(self.device_count);card.addLayout(sorting)
   self.list=QListWidget();self.list.setObjectName('missions');self.list.setSelectionMode(QListWidget.SingleSelection);self.list.setSpacing(4);self.list.setUniformItemSizes(False);self.list.itemSelectionChanged.connect(self.changed_target);self.list.itemDoubleClicked.connect(lambda _:self.start_replace());card.addWidget(self.list,1)
   self.list_empty=QLabel('Noch keine Missionen gelesen.');self.list_empty.setObjectName('emptyList');self.list_empty.setAlignment(Qt.AlignCenter);card.addWidget(self.list_empty,1)
   actions=QHBoxLayout();self.selected_label=QLabel('Kein Eintrag ausgewählt.');self.selected_label.setObjectName('muted');self.selected_label.setWordWrap(True);actions.addWidget(self.selected_label,1)
   self.cloud_download_button=QPushButton('So lädst du Cloud-Missionen herunter …');self.cloud_download_button.setObjectName('quiet');self.cloud_download_button.setEnabled(False);self.cloud_download_button.clicked.connect(self.cloud_download_help);actions.addWidget(self.cloud_download_button)
   self.rename_button=QPushButton('Umbenennen …');self.rename_button.setObjectName('quiet');self.rename_button.setEnabled(False);self.rename_button.clicked.connect(self.rename_selected);actions.addWidget(self.rename_button)
   self.new_button=QPushButton('Neu anlegen  ▸');self.new_button.setObjectName('primary');self.new_button.clicked.connect(self.start_new);actions.addWidget(self.new_button)
-  self.replace_button=QPushButton('Ausgewählte ersetzen  ▸');self.replace_button.setObjectName('primary');self.replace_button.setEnabled(False);self.replace_button.clicked.connect(self.start_replace);actions.addWidget(self.replace_button);card.addLayout(actions)
+  self.replace_button=QPushButton('Ausgewählte ersetzen  ▸');self.replace_button.setToolTip('Die markierte, lokal vorhandene Mission als Ziel eines Ersetzen-Auftrags vormerken.');self.replace_button.setEnabled(False);self.replace_button.clicked.connect(self.start_replace);actions.addWidget(self.replace_button);card.addLayout(actions)
 
  def build_archive_tab(self):
   layout=self.tab('')
@@ -272,7 +283,7 @@ class Window(QMainWindow):
   self.queue_clear=QPushButton('Leeren');self.queue_clear.setObjectName('quiet');self.queue_clear.setEnabled(False);self.queue_clear.clicked.connect(self.clear_queue);qa.addWidget(self.queue_clear);qa.addStretch();left.addLayout(qa)
   right=self.card(columns,3);self.editor=QWidget();self.editor.setMinimumWidth(520);ev=QVBoxLayout(self.editor);ev.setContentsMargins(0,0,0,0);ev.setSpacing(12);right.addWidget(self.editor,1)
   mode=QHBoxLayout();mode.setSpacing(6);self.mode_group=QButtonGroup(self);self.mode_group.setExclusive(True)
-  self.mode_new=QPushButton('Neu anlegen');self.mode_replace=QPushButton('Ersetzen')
+  self.mode_new=QPushButton('Neu anlegen');self.mode_new.setToolTip('Neue Mission mit eigener Kennung anlegen; bestehende bleiben unverändert.');self.mode_replace=QPushButton('Ersetzen');self.mode_replace.setToolTip('Einen bestehenden Eintrag nach Sicherung ersetzen; braucht ein Ziel aus Schritt 1.')
   for i,button in enumerate([self.mode_new,self.mode_replace]):button.setCheckable(True);button.setObjectName('segment');self.mode_group.addButton(button,i);mode.addWidget(button)
   mode.addStretch();ev.addLayout(mode);self.mode_group.idClicked.connect(lambda i:self.set_mode('replace' if i else 'new'))
   self.mode_note=QLabel();self.mode_note.setObjectName('hintBox');self.mode_note.setWordWrap(True);ev.addWidget(self.mode_note)
@@ -289,7 +300,7 @@ class Window(QMainWindow):
   label=QLabel('Missionsname');label.setObjectName('sectionTitle');grid.addWidget(label,0,1);self.name=QLineEdit();self.name.setPlaceholderText('Zum Beispiel: Baustelle Nord · Panorama');self.name.setMaxLength(200);self.name.textChanged.connect(self.name_edited);grid.addWidget(self.name,1,1)
   self.name_note=QLabel('Titel im Vorschaubild; auf dem iPad auch Listenname in DJI Fly. Auf Android ist der Listenname nicht setzbar.');self.name_note.setObjectName('muted');self.name_note.setWordWrap(True);grid.addWidget(self.name_note,2,1);grid.setColumnStretch(0,1);grid.setColumnStretch(1,1);ev.addLayout(grid)
   pv=QHBoxLayout();label=QLabel('Titelbild');label.setObjectName('sectionTitle');pv.addWidget(label);self.preview_group=QButtonGroup(self);self.preview_group.setExclusive(True)
-  self.preview_3d=QPushButton('3D-Ansicht');self.preview_map=QPushButton('Luftbild');self.preview_image_button=QPushButton('Eigenes Bild …');self.preview_archive=QPushButton('Archivbild');self.preview_archive.setToolTip('Vorschaubild aus dem Webarchiv (Routenzeichnung oder Bild aus dem Vorschau-Editor) als Titelbild.')
+  self.preview_3d=QPushButton('3D-Ansicht');self.preview_3d.setToolTip('Route schräg mit echten Wegpunkthöhen, offline.');self.preview_map=QPushButton('Luftbild');self.preview_map.setToolTip('Route auf dem Orthofoto; braucht Internet.');self.preview_image_button=QPushButton('Eigenes Bild …');self.preview_image_button.setToolTip('Eigenes Foto als Hintergrund wählen.');self.preview_archive=QPushButton('Archivbild');self.preview_archive.setToolTip('Vorschaubild aus dem Webarchiv (Routenzeichnung oder Bild aus dem Vorschau-Editor) als Titelbild.')
   for i,button in enumerate([self.preview_3d,self.preview_map,self.preview_image_button,self.preview_archive]):button.setCheckable(True);button.setObjectName('segment');self.preview_group.addButton(button,i);pv.addWidget(button)
   pv.addStretch();ev.addLayout(pv);self.preview_group.idClicked.connect(lambda i:self.set_preview_mode(['3d','map','image','archive'][i]))
   self.preview_label=QLabel();self.preview_label.setObjectName('muted');self.preview_label.setWordWrap(True);ev.addWidget(self.preview_label)
@@ -316,10 +327,11 @@ class Window(QMainWindow):
   head=QHBoxLayout();text=QVBoxLayout();text.setSpacing(2);title=QLabel('Übertragung');title.setObjectName('pageTitle');text.addWidget(title)
   self.run_note=QLabel('Die Warteschlange wird seriell auf das gewählte Gerät übertragen: sichern, schreiben, zurücklesen, dann die nächste Mission. Bei einem Fehler stoppt die Übertragung.');self.run_note.setObjectName('muted');self.run_note.setWordWrap(True);text.addWidget(self.run_note);head.addLayout(text,1)
   self.run_progress=QLabel('');self.run_progress.setObjectName('progressText');head.addWidget(self.run_progress);card.addLayout(head)
-  self.run_list=QListWidget();self.run_list.setObjectName('missions');self.run_list.setSpacing(4);self.run_list.setSelectionMode(QListWidget.NoSelection);card.addWidget(self.run_list,1)
+  self.run_list=QListWidget();self.run_list.setObjectName('missions');self.run_list.setSpacing(4);self.run_list.setSelectionMode(QListWidget.SingleSelection);self.run_list.currentRowChanged.connect(lambda *_:self.update_run_buttons());card.addWidget(self.run_list,1)
   self.run_empty=QLabel('Noch nichts übertragen. In Schritt 3 die Vorschauen prüfen und „Jetzt übertragen“ wählen.');self.run_empty.setObjectName('emptyList');self.run_empty.setAlignment(Qt.AlignCenter);self.run_empty.setWordWrap(True);card.addWidget(self.run_empty,1)
   row=QHBoxLayout();self.stop_button=QPushButton('Nach dem aktuellen Auftrag anhalten');self.stop_button.setObjectName('quiet');self.stop_button.setEnabled(False);self.stop_button.clicked.connect(self.request_stop);row.addWidget(self.stop_button)
-  self.retry_button=QPushButton('Fehlgeschlagene erneut prüfen …');self.retry_button.setObjectName('quiet');self.retry_button.setEnabled(False);self.retry_button.clicked.connect(self.retry_failed);row.addWidget(self.retry_button);row.addStretch()
+  self.retry_button=QPushButton('Fehlgeschlagene erneut prüfen …');self.retry_button.setObjectName('quiet');self.retry_button.setEnabled(False);self.retry_button.clicked.connect(self.retry_failed);row.addWidget(self.retry_button)
+  self.run_remove_button=QPushButton('Aus Warteschlange entfernen');self.run_remove_button.setObjectName('quiet');self.run_remove_button.setEnabled(False);self.run_remove_button.setToolTip('Den markierten Auftrag vor der Übertragung entfernen; die übrigen geprüften Aufträge bleiben bereit.');self.run_remove_button.clicked.connect(self.remove_run_selected);row.addWidget(self.run_remove_button);row.addStretch()
   self.resume_button=QPushButton('Fortsetzen  ▸');self.resume_button.setObjectName('primary');self.resume_button.setEnabled(False);self.resume_button.clicked.connect(self.execute);row.addWidget(self.resume_button);card.addLayout(row)
 
  def build_settings_dialog(self):
@@ -352,7 +364,7 @@ class Window(QMainWindow):
   self.adb_note=QLabel('Eingebautes ADB aus den Android Platform-Tools 37.0.1, Prüfsumme bestätigt.' if bundled and not saved else ('Eigener ADB-Pfad aus den Einstellungen.' if saved else 'Kein ADB gefunden. Für die Fernsteuerung ADB wählen; iPad/iPhone funktioniert ohne.'));self.adb_note.setObjectName('muted');self.adb_note.setWordWrap(True);card.addWidget(self.adb_note)
   card=self.card(layout);self.heading(card,'Ablage','Sicherungen, Transferjournale, Übertragungskopien und geladene Archivdateien liegen im Anwendungsdatenordner.')
   row=QHBoxLayout();button=QPushButton('Ordner öffnen');button.clicked.connect(lambda:QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.root))));row.addWidget(button);path=QLabel(str(self.root));path.setObjectName('ident');path.setWordWrap(True);row.addWidget(path,1);card.addLayout(row)
-  label=QLabel(f'Drone Missions Bridge {VERSION} · GPL-3.0-or-later · Lizenzen im Programmpaket. Dateiprüfung ist keine Bestätigung eines nutzbaren Flugplans.');label.setObjectName('muted');label.setWordWrap(True);layout.addWidget(label)
+  label=QLabel(f'{APP_NAME} {VERSION} · GPL-3.0-or-later · Lizenzen im Programmpaket. Dateiprüfung ist keine Bestätigung eines nutzbaren Flugplans.');label.setObjectName('muted');label.setWordWrap(True);layout.addWidget(label)
   layout.addStretch();foot=QHBoxLayout();foot.setContentsMargins(24,10,24,16);foot.addStretch();close=QPushButton('Schließen');close.clicked.connect(d.close);foot.addWidget(close);outer.addLayout(foot)
   self.archive_restore_key()
  def build_log_dialog(self):
@@ -378,9 +390,9 @@ class Window(QMainWindow):
   transfer=bar.addMenu('Übertragen');add(transfer,'Vorschauen erzeugen und prüfen',self.prepare,'Ctrl+Return');add(transfer,'Jetzt übertragen',self.execute,'Ctrl+Shift+Return');transfer.addSeparator();add(transfer,'Modus: Neu anlegen',lambda:self.set_mode('new'));add(transfer,'Modus: Ersetzen',lambda:self.set_mode('replace'));transfer.addSeparator();add(transfer,'Warteschlange leeren',self.clear_queue)
   ansicht=bar.addMenu('Ansicht')
   for i,title in enumerate(STEP_TITLES):add(ansicht,f'{i+1}  {title}',lambda i=i:self.tabs.setCurrentIndex(i),f'Ctrl+{i+1}')
-  hilfe=bar.addMenu('Hilfe');add(hilfe,'Anleitung (README)',lambda:QDesktopServices.openUrl(QUrl('https://github.com/studiobaff/dronemissions/blob/main/dronemissions/docs/BRIDGE.md')));add(hilfe,'Über Drone Missions Bridge',self.about,None,QAction.AboutRole)
+  hilfe=bar.addMenu('Hilfe');add(hilfe,'Anleitung (README)',lambda:QDesktopServices.openUrl(QUrl('https://github.com/studiobaff/dronemissions/blob/main/dronemissions/docs/BRIDGE.md')));add(hilfe,'Über '+APP_NAME,self.about,None,QAction.AboutRole)
  def about(self):
-  QMessageBox.about(self,'Über Drone Missions Bridge',f'<b>Drone Missions Bridge {VERSION}</b><br>Überträgt DJI-KMZ-Missionen aus dem Webarchiv per USB auf iPad, iPhone oder DJI-Fernsteuerung.<br><br>GPL-3.0-or-later · Lizenzen im Programmpaket.<br>Dateiprüfung ist keine Bestätigung eines nutzbaren Flugplans.')
+  QMessageBox.about(self,'Über '+APP_NAME,f'<b>{APP_NAME} {VERSION}</b><br>Überträgt DJI-KMZ-Missionen aus dem Webarchiv per USB auf iPad, iPhone oder DJI-Fernsteuerung.<br><br>GPL-3.0-or-later · Lizenzen im Programmpaket.<br>Dateiprüfung ist keine Bestätigung eines nutzbaren Flugplans.')
 
  # ---------- Zustand ----------
  def log_line(self,text):self.log.appendPlainText(datetime.now().strftime('%H:%M:%S')+'  '+text)
@@ -440,6 +452,7 @@ class Window(QMainWindow):
   self.queue_list.blockSignals(False);has=bool(self.queue);self.queue_list.setVisible(has);self.queue_empty.setVisible(not has);self.editor.setEnabled(has);self.queue_remove.setEnabled(self.entry() is not None);self.queue_clear.setEnabled(has);self.prepare_button.setEnabled(has)
   prepared=sum(1 for e in self.queue if e['plan']);self.queue_count.setText(f'{len(self.queue)} Mission(en)'+(f' · {prepared} geprüft' if prepared else ''))
   self.tabs.setTabEnabled(TAB_RUN,bool(self.queue));self.update_steps()
+  if hasattr(self,'run_list') and not (self.job and self.job.isRunning()):self.render_run_list()  # Schritt 4 zeigt die Warteschlange schon vor der Übertragung
  def queue_selected(self,row):
   if row<0 or row>=len(self.queue) or row==self.current:return
   self.current=row;self.show_entry()
@@ -638,7 +651,8 @@ class Window(QMainWindow):
    state=archive_state(m,self.archive_rows,self.archive is not None);display={**m,'archiveState':state,'archiveStatus':{'saved':'Im Webarchiv: identische KMZ','missing':'KMZ nicht im geladenen Webarchiv gefunden','unknown':'Archivstatus: nicht geprüft'}[state]}
    if state=='saved':
     matches=[entry for entry in self.archive_rows if entry.get('sha256')==m.get('sha256')];display['archiveStatus']+='\n'+('\n'.join(entry.get('name','')+' · '+entry.get('folder','') for entry in matches))
-   widget=MissionRow(self.row_label(r,m,i),display,m.get('image'),checked=m['uuid'] in self.checked,on_toggle=self.toggle_checked);self.list.setItemWidget(item,widget);self.device_rows_widgets.append((m,widget))
+   fallback=next((entry['pixmap'] for entry in self.archive_rows if state=='saved' and entry.get('sha256')==m.get('sha256') and entry.get('pixmap') is not None),None) if not m.get('image') else None
+   widget=MissionRow(self.row_label(r,m,i),display,m.get('image'),checked=m['uuid'] in self.checked,on_toggle=self.toggle_checked,fallback=fallback);self.list.setItemWidget(item,widget);self.device_rows_widgets.append((m,widget))
    if current and current['uuid']==m['uuid']:self.list.setCurrentItem(item)
   self.device_count.setText(f'{len(self.device_rows_widgets)} von {len(self.rows)} sichtbar');visible=bool(self.device_rows_widgets);self.list.setVisible(visible);self.list_empty.setVisible(not visible);self.list_empty.setText('Keine Mission passt zu Suche und Filter.' if self.rows else 'Keine Missionen auf dem Gerät gefunden.');self.update_checked()
  def selected_row(self):
@@ -660,6 +674,7 @@ class Window(QMainWindow):
   self.checked_label.setText(f'{total} ausgewählt'+(f' · {len(local)} lokal' if total and len(local)!=total else '')+(f' · {hidden} ausgeblendet' if hidden else ''))
   self.device_unsaved_only.setEnabled(self.archive is not None)
   self.save_web_button.setEnabled(bool(local) and self.archive is not None);self.save_web_button.setToolTip('' if self.archive else 'Zuerst mit dem Webarchiv verbinden (Schritt 2 oder Einstellungen).')
+  self.sync_preview_button.setEnabled(self.archive is not None and bool(self.preview_sync_candidates()))
   visible=self.visible_rows();count=sum(m['uuid'] in self.checked for _,m in visible);state=Qt.Checked if visible and count==len(visible) else Qt.PartiallyChecked if count else Qt.Unchecked
   self.select_all.blockSignals(True);self.select_all.setCheckState(state);self.select_all.blockSignals(False)
  def rename_selected(self):
@@ -685,6 +700,38 @@ class Window(QMainWindow):
   """KMZ und Titelbild einer Mission vom Gerät lesen (nur lesen)."""
   if r['kind']=='ios':return ios.run(ios.read_mission(r['serial'],m['uuid']))
   a=self.adb_for(r);return {'kmz':a.read(m['path']) if m.get('path') else None,'preview':a.read(f'{BASE}/map_preview/{m["uuid"]}/{m["uuid"]}.jpg') if m.get('preview') else None}
+ def preview_sync_candidates(self):
+  """Gerätemissionen mit DJI-Fly-Bild, deren KMZ identisch im Webarchiv liegt: angehakte, sonst alle sichtbaren."""
+  rows=[m for m in self.rows if m['uuid'] in self.checked] if self.checked else [m for _,m in self.visible_rows()]
+  out=[]
+  for m in rows:
+   if not m.get('image') or archive_state(m,self.archive_rows,self.archive is not None)!='saved':continue
+   matches=[a for a in self.archive_rows if a.get('sha256')==m.get('sha256')]
+   if matches:out.append((m,matches))
+  return out
+ def sync_previews_to_archive(self):
+  """DJI-Fly-Titelbilder als aktive Vorschau der identischen Archivmissionen speichern; keine KMZ wird angefasst."""
+  client=self.archive;candidates=self.preview_sync_candidates()
+  if not client or not candidates:self.status.setText('Keine Mission mit Gerätebild und identischer Archivkopie in der Auswahl.');return
+  r=self.current_device();names=[self.row_label(r,m,self.rows.index(m)) for m,_ in candidates]
+  if QMessageBox.question(self,'Vorschauen ins Webarchiv',f'{len(candidates)} Titelbild(er) vom Gerät als Vorschau im Webarchiv speichern?\n\n'+'\n'.join(names[:12])+('\n…' if len(names)>12 else '')+'\n\nDie bisherigen Vorschauen bleiben im Vorschau-Editor erhalten; die KMZ-Dateien werden nicht verändert.')!=QMessageBox.Yes:return
+  def work():
+   saved=[];errors=[]
+   for m,matches in candidates:
+    for a in matches:
+     try:client.save_preview(a,m['image'],m.get('name') or a.get('name'));saved.append(a['id'])
+     except Exception as e:errors.append(f'{a.get("name","?")}: {e}')
+   return saved,errors
+  def done(result):
+   saved,errors=result
+   for a in self.archive_rows:
+    if a['id'] in saved:a.pop('pixmap',None)
+   try:self.archive_rows=client.library()
+   except Exception as e:self.log_line('Bibliothek nach dem Speichern nicht neu geladen: '+str(e))
+   self.render_folder_tree();self.archive_filter();self.archive_previews();self.render_device_list()
+   for line in errors:self.log_line('Vorschau nicht gespeichert: '+line)
+   self.status.setText(f'{len(saved)} Vorschau(en) im Webarchiv gespeichert.'+(f' {len(errors)} fehlgeschlagen, siehe Protokoll.' if errors else ''))
+  self.task(f'{len(candidates)} Vorschau(en) ins Webarchiv speichern …',work,done)
  def save_to_archive(self):
   if not self.archive:self.show_settings();self.status.setText('Zuerst mit dem Webarchiv verbinden, dann die Auswahl sichern.');return
   try:r=self.selected_device()
@@ -829,7 +876,7 @@ class Window(QMainWindow):
   titles={'all':'Alle Missionen','none':'Ohne Projekt'};folder=next((f for f in self.archive_folders() if f['id']==self.archive_selection),None)
   self.archive_title.setText(titles.get(self.archive_selection,folder['path'] if folder else 'Missionen'));self.archive_changed()
  def archive_previews(self):
-  client=self.archive;pending=[m for m in self.archive_rows if m['transferable'] and 'pixmap' not in m][:60]
+  client=self.archive;pending=[m for m in self.archive_rows if m['transferable'] and 'pixmap' not in m][:200]
   if not client or not pending:return
   def fetch():
    out=[]
@@ -844,6 +891,7 @@ class Window(QMainWindow):
     m['pixmap']=picture_from(raw,content_type)
     for row,widget in self.archive_widgets:
      if row['id']==mission_id:widget.set_picture(m['pixmap'])
+   if self.rows:self.render_device_list()  # Archivbilder als Rückfall in der Geräteliste
   self.task('Vorschaubilder laden …',fetch,done)
  def archive_current(self):
   item=self.archive_list.currentItem()
@@ -956,7 +1004,22 @@ class Window(QMainWindow):
    row=QueueRow(e,i);item=QListWidgetItem();item.setSizeHint(QSize(0,max(104,row.sizeHint().height()+4)));self.run_list.addItem(item);self.run_list.setItemWidget(item,row)
   has=bool(self.queue);self.run_list.setVisible(has);self.run_empty.setVisible(not has)
   done=sum(1 for e in self.queue if e['status']=='done');self.run_progress.setText(f'{done} von {len(self.queue)} übertragen' if self.queue else '')
-  self.retry_button.setEnabled(any(e['status']=='failed' for e in self.queue));self.resume_button.setEnabled(any(e['status'] in ('prepared','skipped') and e['plan'] for e in self.queue) and not (self.job and self.job.isRunning()))
+  self.retry_button.setEnabled(any(e['status']=='failed' for e in self.queue));self.resume_button.setEnabled(any(e['status'] in ('prepared','skipped') and e['plan'] for e in self.queue) and not (self.job and self.job.isRunning()));self.update_run_buttons()
+ def update_run_buttons(self):
+  row=self.run_list.currentRow();e=self.queue[row] if 0<=row<len(self.queue) else None
+  self.run_remove_button.setEnabled(e is not None and e['status']!='running' and not (self.job and self.job.isRunning()))
+ def remove_run_selected(self):
+  """Auftrag in Schritt 4 entfernen, ohne die Prüfung der übrigen Aufträge zu verwerfen."""
+  row=self.run_list.currentRow()
+  if (self.job and self.job.isRunning()) or not (0<=row<len(self.queue)) or self.queue[row]['status']=='running':return
+  removed=self.queue.pop(row);self.current=min(max(self.current,0),len(self.queue)-1) if self.queue else -1
+  if self.pending_target and removed.get('target')==self.pending_target.get('uuid'):self.pending_target=None
+  self.render_queue();self.render_run_list();self.show_entry()
+  if self.stack.currentIndex()==1:
+   if self.queue:self.render_review()
+   else:self.stack.setCurrentIndex(0)
+  self.apply_button.setEnabled(bool(self.queue) and self.closed.isChecked() and self.all_prepared())
+  self.status.setText(f'„{removed["name"]}“ aus der Warteschlange entfernt.'+('' if self.queue else ' Die Warteschlange ist leer.'))
  def request_stop(self):self.stop_requested=True;self.stop_button.setEnabled(False);self.status.setText('Wird nach dem aktuellen Auftrag angehalten …')
  def retry_failed(self):
   failed=[e for e in self.queue if e['status']=='failed']
@@ -1018,5 +1081,5 @@ def main():
   target=Path(sys.argv[sys.argv.index('--diagnose')+1]);rows=ios.run(ios.discover());result={'iosDevices':len(rows),'paired':sum(r['state']=='device' for r in rows)}
   if rows and rows[0]['state']=='device':result['readableMissions']=len(ios.run(ios.list_missions(rows[0]['serial'],target.parent/'diagnostic-reads')))
   atomic_json(target,result);return
- app=QApplication(sys.argv);app.setOrganizationName('studiobaff');app.setApplicationName('Drone Missions Bridge');app.setStyle('Fusion');theme.apply_theme(app);theme.follow_system(app);app.setWindowIcon(app_icon());window=Window();window.show();sys.exit(app.exec())
+ app=QApplication(sys.argv);app.setOrganizationName('studiobaff');app.setApplicationName('Drone Missions Bridge');app.setApplicationDisplayName(APP_NAME);app.setStyle('Fusion');theme.apply_theme(app);theme.follow_system(app);app.setWindowIcon(app_icon());window=Window();window.show();sys.exit(app.exec())
 if __name__=='__main__':main()
