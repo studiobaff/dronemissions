@@ -16,7 +16,7 @@ unverändert; vorhandene Zugangsdaten gelten weiterhin.
 
 **109 isolierte Tests** bestehen. Paket und ADB-Prüfsumme wurden geprüft, die App
 wurde installiert und gestartet. Am verbundenen iPad wurden **44 Missionen samt
-DJI-Fly-Titelbildern** erfolgreich gelesen (Bestand zum Testzeitpunkt). Dabei
+DJI-Fly-Titelbildern** erfolgreich gelesen (Bestand zum Testzeitpunkt). Bei diesem Bildlesetest
 wurden keine Missionen geändert oder übertragen. Der Vorschau-Upload ins
 Webarchiv und die unten genannten Übertragungsfälle bleiben offen.
 
@@ -118,7 +118,7 @@ Vor jeder Entfernung wird der vollständige lokale Gerätebestand gesichert und 
 
 Nicht archivierte oder defekte Einträge können nach ausdrücklicher Bestätigung ebenfalls lokal entfernt werden, haben dann aber nur die lokale Sicherung und keinen zugesicherten Webarchiv-Wiederimport. Die Funktion löscht **keine DJI-Cloud-Kopie**; eine solche kann bei Synchronisation erneut auftauchen. Android-Löschen ist nicht implementiert.
 
-Prüfung: **109 isolierte Tests**, einschließlich Abbrechen, Checkbox-Auswahl trotz Filter, iPad-Beschränkung, exakter Datenbankauswahl, gemeinsam verwendeten Dateien, veränderten Quelldaten und Rollback nach teilweisem Löschen oder unklarer Datenbankumbenennung. Mit ausdrücklicher Nutzerfreigabe wurden am echten iPad fünf alte, nie synchronisierte „Injected Mission“-Einträge und zehn Dateien entfernt. 144 Dateien wurden vorher vollständig gesichert; sämtliche übrigen Dateien wurden unverändert bestätigt. Anschließend las die installierte App die verbleibenden **39 Missionen** erfolgreich. Ein vollständiger neuer Archiv-Entfernen-Wiederimport-Rundlauf ist noch nicht separat getestet.
+Prüfung: **109 isolierte Tests**, einschließlich Abbrechen, Checkbox-Auswahl trotz Filter, iPad-Beschränkung, exakter Datenbankauswahl, gemeinsam verwendeten Dateien, veränderten Quelldaten und Rollback nach teilweisem Löschen oder unklarer Datenbankumbenennung. Mit ausdrücklicher Nutzerfreigabe wurden am echten iPad fünf alte, nie synchronisierte „Injected Mission“-Einträge und zehn Dateien entfernt. 144 Dateien wurden vorher vollständig gesichert; sämtliche übrigen Dateien wurden unverändert bestätigt. Anschließend las die installierte App die verbleibenden **39 Missionen** erfolgreich. Der vollständige Rundlauf wurde anschließend am echten iPad über die installierte Bridge geprüft: eine Mission mit 12 Wegpunkten neu im Webarchiv gesichert, von dort mit identischer KMZ-Prüfsumme zurückgeladen, lokal vom iPad entfernt (39 → 38 Missionen) und aus dem Archiv als neuer Eintrag wieder übertragen (38 → 39). Name und 12 Wegpunkte stimmen; das Archivbild wurde für die Übertragung verwendet. Die Archivkopie bleibt byte-identisch in Version 1. Der Nutzer bestätigte das Ergebnis in DJI Fly. Der neue Geräteeintrag hat erwartungsgemäß eine neue Kennung; die alte lokale Kennung bleibt entfernt.
 
 ## Prüfung und Grenzen
 
