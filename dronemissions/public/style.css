@@ -508,6 +508,7 @@ kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.6875rem;b
 .address-status:empty{display:none}
 .map-background>summary{font-size:var(--fs-xs);font-weight:600;cursor:pointer;padding:.6rem 0;border-top:1px solid var(--line-soft);list-style:none;color:var(--ink-2)}
 .map-background>summary::-webkit-details-marker{display:none}
+.map-background>summary{display:flex;justify-content:space-between;align-items:center}.map-background>summary span{color:var(--ink-4);transition:transform var(--t-ui) var(--ease-out)}.map-background[open]>summary span{transform:rotate(180deg)}
 .map-background legend{display:none}
 .zone-detail{padding:.6rem 0;border-top:1px solid var(--line-soft)}
 .zone-detail summary{cursor:pointer;font-weight:600;line-height:1.5}

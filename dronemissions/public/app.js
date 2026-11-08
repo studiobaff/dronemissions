@@ -124,7 +124,24 @@ function visiblePoints() {
 
 /* ---------- Rendern ---------- */
 async function refresh() { data = await api('library'); loaded = true; if (folder && !folderById(folder)) { folder = null; view = 'all'; } render(); }
-function navigate(nextView, nextFolder = null) { view = nextView; folder = nextFolder; closeSidebar(); render(); window.scrollTo({ top: 0, behavior: 'auto' }); }
+function navigate(nextView, nextFolder = null) { view = nextView; folder = nextFolder; closeSidebar(); render(); window.scrollTo({ top: 0, behavior: 'auto' }); syncHash(); }
+/* Adresszeile: #projekt=<id>, #ansicht=archiv|ohne, #mission=<id>; Lesezeichen und geteilte Links öffnen dieselbe Ansicht. Kundenlinks (#share=) bleiben unverändert. */
+let hashSyncing = false;
+function syncHash() {
+ if (!loaded) return; const parts = [];
+ if (view === 'folder' && folder) parts.push('projekt=' + encodeURIComponent(folder)); else if (view === 'archive') parts.push('ansicht=archiv'); else if (view === 'unfiled') parts.push('ansicht=ohne');
+ if (selected && $('#detail-dialog').open) parts.push('mission=' + encodeURIComponent(selected.id));
+ const next = parts.length ? '#' + parts.join('&') : ''; if ((location.hash || '') === next) return;
+ hashSyncing = true; history.replaceState(null, '', location.pathname + location.search + next); hashSyncing = false;
+}
+function applyHash() {
+ const q = new URLSearchParams(location.hash.slice(1)); if (q.get('share')) return;
+ const project = q.get('projekt'), ansicht = q.get('ansicht'), mission = q.get('mission');
+ if (project && folderById(project)) { view = 'folder'; folder = project; } else if (ansicht === 'archiv') { view = 'archive'; folder = null; } else if (ansicht === 'ohne') { view = 'unfiled'; folder = null; }
+ render();
+ if (mission && data.missions.some(m => m.id === mission)) openMission(mission); else syncHash();
+}
+window.addEventListener('hashchange', () => { if (!hashSyncing && loaded) applyHash(); });
 
 function renderSidebar() {
  const active = data.missions.filter(m => !m.archived && !isArchived(m.folder));
@@ -260,7 +277,7 @@ function tiles(map) {
  const base = {
   'Österreich · basemap.at': L.tileLayer('https://mapsneu.wien.gv.at/basemap/geolandbasemap/normal/google3857/{z}/{y}/{x}.png', austria),
   'Österreich · Luftbild': L.tileLayer('https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/{z}/{y}/{x}.jpeg', austria),
-  'Weltweit · OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>' }),
+  'Weltweit · OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin', attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>' }),
   'Weltweit · Esri Satellit': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community' })
  };
  const roads = L.tileLayer('https://mapsneu.wien.gv.at/basemap/bmapoverlay/normal/google3857/{z}/{y}/{x}.png', { ...austria, zIndex: 350 });
@@ -394,7 +411,7 @@ async function openMission(id) {
    <span class="hint">USB-Übertragung über die Bridge-App</span>
   </div>`;
  if (detailMap) { detailMap.remove(); detailMap = null; }
- const dlg = $('#detail-dialog'); if (!dlg.open) dlg.showModal(); $('.dialog-body', dlg).scrollTop = 0;
+ const dlg = $('#detail-dialog'); if (!dlg.open) dlg.showModal(); $('.dialog-body', dlg).scrollTop = 0; syncHash();
  bindChart($('#chart-root'), m.details);
  setTimeout(() => {
   if (!dlg.open || selected?.id !== m.id) return;
@@ -466,7 +483,7 @@ $('#sidebar-toggle').onclick = () => { const collapsed = !document.body.classLis
 function showLibrary() { $('#login').classList.add('hidden'); $('#shell').classList.remove('hidden'); if (!loaded) renderSkeleton(); }
 
 /* ---------- Ereignisse ---------- */
-$('#login-form').onsubmit = e => { e.preventDefault(); const b = $('button[type=submit]', e.target); run(async () => { try { const d = await api('login', { password: $('#password').value }); csrf = d.csrf; $('#password').value = ''; $('#login-error').textContent = ''; showLibrary(); await refresh(); } catch (err) { $('#login-error').textContent = err.message; $('#password').focus(); } }, b); };
+$('#login-form').onsubmit = e => { e.preventDefault(); const b = $('button[type=submit]', e.target); run(async () => { try { const d = await api('login', { password: $('#password').value }); csrf = d.csrf; $('#password').value = ''; $('#login-error').textContent = ''; showLibrary(); await refresh(); applyHash(); } catch (err) { $('#login-error').textContent = err.message; $('#password').focus(); } }, b); };
 $('#settings').onclick = () => run(async () => { const d = await api('settings'); $('#settings-form').elements.authorName.value = d.authorName; $('#settings-dialog').showModal(); });
 $('#settings-form').onsubmit = e => { e.preventDefault(); run(async () => { await api('settings', { authorName: e.target.elements.authorName.value }); location.reload(); }, $('button[type=submit]', e.target)); };
 $('#logout').onclick = () => run(async () => { await api('logout', {}); location.href = location.pathname; });
@@ -527,7 +544,7 @@ document.addEventListener('click', e => {
  const copy = e.target.closest('[data-copy]'); if (copy) run(async () => { await navigator.clipboard.writeText(copy.dataset.copy); toast('Prüfsumme kopiert.'); });
  if (e.target instanceof HTMLDialogElement && e.target.open) { const r = e.target.getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) e.target.close(); }
 });
-$('#detail-dialog').addEventListener('close', () => { if (detailMap) { detailMap.remove(); detailMap = null; } selected = null; });
+$('#detail-dialog').addEventListener('close', () => { if (detailMap) { detailMap.remove(); detailMap = null; } selected = null; syncHash(); });
 
 /* ---------- Start ---------- */
 run(async () => {
@@ -539,5 +556,5 @@ run(async () => {
   catch (e) { $('#shell').classList.add('hidden'); $('#login').classList.remove('hidden'); $('#login-error').textContent = e.message; }
   return;
  }
- if (s.authenticated) { showLibrary(); await refresh(); } else { $('#login').classList.remove('hidden'); $('#password').focus(); }
+ if (s.authenticated) { showLibrary(); await refresh(); applyHash(); } else { $('#login').classList.remove('hidden'); $('#password').focus(); }
 });
