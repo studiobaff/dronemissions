@@ -21,6 +21,7 @@ let selected = null, uploadMission = null, editFolder = null, editPoint = null;
 let overview = null, overviewLayers = null, detailMap = null;
 let loaded = false;
 let checkedMissions = new Set(), draggedMissions = null;
+const archiveExpanded = new Set();
 
 const ROUTE_COLORS = ['#7f9c2a', '#2f7f9a', '#b0632e', '#6f5fa6'];
 const FORMAT = { 'litchi-csv': 'CSV', 'litchi-lchm': 'LCHM', 'litchi-lchz': 'LCHZ', 'mapcreator-project': 'MPROJ' };
@@ -151,6 +152,7 @@ function renderHeader() {
  const archivedBadge = current && isArchived(folder) ? '<span class="badge badge-muted">Archiviert</span>' : '';
  $('#page-title').innerHTML = `<span>${esc(current ? current.name : view === 'archive' ? 'Archiv' : view === 'unfiled' ? 'Ohne Projekt' : canEdit() ? 'Alle Missionen' : 'Freigegebene Orte')}</span>${archivedBadge}`;
  $('#page-subtitle').textContent = !canEdit() ? 'Standorte dieses Projekts mit Navigation. Flugrouten und Missionsdateien sind nicht Teil dieser Freigabe.' : folder ? 'Flugmissionen und wiederverwendbare Panorama-Standorte an einem Ort.' : view === 'archive' ? 'Gesichert für später. Originaldateien und Versionen bleiben erhalten.' : view === 'unfiled' ? 'Missionen ohne Projektordner. Per Auswahl oder Ziehen in ein Projekt verschieben.' : 'Geplant in Litchi oder Map Creator. Hier bereit für den nächsten Einsatz.';
+ if (folder && canEdit() && !isArchived(folder)) { const ids = scopeIds(); const archived = data.missions.filter(m => ids.has(m.folder) && m.archived).length; if (archived) $('#page-subtitle').textContent += ` ${plural(archived, 'archivierte Mission ist', 'archivierte Missionen sind')} unter „Archiv“ im selben Projektordner zu finden.`; }
 }
 function renderStats(missions, points) {
  $('#total-missions').textContent = missions.length; $('#total-missions-label').textContent = canEdit() ? (missions.length === 1 ? 'Mission' : 'Missionen') : (missions.length === 1 ? 'Standort' : 'Standorte');
@@ -179,18 +181,39 @@ function pointCard(p) {
  const body = canEdit() ? `<p class="card-notes">${esc(p.notes || 'Wiederverwendbarer Aufnahmeort')}</p><div class="card-foot"><span class="num">${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}</span><span>${plural(Number(p.settings?.height ?? 0), 'm', 'm')} · ${esc({ sphere: 'Kugel', wideAngle: 'Weitwinkel', photo: 'Foto' }[p.settings?.capture] || 'Panorama')}</span></div>` : `<p class="card-notes num">${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}</p>${navigation({ overviewPoint: p })}`;
  return `<article class="card card-point" data-point="${p.id}" tabindex="0" role="button" aria-label="Planungspunkt ${esc(p.name)} öffnen"><div class="card-media">${icon('i-crosshair')}<small>Panorama-Standort</small></div><div class="card-body"><div class="card-path" title="${esc(pathFor(p.folder))}">${icon('i-folder')}<span>${esc(pathFor(p.folder))}</span></div><h2 title="${esc(p.name)}">${esc(p.name)}</h2>${body}</div></article>`;
 }
+function archiveCards(missions, points) {
+ const groups = new Map();
+ const group = id => {
+  const key = id || 'unfiled';
+  if (!groups.has(key)) groups.set(key, { id, missions: [], points: [] });
+  return groups.get(key);
+ };
+ missions.forEach(m => group(m.folder).missions.push(m));
+ points.forEach(p => group(p.folder).points.push(p));
+ if (!query() && filter === 'all') data.folders.filter(f => isArchived(f.id)).forEach(f => group(f.id));
+ return [...groups.entries()].sort(([, a], [, b]) => (pathFor(a.id) || 'Ohne Projekt').localeCompare(pathFor(b.id) || 'Ohne Projekt', 'de')).map(([key, g]) => {
+  const label = pathFor(g.id) || 'Ohne Projekt';
+  const count = plural(g.missions.length, 'Mission', 'Missionen') + (g.points.length ? ` · ${plural(g.points.length, 'Planungspunkt', 'Planungspunkte')}` : '');
+  return `<details class="archive-group" data-archive-group="${esc(key)}" ${archiveExpanded.has(key) || query() ? 'open' : ''}><summary><span>${icon('i-folder')}${esc(label)}</span><span class="badge badge-muted">${count}</span></summary><div class="cards">${g.missions.map(missionCard).join('')}${g.points.map(pointCard).join('')}${!g.missions.length && !g.points.length ? '<p class="hint">Keine archivierten Einträge in diesem Ordner.</p>' : ''}</div></details>`;
+ }).join('');
+}
+$('#cards').addEventListener('toggle', e => {
+ const group = e.target.closest('[data-archive-group]');
+ if (!group) return;
+ if (group.open) archiveExpanded.add(group.dataset.archiveGroup); else archiveExpanded.delete(group.dataset.archiveGroup);
+}, true);
 function render() {
  const missions = visibleMissions(), points = visiblePoints();
  checkedMissions = new Set([...checkedMissions].filter(id => missions.some(m => m.id === id)));
  renderSidebar(); renderHeader(); renderStats(missions, points);
  $$('#filters .chip').forEach(c => c.classList.toggle('selected', c.dataset.filter === filter));
  $('#filters').classList.toggle('hidden', !canEdit());
- $('#cards').innerHTML = missions.map(missionCard).join('') + points.map(pointCard).join('');
+ $('#cards').innerHTML = view === 'archive' ? archiveCards(missions, points) : missions.map(missionCard).join('') + points.map(pointCard).join('');
  const total = missions.length + points.length, q = query(), filtered = q || filter !== 'all';
  const unit = canEdit() ? ['Mission', 'Missionen'] : ['Standort', 'Standorte'];
  $('#result-line').textContent = total ? `${plural(missions.length, ...unit)}${points.length ? ` · ${plural(points.length, 'Planungspunkt', 'Planungspunkte')}` : ''}${filtered ? ' gefunden' : ''}` : '';
  const empty = $('#empty');
- empty.classList.toggle('hidden', total > 0 || showMap);
+ empty.classList.toggle('hidden', total > 0 || showMap || (view === 'archive' && $('#cards').children.length > 0));
  if (!total) {
   $('#empty-upload').classList.add('hidden'); $('#empty-clear').classList.add('hidden');
   if (filtered) { $('#empty-title').textContent = 'Nichts gefunden.'; $('#empty-text').textContent = q ? `Kein Eintrag passt zu „${$('#search').value.trim()}“. Prüfe die Schreibweise oder setze den Filter zurück.` : 'Kein Eintrag passt zum gewählten Filter.'; $('#empty-clear').classList.remove('hidden'); }
@@ -333,10 +356,10 @@ async function openMission(id) {
      <div id="detail-map" class="detail-map"></div>
      <section class="detail-section"><div class="detail-section-head"><h3>${icon('i-route')}Höhenprofil</h3><p class="hint">Zeiger über das Profil bewegen für Wegpunkt-Details.</p></div><div id="chart-root">${chart(m.details)}</div></section>
      <section class="detail-section files">
-      <div class="detail-section-head"><h3>${icon('i-file')}Dateien dieser Mission</h3></div>
+      <div class="detail-section-head"><h3>${icon('i-file')}Dateien dieser Mission</h3><button type="button" class="btn btn-outline btn-sm" id="edit-preview">Vorschau einstellen</button></div>
       <div class="file-row"><span class="badge badge-muted">${type}</span><span class="name">${esc(m.filename)}</span><span class="size">${fmtBytes(Number(m.bytes))}</span><a class="btn btn-outline btn-sm" href="api.php?action=original&id=${m.id}">${icon('i-download')}<span>Original</span></a></div>
       ${(m.attachments || []).map(a => `<div class="file-row"><span class="badge badge-muted">${esc(a.format.toUpperCase())}</span><span class="name">${esc(a.filename)}<small>Projektdatei</small></span><span class="size">${fmtBytes(Number(a.bytes))}</span><a class="btn btn-outline btn-sm" href="api.php?action=attachment&id=${m.id}&version=${a.id}">${icon('i-download')}<span>Projektdatei</span></a></div>`).join('')}
-      ${kmz && sources.length ? `<div class="attach-row"><label class="field"><span>Projektdatei zuordnen</span><select id="source-attachment"><option value="">Vorhandene Projektdatei auswählen …</option>${sources.map(x => `<option value="${x.id}">${esc(pathFor(x.folder) || 'Ohne Projekt')} / ${esc(x.name)} · ${esc(x.filename)}</option>`).join('')}</select></label><button id="attach-source" class="btn btn-outline" type="button" data-busy="Wird zugeordnet …">${icon('i-link')}<span>Zusammenfassen</span></button></div><p class="hint">Die Projektdatei (MPROJ, LCHM, LCHZ) gehört danach zu dieser KMZ-Mission. Ihr bisheriger Eintrag wandert ins Archiv, Originale bleiben unverändert.</p>` : kmz ? '<p class="hint">Map-Creator- oder Litchi-Projektdateien lassen sich dieser Mission zuordnen, sobald eine als eigener Eintrag hochgeladen wurde.</p>' : '<p class="hint">Für die Übertragung auf DJI Fly wird ein DJI-KMZ-Export benötigt. Diese Projektdatei kann einer KMZ-Mission zugeordnet werden.</p>'}
+      ${kmz && sources.length ? `<div class="attach-row"><label class="field"><span>Projektdatei zuordnen</span><select id="source-attachment"><option value="">Vorhandene Projektdatei auswählen …</option>${sources.map(x => `<option value="${x.id}">${esc(pathFor(x.folder) || 'Ohne Projekt')} / ${esc(x.name)} · ${esc(x.filename)}</option>`).join('')}</select></label><button id="attach-source" class="btn btn-outline" type="button" data-busy="Wird zugeordnet …">${icon('i-link')}<span>Zugehörige Dateien hinzufügen</span></button></div><p class="hint">Die Projektdatei (MPROJ, LCHM, LCHZ) gehört danach zu dieser KMZ-Mission. Ihr bisheriger Eintrag wandert ins Archiv, Originale bleiben unverändert.</p>` : kmz ? '<p class="hint">Map-Creator- oder Litchi-Projektdateien lassen sich dieser Mission zuordnen, sobald eine als eigener Eintrag hochgeladen wurde.</p>' : '<p class="hint">Für die Übertragung auf DJI Fly wird ein DJI-KMZ-Export benötigt. Diese Projektdatei kann einer KMZ-Mission zugeordnet werden.</p>'}
      </section>
     </div>
     <div class="detail-side">
@@ -480,7 +503,7 @@ $('#folder-form').onsubmit = e => { e.preventDefault(); run(async () => { const 
 $('#archive-folder').onclick = e => run(async () => { await api('folder-archive', { id: editFolder.id, archived: !Number(editFolder.archived) }); $('#folder-dialog').close(); await refresh(); toast('Projektstatus gespeichert. Dateien bleiben erhalten.'); }, e.currentTarget);
 $('#delete-folder').onclick = async () => {
  const id = editFolder.id;
- if (data.folders.some(f => f.parent === id) || data.missions.some(m => m.folder === id) || data.points.some(p => p.folder === id)) { toast('Dieser Ordner enthält noch Missionen, Planungspunkte oder Unterordner. Bitte zuerst verschieben oder den Ordner archivieren.', true); return; }
+ if (data.folders.some(f => f.parent === id) || data.missions.some(m => m.folder === id) || data.points.some(p => p.folder === id)) { toast(`Dieser Ordner enthält noch Missionen, Planungspunkte oder Unterordner. Davon ${data.missions.filter(m => m.folder === id && m.archived).length} archivierte Missionen: unter „Archiv“ im selben Projektordner zu finden. Bitte Inhalte zuerst verschieben.`, true); return; }
  if (await confirmDialog('Leeren Ordner löschen?', `„${editFolder.name}“ wird endgültig entfernt. Vorhandene Freigabelinks dieses Ordners werden widerrufen.`, 'Endgültig löschen', true)) run(async () => { await api('folder-delete', { id, parent: editFolder.parent, name: editFolder.name }); $('#folder-dialog').close(); await refresh(); toast('Leerer Projektordner gelöscht.'); });
 };
 $('#point-form').onsubmit = e => { e.preventDefault(); run(async () => { const f = e.target.elements; const settings = { height: Number(f.height.value), heightMode: f.heightMode.value, heading: Number(f.heading.value), gimbal: Number(f.gimbal.value), capture: f.capture.value }; await api('point', { id: editPoint?.id, revision: editPoint?.revision, folder: editPoint?.folder || folder, name: f.name.value, notes: f.notes.value, lat: Number(f.lat.value), lng: Number(f.lng.value), settings }); $('#point-dialog').close(); await refresh(); toast('Panorama-Standort gespeichert. Noch keine ausführbare Flugmission.'); }, $('button[type=submit]', e.target)); };
