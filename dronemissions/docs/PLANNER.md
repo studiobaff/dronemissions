@@ -66,3 +66,7 @@ Zahlenfelder und zugehörige Slider für Überlappung, Höhen, Radius, Wandabsta
 - [OpenTopoData API](https://www.opentopodata.org/api/) und [Datensätze/Limits](https://www.opentopodata.org/).
 - [Map Creator Desktop](https://map-creator.com/windows.htm) als Funktionsreferenz.
 - Regression: synthetischer schiefer Boden, Grid-AGL, Helix-Radius/POI, Navigation ohne Fotos, Exporthöhen und Aktionsindizes, fehlende DEM-/Startdaten und Steilhang. Echter DEM-Abruf, Polygon-Abschluss/Eckpunkt-Löschen/Rücknahme, Grid-Speichern und Helix-Export im isolierten Browser-Testarchiv geprüft. Die zwei exportierten Helix-Abschnitte wurden zusätzlich vom Bridge-Parser akzeptiert. Keine Geräte- oder Flugprüfung dieser Exporte.
+
+## Interaktive Planung
+
+Umriss und Flugparameter stehen gemeinsam unter „Planen“. Fertige und importierte Umrisse sind sofort bearbeitbar. Änderungen an Geometrie, Kamera, Flugart oder Reglern berechnen die Vorschau nach 650 ms Eingabepause automatisch neu; die Ansicht und der Kartenausschnitt bleiben erhalten. Währenddessen ist die alte Route als veraltet markiert und Export/Speichern gesperrt. Es läuft höchstens eine Berechnung gleichzeitig, nachfolgende Änderungen werden zusammengefasst und überholte Antworten verworfen. DEM-Abfragen folgen denselben Regeln; je nach Dienst dauern sie länger. „Vorschau aktualisieren“ erlaubt einen manuellen Wiederholungsversuch nach Fehlern.
