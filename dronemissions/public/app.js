@@ -281,12 +281,18 @@ function tiles(map) {
   'Weltweit · Esri Satellit': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community' })
  };
  const roads = L.tileLayer('https://mapsneu.wien.gv.at/basemap/bmapoverlay/normal/google3857/{z}/{y}/{x}.png', { ...austria, zIndex: 350 });
+ for (const l of data.layers || []) if (l.kind === 'tile' && !l.overlay) base[l.name] = L.tileLayer(l.url, { maxZoom: l.maxZoom || 19, opacity: l.opacity ?? 1, attribution: esc(l.attribution || ''), referrerPolicy: 'strict-origin-when-cross-origin' });
  const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* privater Modus */ } } };
  const saved = store.get('dm-map-layer'); let activeBase = base[saved] ? saved : Object.keys(base)[0], syncingRoads = false; base[activeBase].addTo(map);
  const syncRoads = () => { const preference = store.get('dm-map-roads'), show = preference === null ? activeBase === 'Österreich · Luftbild' : preference === 'true'; syncingRoads = true; if (show) roads.addTo(map); else map.removeLayer(roads); syncingRoads = false; };
  map.on('baselayerchange', e => { activeBase = e.name; store.set('dm-map-layer', e.name); queueMicrotask(syncRoads); });
  map.on('overlayadd overlayremove', e => { if (e.layer === roads && !syncingRoads) store.set('dm-map-roads', String(e.type === 'overlayadd')); });
- dmMapControls(map, base, roads); syncRoads(); L.control.scale({ imperial: false }).addTo(map);
+ const overlays = {};
+ for (const l of data.layers || []) {
+  if (l.kind === 'tile') { if (l.overlay) overlays[l.id] = { label: l.name, layer: L.tileLayer(l.url, { maxZoom: l.maxZoom || 19, opacity: l.opacity ?? 1, attribution: esc(l.attribution || ''), referrerPolicy: 'strict-origin-when-cross-origin', zIndex: 360 }) }; }
+  else overlays[l.id] = { label: `${l.name} (${l.features})`, layer: null, load: async () => { const r = await fetch(`api.php?action=layer-data&id=${encodeURIComponent(l.id)}`); if (!r.ok) throw Error('Ebene konnte nicht geladen werden.'); const geo = await r.json(); return L.geoJSON(geo, { pane: 'overlayPane', attribution: esc(l.attribution || ''), style: { color: l.color, weight: 1.5, fillOpacity: .15 }, pointToLayer: (f, latlng) => L.circleMarker(latlng, { radius: 5, color: l.color, fillOpacity: .7 }), onEachFeature: (f, layer) => { const rows = Object.entries(f.properties || {}).filter(([, v]) => v !== null && v !== '').slice(0, 12); if (rows.length) layer.bindPopup(`<strong>${esc(l.name)}</strong><br>` + rows.map(([k, v]) => `${esc(k)}: ${esc(String(v))}`).join('<br>')); } }); } };
+ }
+ dmMapControls(map, base, roads, overlays); syncRoads(); L.control.scale({ imperial: false }).addTo(map);
  let lastError = 0; [...Object.values(base), roads].forEach(layer => layer.on('tileerror', () => { if (Date.now() - lastError > 15000) { lastError = Date.now(); toast('Kartenkacheln nicht erreichbar. Bitte Verbindung oder Kartenebene prüfen.', true); } }));
 }
 function drawRoute(map, mission, group = null, numbered = true) {

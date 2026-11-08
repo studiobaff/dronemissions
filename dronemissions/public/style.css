@@ -597,3 +597,15 @@ kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.6875rem;b
 .archive-group>summary .badge{white-space:nowrap}.archive-group>.cards{padding:16px;border-top:1px solid var(--line)}
 .archive-group>summary:focus-visible{outline:3px solid var(--accent,#287c56);outline-offset:-3px}
 @media(max-width:760px){.pv-layout>section:first-child{display:contents}.pv-controls{grid-row:3}.pv-gallery{grid-row:4}}
+
+/* Kartenebenen in den Einstellungen */
+#settings-dialog{width:min(760px,calc(100vw - 2rem))}
+.layer-settings{border-top:1px solid var(--line-soft);margin-top:1.2rem;padding-top:1rem}.layer-settings h3{font-size:var(--fs-md);margin-bottom:.4rem}
+.layer-list{display:flex;flex-direction:column;gap:.5rem;margin:.8rem 0}.layer-item{display:flex;align-items:center;gap:.7rem;border:1px solid var(--line);border-radius:var(--radius);padding:.55rem .8rem;background:var(--surface)}
+.layer-item .layer-swatch{width:14px;height:14px;border-radius:4px;flex-shrink:0}.layer-item .layer-text{min-width:0;flex:1}.layer-item .layer-text strong{display:block;font-size:var(--fs-sm)}.layer-item .layer-text span{display:block;font-size:var(--fs-xs);color:var(--ink-4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.layer-add{border:1px solid var(--line-soft);border-radius:var(--radius);padding:.3rem .9rem;margin-top:.6rem}.layer-add>summary{cursor:pointer;font-weight:600;font-size:var(--fs-sm);padding:.5rem 0}.layer-add[open]>summary{margin-bottom:.4rem}
+.layer-row{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:.8rem;align-items:end}.layer-row .field{margin-bottom:.6rem}.layer-check{display:flex;align-items:center;gap:.5rem;font-size:var(--fs-sm);padding-bottom:.6rem}
+.layer-actions{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin:.2rem 0 .8rem}
+.layer-wmts{margin-top:.4rem}.layer-wmts>summary{cursor:pointer;font-size:var(--fs-sm);font-weight:600;padding:.4rem 0}
+.wmts-list{display:flex;flex-direction:column;gap:.3rem;max-height:220px;overflow:auto}.wmts-list button{text-align:left;border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:.45rem .6rem;font-size:var(--fs-xs);cursor:pointer}.wmts-list button:hover{background:var(--line-soft)}
+@media(max-width:760px){.layer-row{grid-template-columns:1fr}}

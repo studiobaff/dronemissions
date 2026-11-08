@@ -71,6 +71,16 @@ Anforderungen des Eigentümers für die Bridge-Oberfläche (unverändert überno
 
 Nächste Schritte: Auf dem Mac `python bridge/build_desktop.py` ausführen, die App am iPad („Neu anlegen“) und an der RC Pro 2 („Ersetzen“) durchspielen, Rückmeldung zur Logik einarbeiten. Windows-11-Paket auf einem Windows-Rechner bauen (siehe `bridge/README.md`). Gerätetests kann nur der Eigentümer machen. Erst danach den Hinweis „USB-Übertragung über die Bridge-App“ in der Web-UI um einen echten Download- oder Kopplungsweg ergänzen.
 
+## Web-App: Kartenebenen, Naturschutz, Schlüssel (2026-11-08, Branch `claude/drone-missions-ui-handoff-4nsj6e`)
+
+- **Einstellungen → Kartenebenen** (`layers.js`, `layers.php`, Tabelle `map_layers`, von `dm_migrate()` automatisch angelegt): eigene Kachel-Ebenen (XYZ/WMTS, Hintergrund oder Overlay, Deckkraft, max. Zoom, Quellenangabe) und Vektor-Ebenen. Vorlagen: Mapbox Streets/Satellite (eigener Token), Deutschland basemap.de und TopPlusOpen (BKG), Schweiz swisstopo Karte/Luftbild, OSM Humanitarian. Die Vorlagen-URLs stammen aus den öffentlichen Dienstbeschreibungen und wurden hier nur gegen Kachel-Fakes geprüft; Lizenz und Erreichbarkeit vor dem Einsatz prüfen.
+- **API-Schlüssel je Ebene**: Platzhalter `{key}` in der URL, Schlüssel serverseitig gespeichert, in der Ebenenliste nur als Andeutung sichtbar. Kacheln lädt der Browser, daher sehen alle Kartennutzer den Schlüssel in den Kachel-Adressen; bei Mapbox den Token per URL-Beschränkung absichern. Google-Kacheln sind nicht vorgesehen (Map Tiles API verlangt Sitzungstoken, direkte Kachel-URLs verletzen die Nutzungsbedingungen).
+- **WMTS-Import**: GetCapabilities-Adresse eingeben, der Server liest das Dokument (nur https, öffentliche Adresse, max. 4 MB) und bietet alle Ebenen mit Web-Mercator-Matrixsets als XYZ-Vorlage an (RESTful ResourceURL, sonst KVP-GetTile; Matrix-Präfixe wie `EPSG:3857:{z}` werden übernommen).
+- **Vektor-Ebenen**: GeoJSON, KML/KMZ (auch Google-My-Maps-Export) und Shapefile-ZIP (WGS84, .prj wird geprüft) werden im Browser nach GeoJSON gewandelt; der Server bereinigt auf Punkte/Linien/Flächen mit bis zu 40 skalaren Eigenschaften, max. 20000 Objekte, 8 MB Upload. Anzeige als Overlay in „Karte & Zonen“ mit Popup der Eigenschaften, Download für alle Kartennutzer (`layer-data`), Verwaltung nur für den Eigentümer.
+- **CSP**: `index.php` nimmt die Hosts der gespeicherten Kachel-Ebenen in `img-src` auf; deshalb lädt die Seite nach dem Speichern neu.
+- **Geozonen „Naturschutz“** (`zones.js`): Zonen mit ED-269-Grund `NATURE` bilden eine eigene Filtergruppe in Grün; Details zeigen weiterhin Beschränkung und Gründe. Die Flächen der Bundesländer (Umweltbundesamt, wie bei drohnenkarte.at, dort als 2 MB GeoJSON eingebettet, Quellenlizenz nicht genannt) sind nicht enthalten; sie lassen sich als Vektor-Ebene aus den offenen Umweltbundesamt-Daten hochladen. Ein fester Import wäre der nächste Schritt.
+- Geprüft: `tests/integration.py` mit `--wmts-fixture` (alle PASS) und Browserlauf: Vorlage, WMTS-Import, Mapbox ohne/mit Schlüssel, KML- und Shapefile-Upload, Ebenen in der Kartenwahl, Vektoren auf der Karte.
+
 ## Web-App Nachtrag 2026-11-08 (Branch `claude/drone-missions-ui-handoff-4nsj6e`)
 
 Nur `public/` geändert, kein Schema, keine privaten Daten:

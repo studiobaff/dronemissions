@@ -12,12 +12,33 @@ function dm_migrate(PDO $db): void {
  if(!$db->query("SELECT name FROM sqlite_master WHERE type='table' AND name='missions'")->fetch())return;
  $columns=array_column($db->query('PRAGMA table_info(missions)')->fetchAll(),'name');
  foreach(['overview_waypoint'=>'INTEGER','overview_version'=>'TEXT','litchi_url'=>'TEXT NOT NULL DEFAULT ""'] as $column=>$type)if(!in_array($column,$columns,true))$db->exec("ALTER TABLE missions ADD COLUMN $column $type");
- dm_preview_schema($db);
+ dm_preview_schema($db);dm_layer_schema($db);
  $db->exec('CREATE TABLE IF NOT EXISTS mission_attachments(mission TEXT NOT NULL REFERENCES missions(id),version TEXT NOT NULL REFERENCES versions(id),PRIMARY KEY(mission,version))');
 }
 function dm_schema(PDO $db): void {
- dm_preview_schema($db);
+ dm_preview_schema($db);dm_layer_schema($db);
  $db->exec('CREATE TABLE IF NOT EXISTS mission_attachments(mission TEXT NOT NULL REFERENCES missions(id),version TEXT NOT NULL REFERENCES versions(id),PRIMARY KEY(mission,version)); CREATE TABLE IF NOT EXISTS points(id TEXT PRIMARY KEY,folder TEXT NOT NULL REFERENCES folders(id),name TEXT NOT NULL,notes TEXT NOT NULL DEFAULT "",lat REAL NOT NULL,lng REAL NOT NULL,settings TEXT NOT NULL DEFAULT "{}",revision INTEGER NOT NULL DEFAULT 1); CREATE TABLE IF NOT EXISTS folders(id TEXT PRIMARY KEY,parent TEXT REFERENCES folders(id),name TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS missions(id TEXT PRIMARY KEY,folder TEXT REFERENCES folders(id),name TEXT NOT NULL,notes TEXT NOT NULL DEFAULT "",archived INTEGER NOT NULL DEFAULT 0,created TEXT NOT NULL,updated TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,overview_waypoint INTEGER,overview_version TEXT,litchi_url TEXT NOT NULL DEFAULT ""); CREATE TABLE IF NOT EXISTS versions(id TEXT PRIMARY KEY,mission TEXT NOT NULL REFERENCES missions(id),ordinal INTEGER NOT NULL,filename TEXT NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,details TEXT NOT NULL,created TEXT NOT NULL,UNIQUE(mission,ordinal)); CREATE TABLE IF NOT EXISTS shares(id TEXT PRIMARY KEY,folder TEXT NOT NULL REFERENCES folders(id),token_hash TEXT NOT NULL UNIQUE,role TEXT NOT NULL,expires INTEGER NOT NULL,created TEXT NOT NULL); CREATE TABLE IF NOT EXISTS login_attempts(ip TEXT NOT NULL,happened INTEGER NOT NULL);');
+}
+/* Eigene Kartenebenen: Kachel-Ebenen (XYZ/WMTS mit optionalem API-Schlüssel) und Vektor-Ebenen (GeoJSON-Datei im Blob-Speicher). */
+function dm_layer_schema(PDO $db): void {
+ $db->exec('CREATE TABLE IF NOT EXISTS map_layers(id TEXT PRIMARY KEY,kind TEXT NOT NULL,name TEXT NOT NULL,config TEXT NOT NULL,hash TEXT,ordinal INTEGER NOT NULL DEFAULT 0,created TEXT NOT NULL)');
+}
+function dm_layers(PDO $db): array {
+ $rows=$db->query('SELECT * FROM map_layers ORDER BY ordinal,created,id')->fetchAll();foreach($rows as &$r)$r['config']=json_decode($r['config'],true,32,JSON_THROW_ON_ERROR);unset($r);return $rows;
+}
+function dm_layer_url(array $config): string {
+ // Der Schlüssel wird in die Kachel-URL eingesetzt; Kacheln lädt der Browser, daher sehen alle Kartennutzer den Schlüssel (bei Mapbox per URL-Beschränkung absichern).
+ return str_replace('{key}',rawurlencode((string)($config['key']??'')),(string)$config['url']);
+}
+function dm_layers_public(PDO $db): array {
+ $out=[];foreach(dm_layers($db) as $l){$c=$l['config'];
+  if($l['kind']==='tile')$out[]=['id'=>$l['id'],'kind'=>'tile','name'=>$l['name'],'url'=>dm_layer_url($c),'attribution'=>$c['attribution']??'','maxZoom'=>$c['maxZoom']??19,'overlay'=>!empty($c['overlay']),'opacity'=>$c['opacity']??1];
+  else $out[]=['id'=>$l['id'],'kind'=>'vector','name'=>$l['name'],'color'=>$c['color']??'#2f8f4e','features'=>$c['features']??0,'attribution'=>$c['attribution']??''];
+ }return $out;
+}
+function dm_layer_hosts(PDO $db): array {
+ $hosts=[];foreach(dm_layers($db) as $l)if($l['kind']==='tile'){$url=$l['config']['url'];$h=parse_url(str_replace(['{s}','{z}','{x}','{y}','{-y}','{key}'],['sub','0','0','0','0','k'],$url),PHP_URL_HOST);if($h)$hosts['https://'.(str_contains($url,'{s}.')?preg_replace('/^sub\./','*.',$h):$h)]=true;}
+ return array_keys($hosts);
 }
 function dm_id(): string { return bin2hex(random_bytes(16)); }
 function dm_text(mixed $v,int $limit=200): string { if(!is_string($v))throw new InvalidArgumentException('Text erwartet.'); $v=trim($v);if(strlen($v)>$limit||preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F]/',$v))throw new InvalidArgumentException('Text zu lang oder ungültig.');return $v; }
@@ -76,7 +97,7 @@ function dm_payload(PDO $db,?array $scope): array {
   $points=array_values(array_filter($points,fn($p)=>!isset($hidden[$p['folder']])));foreach($points as &$p){$p['notes']='';$p['settings']=[];}unset($p);
   $folders=array_values(array_filter($folders,fn($f)=>!isset($hidden[$f['id']])));
  }
- return ['folders'=>$folders,'missions'=>$missions,'points'=>$points,'role'=>$scope?($scope['role']==='edit'?'editor':'viewer'):'owner','scope'=>$scope['folder']??null];
+ return ['folders'=>$folders,'missions'=>$missions,'points'=>$points,'role'=>$scope?($scope['role']==='edit'?'editor':'viewer'):'owner','scope'=>$scope['folder']??null,'layers'=>dm_layers_public($db)];
 }
 
 function dm_format(array $details): string { return match($details['sourceFormat']??'dji-kmz'){'litchi-csv'=>'csv','litchi-lchm'=>'lchm','litchi-lchz'=>'lchz','mapcreator-project'=>'mproj',default=>'kmz'}; }
