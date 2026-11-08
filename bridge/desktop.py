@@ -24,7 +24,7 @@ import credentials
 import ios
 import theme
 
-VERSION='0.6.0'
+VERSION='0.6.1'
 APP_NAME='dronemissions-bridge'  # Wortmarke wie die Web-App: drone·missions, dazu -bridge
 THUMB=QSize(176,118)
 TAB_DEVICE,TAB_ARCHIVE,TAB_TRANSFER,TAB_RUN=0,1,2,3
@@ -234,9 +234,10 @@ class Window(QMainWindow):
   self.checked_label=QLabel('0 ausgewählt');self.checked_label.setObjectName('muted');tools.addWidget(self.checked_label)
   self.save_web_button=QPushButton('Im Webarchiv sichern …');self.save_web_button.setEnabled(False);self.save_web_button.clicked.connect(self.save_to_archive);tools.addWidget(self.save_web_button)
   self.sync_preview_button=QPushButton('Vorschauen ins Webarchiv');self.sync_preview_button.setObjectName('quiet');self.sync_preview_button.setEnabled(False);self.sync_preview_button.setToolTip('DJI-Fly-Titelbilder der angehakten (sonst aller sichtbaren) Missionen, die identisch im Webarchiv liegen, dort als Vorschau speichern.');self.sync_preview_button.clicked.connect(self.sync_previews_to_archive);tools.addWidget(self.sync_preview_button);card.addLayout(tools)
+  self.remove_device_button=QPushButton('Vom iPad entfernen …');self.remove_device_button.setObjectName('quiet');self.remove_device_button.setToolTip('Nur angehakte Missionen lokal entfernen. Vorher vollständige Sicherung; Webarchiv und Cloud-Kopien bleiben bestehen.');self.remove_device_button.setEnabled(False);self.remove_device_button.clicked.connect(self.remove_device_missions);
   sorting=QHBoxLayout();sorting.addWidget(QLabel('Sortieren nach'));self.device_sort=QComboBox()
   for text,key in [('Gerätereihenfolge','device'),('Name A–Z','name-asc'),('Name Z–A','name-desc'),('Datum: neueste zuerst','date-desc'),('Datum: älteste zuerst','date-asc'),('Strecke: kürzeste zuerst','distance-asc'),('Strecke: längste zuerst','distance-desc'),('Wegpunkte: wenige zuerst','points-asc'),('Wegpunkte: viele zuerst','points-desc')]:self.device_sort.addItem(text,key)
-  saved=self.device_sort.findData(self.settings.value('deviceSort','device'));self.device_sort.setCurrentIndex(max(0,saved));self.device_sort.currentIndexChanged.connect(lambda _:(self.settings.setValue('deviceSort',self.device_sort.currentData()),self.render_device_list()));sorting.addWidget(self.device_sort);sorting.addSpacing(10);sorting.addWidget(self.device_local_only);sorting.addWidget(self.device_cloud_only);sorting.addWidget(self.device_unsaved_only);sorting.addStretch();self.device_count=QLabel('');self.device_count.setObjectName('muted');sorting.addWidget(self.device_count);card.addLayout(sorting)
+  saved=self.device_sort.findData(self.settings.value('deviceSort','device'));self.device_sort.setCurrentIndex(max(0,saved));self.device_sort.currentIndexChanged.connect(lambda _:(self.settings.setValue('deviceSort',self.device_sort.currentData()),self.render_device_list()));sorting.addWidget(self.device_sort);sorting.addSpacing(10);sorting.addWidget(self.device_local_only);sorting.addWidget(self.device_cloud_only);sorting.addWidget(self.device_unsaved_only);sorting.addStretch();self.device_count=QLabel('');self.device_count.setObjectName('muted');sorting.addWidget(self.device_count);sorting.addWidget(self.remove_device_button);card.addLayout(sorting)
   self.list=QListWidget();self.list.setObjectName('missions');self.list.setSelectionMode(QListWidget.SingleSelection);self.list.setSpacing(4);self.list.setUniformItemSizes(False);self.list.itemSelectionChanged.connect(self.changed_target);self.list.itemDoubleClicked.connect(lambda _:self.start_replace());card.addWidget(self.list,1)
   self.list_empty=QLabel('Noch keine Missionen gelesen.');self.list_empty.setObjectName('emptyList');self.list_empty.setAlignment(Qt.AlignCenter);card.addWidget(self.list_empty,1)
   actions=QHBoxLayout();self.selected_label=QLabel('Kein Eintrag ausgewählt.');self.selected_label.setObjectName('muted');self.selected_label.setWordWrap(True);actions.addWidget(self.selected_label,1)
@@ -540,6 +541,7 @@ class Window(QMainWindow):
   self.update_mode_notes()
   if hasattr(self,'queue_list'):self.render_queue()
  def changed_target(self):
+  device=self.current_device();self.remove_device_button.setEnabled(bool(self.checked) and bool(device and device.get('kind')=='ios'))
   m=self.selected_row();self.cloud_download_button.setEnabled(bool(m and m.get('localState')=='cloud-or-missing'));self.replace_button.setEnabled(m is not None and m.get('localState')=='local');r=self.current_device()
   self.rename_button.setEnabled(m is not None or len(self.checked)==1);self.rename_button.setToolTip('Name in DJI Fly ändern (iPad/iPhone)' if r and r['kind']=='ios' else 'Auf Android nur das Etikett in der Bridge; der DJI-Fly-Name ist dort nicht erreichbar.')
   if m:self.selected_label.setText(f'Ausgewählt: {self.row_label(r,m,self.rows.index(m))}'+('' if m.get('localState')=='local' else ' · nur lokal vorhandene Missionen lassen sich ersetzen'))
@@ -573,8 +575,8 @@ class Window(QMainWindow):
  def adb_for(self,r):return Adb(self.adb.text().strip(),r['serial'])
  def task(self,label,fn,done,progress=None):
   if self.job and self.job.isRunning():return
-  self.status.setText(label);self.log_line(label);self.body.setEnabled(False);self.progress.show();j=Job(fn,self,with_progress=progress is not None);self.job=j
-  def enable():self.body.setEnabled(True);self.progress.hide()
+  self.status.setText(label);self.log_line(label);self.body.setEnabled(False);self.toolbar.setEnabled(False);self.menuBar().setEnabled(False);self.progress.show();j=Job(fn,self,with_progress=progress is not None);self.job=j
+  def enable():self.body.setEnabled(True);self.toolbar.setEnabled(True);self.menuBar().setEnabled(True);self.progress.hide()
   def ok(result):
    enable()
    try:done(result)
@@ -695,6 +697,7 @@ class Window(QMainWindow):
   self.save_web_button.setEnabled(bool(local) and self.archive is not None);self.save_web_button.setToolTip('' if self.archive else 'Zuerst mit dem Webarchiv verbinden (Schritt 2 oder Einstellungen).')
   self.sync_preview_button.setEnabled(self.archive is not None and bool(self.preview_sync_candidates()))
   self.rename_button.setEnabled(self.selected_row() is not None or len(self.checked)==1)
+  device=self.current_device();self.remove_device_button.setEnabled(bool(total) and bool(device and device.get('kind')=='ios'))
   visible=self.visible_rows();count=sum(m['uuid'] in self.checked for _,m in visible);state=Qt.Checked if visible and count==len(visible) else Qt.PartiallyChecked if count else Qt.Unchecked
   self.select_all.blockSignals(True);self.select_all.setCheckState(state);self.select_all.blockSignals(False)
  def rename_target(self):
@@ -722,6 +725,31 @@ class Window(QMainWindow):
     if row['uuid']==uid:row['name']=name
    self.render_device_list();self.log_line('Umbenannt und zurückgelesen: '+str(dest));self.status.setText(f'In DJI Fly umbenannt: „{name}“. Beim nächsten Öffnen von DJI Fly prüfen; Cloud-Synchronisation kann folgen.')
   self.task('Datenbank sichern, Namen schreiben und zurücklesen …',lambda:ios.run(ios.rename_mission(r['serial'],uid,name,dest,fly_closed=True)),done)
+ def remove_device_missions(self):
+  if self.job and self.job.isRunning():return
+  try:r=self.selected_device()
+  except Exception as e:self.error(str(e));return
+  picked=[m for m in self.rows if m['uuid'] in self.checked]
+  if r.get('kind')!='ios' or not picked:self.status.setText('Bitte zuerst die zu entfernenden iPad-Missionen anhaken.');return
+  saved=sum(archive_state(m,self.archive_rows,self.archive is not None)=='saved' for m in picked)
+  names=[self.row_label(r,m,self.rows.index(m)) for m in picked]
+  note=f'{saved} von {len(picked)} sind als identische KMZ im geladenen Webarchiv bestätigt.'
+  if saved<len(picked):note+='\nZum späteren Neuübertragen zuerst „Im Webarchiv sichern“ verwenden. Die lokale Sicherung ersetzt kein Webarchiv.'
+  text=f'{len(picked)} angehakte Mission(en) nur vom iPad entfernen?\n\n'+'\n'.join(names)+'\n\n'+note+'\n\nVorher wird der vollständige Gerätebestand gesichert. Webarchiv und bestehende Cloud-Kopien werden nicht gelöscht; Cloud-Kopien können nach Synchronisation wieder erscheinen.'
+  dialog=QMessageBox(self);dialog.setWindowTitle('Vom iPad entfernen');dialog.setIcon(QMessageBox.Warning);dialog.setText(text)
+  closed=QCheckBox('DJI Fly ist vollständig geschlossen und kein Flug aktiv.');dialog.setCheckBox(closed)
+  remove=dialog.addButton('Sichern und vom iPad entfernen',QMessageBox.DestructiveRole);cancel=dialog.addButton(QMessageBox.Cancel);dialog.setDefaultButton(cancel);remove.setEnabled(False);closed.toggled.connect(remove.setEnabled);dialog.exec()
+  if dialog.clickedButton()!=remove or not closed.isChecked():return
+  targets=[{k:m[k] for k in ('uuid','name','updated') if k in m} for m in picked];ids={m['uuid'] for m in picked}
+  dest=self.root/'transfers'/(datetime.now().strftime('%Y%m%d-%H%M%S-%f')+'-remove')
+  def done(result):
+   self.rows=[m for m in self.rows if m['uuid'] not in ids];self.checked.difference_update(ids)
+   for e in self.queue:
+    if e.get('target') in ids:e['target']=None;e['targetLabel']=None;e['plan']=None;e['status']='ready'
+   self.render_device_list();self.changed_target();self.render_queue();self.update_target_card()
+   self.list_note.setText(f'{len(self.rows)} Missionen auf {r["name"]}.');self.status.setText(f'{len(ids)} Mission(en) vom iPad entfernt und zurückgeprüft. Webarchiv unverändert.')
+   self.log_line('Sicherung und Entfernen bestätigt: '+str(dest));QMessageBox.information(self,'Vom iPad entfernt',f'{len(ids)} Mission(en) lokal entfernt.\n\nWebarchiv und vorhandene Cloud-Kopien bleiben erhalten. Gesicherte Archivmissionen lassen sich später über Schritt 2 neu übertragen.\n\nVollständige lokale Sicherung: '+str(dest/'before'))
+  self.task('Vollständig sichern, angehakte Missionen lokal entfernen und zurücklesen …',lambda:ios.run(ios.remove_missions(r['serial'],targets,dest,fly_closed=True)),done)
  def read_device_mission(self,r,m):
   """KMZ und Titelbild einer Mission vom Gerät lesen (nur lesen)."""
   if r['kind']=='ios':return ios.run(ios.read_mission(r['serial'],m['uuid']))

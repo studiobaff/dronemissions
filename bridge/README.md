@@ -9,7 +9,7 @@ Lokale Mac-Oberfläche für DJI-KMZ-Dateien. Der Kern verwendet für Android sep
 3. In der Bridge Geräte suchen und das iPad/iPhone auswählen. Missionen lesen zeigt die DJI-Fly-Namen.
 4. In Schritt 2 Missionen aus dem Webarchiv anhaken oder „KMZ-Dateien vom Mac …“ wählen; in Schritt 3 je Mission Namen prüfen und das Titelbild wählen: „3D-Ansicht“ (offline, Route schräg mit echten Wegpunkthöhen, siehe „Automatische 3D-Titelvorschau“), „Luftbild“ (Route auf dem Orthofoto, braucht Internet, siehe „Kartenquellen“; ohne Kartenquelle 3D-Ansicht) oder „Eigenes Bild“. Die Wahl wird gemerkt. DJI Fly zeigt das Bild fest; drehen lässt es sich dort nicht.
 5. „Vorschau prüfen“ zeigt den dritten Schritt mit großer Titelvorschau und Zielgerät.
-6. DJI Fly vollständig schließen, das im dritten Schritt bestätigen und „Jetzt übertragen“ wählen. Nach vollständiger Sicherung wird ein neuer Eintrag angelegt. Bestehende Missionen werden nicht ersetzt oder gelöscht.
+6. DJI Fly vollständig schließen, das im dritten Schritt bestätigen und „Jetzt übertragen“ wählen. Nach vollständiger Sicherung wird ein neuer Eintrag angelegt. Im Modus „Neu anlegen“ werden bestehende Missionen nicht ersetzt oder gelöscht.
 7. DJI Fly öffnen; Mission, Speichern und Cloud-Synchronisation prüfen.
 
 Die automatische Sicherung liegt im Benutzer-Anwendungsdatenordner; der Button in der App öffnet ihn. Datenbank und Missionsdateien werden zurückgelesen. Die Dateiprüfung ist ausdrücklich keine Bestätigung eines nutzbaren Flugplans oder einer erfolgreichen DJI-Cloud-Synchronisation.
@@ -96,7 +96,7 @@ Die Geräteliste kennzeichnet **Lokal**, **Nur Cloud**, **Im Webarchiv**, **Nich
 
 Beim erneuten Sichern wird nach der Zielordner-Auswahl eine identische, bereits vorhandene Archiv-Mission in diesen Ordner verschoben. Es entsteht keine doppelte Mission; Name, Missions-ID, Versionen und Originaldatei bleiben erhalten. Liegt ein identischer Eintrag schon im Zielordner, wird nichts geändert. Bei mehreren Treffern außerhalb des Zielordners wird keine automatische Auswahl getroffen. Die Verschiebung verwendet die geladene Revision; zwischenzeitliche Änderungen werden vom Server mit Konflikt abgelehnt. Das Ergebnis unterscheidet neu gesichert, verschoben, bereits im Zielordner und fehlgeschlagen.
 
-**Löschen auf dem Gerät ist nicht eingebaut.** Dafür DJI Fly verwenden. Ein Download aus der DJI-Cloud bleibt ebenfalls eine Aktion in DJI Fly; die Bridge erklärt dafür den Weg und liest danach den lokalen Bestand neu.
+**Ab 0.6.1:** Angehakte Missionen lassen sich nach vollständiger Sicherung lokal vom iPad entfernen; siehe Aufräumen unten. Auf Android weiterhin DJI Fly verwenden. Ein Download aus der DJI-Cloud bleibt ebenfalls eine Aktion in DJI Fly; die Bridge erklärt dafür den Weg und liest danach den lokalen Bestand neu.
 
 ## Einstellungsfenster, Ordnerbaum und Warteschlange (0.5.0)
 
@@ -110,7 +110,7 @@ Die Oberfläche folgt jetzt vier Schritten, die als Pfeilleiste über die ganze 
 
 **Schritt 4, Übertragung**: Ein Start, dann seriell: sichern, schreiben, zurücklesen, nächste Mission. Je Auftrag Status *bereit*, *geprüft*, *läuft*, *erfolgreich*, *fehlgeschlagen* oder *nicht gestartet*; oben „2 von 4 übertragen“. Beim ersten Fehler stoppt die Übertragung, der Rest bleibt „nicht gestartet“, Sicherung und Journal liegen im Ablageordner. „Nach dem aktuellen Auftrag anhalten“ stoppt nach dem laufenden Auftrag, „Fortsetzen“ überträgt nur nicht gestartete Aufträge; erfolgreiche Missionen werden nie erneut angelegt (Namensregister `names.json`). „Fehlgeschlagene erneut prüfen …“ setzt sie auf *bereit* zurück, sie müssen in Schritt 3 neu geprüft werden. Ein Gerätewechsel oder eine geleerte Warteschlange überträgt nichts; auch Ersetzen-Ziele werden beim Gerätewechsel gelöst. Ein Android-Neuimport bleibt experimentell, das Ersetzen am iPad ist weiter nicht am Gerät geprüft.
 
-**Ehrliche Beschriftungen**: „So lädst du Cloud-Missionen herunter …“ erklärt den Weg in DJI Fly; die Bridge lädt nichts aus der DJI-Cloud. Löschen auf dem Gerät gibt es nicht. Das Fenster bleibt mindestens 1020 × 720 Punkte groß; der Menüpunkt „Übertragen“ führt zu Schritt 4, „Vorschauen prüfen“ zu Schritt 3.
+**Ehrliche Beschriftungen**: „So lädst du Cloud-Missionen herunter …“ erklärt den Weg in DJI Fly; die Bridge lädt nichts aus der DJI-Cloud. Lokales Entfernen angehakter iPad-Missionen ist ab 0.6.1 möglich. Das Fenster bleibt mindestens 1020 × 720 Punkte groß; der Menüpunkt „Übertragen“ führt zu Schritt 4, „Vorschauen prüfen“ zu Schritt 3.
 
 **Tests**: `python3 -m unittest discover -s bridge/tests` (89 Tests) läuft mit `QT_QPA_PLATFORM=offscreen`, temporären INI-Einstellungen, einem Fake-Schlüsselbund und einem temporären Ablageordner; echter Schlüsselbund, echte Einstellungen und `names.json` des Nutzers werden nie gelesen oder beschrieben. `tests/test_queue.py` deckt Ordnerfilter mit und ohne Unterordner, Mehrfachauswahl mit verdeckten Treffern, Reihenfolge der Übernahme, lokale KMZ ohne Anmeldung, Zielprüfung beim Ersetzen, Gerätewechsel, seriellen Ablauf mit Fehlerstopp, Anhalten, Fortsetzen ohne Doppelanlage, Dateiänderung vor dem Start sowie die Lage der Verbindungsfelder im Einstellungsfenster ab. Gerätetests wurden in dieser Version nicht ausgeführt.
 
@@ -152,3 +152,19 @@ Tests dazu: `tests/test_theme.py` (beide Schemata ohne offene Platzhalter, Icons
 - **Umbenennen** ist auch aktiv, wenn genau eine Mission angehakt ist (nicht nur bei markierter Zeile).
 
 Tests: 99, davon neu iPad-Bildlesen (`test_ios.py`), `save_preview` gegen den API-Fake (`test_archive.py`), Archivbild-Rückfall, Vorschau-Sync und Entfernen in Schritt 4 (`test_queue.py`).
+### ADB im Mac-Build
+
+PyInstaller verarbeitet und signiert das gebündelte Mach-O-Binary. Der Mac-Build bewahrt deshalb die Upstream-Prüfsumme als `sourceAdbSha256` und trägt unter `adbSha256` die Prüfsumme der tatsächlich ausgelieferten Datei ein. Die Laufzeitprüfung bleibt aktiv. Nach diesem Ressourcen-Update wird nur die äußere App-Signatur neu gesetzt.
+
+
+## Aufräumen und später wieder laden (0.6.1)
+
+1. Gewünschte lokale Missionen anhaken und **Im Webarchiv sichern …**. Den Chip „Im Webarchiv“ anhand der identischen KMZ-Prüfsumme prüfen.
+2. Dieselben Missionen anhaken und **Vom iPad entfernen …**. Nur Hakerl zählen, nicht die markierte Zeile; auch ausgeblendete angehakte Missionen werden im Dialog namentlich aufgeführt.
+3. Der Dialog nennt den Archivstatus und verlangt „DJI Fly ist vollständig geschlossen und kein Flug aktiv“. Erst **Sichern und vom iPad entfernen** startet die Aktion; Abbrechen ist voreingestellt.
+4. Der vollständige Missionsbestand wird gesichert und nochmals gelesen. Eine Kopie der Datenbank entfernt genau die gewählten Einträge. Andere Zeilen und Tabellen müssen identisch bleiben; gemeinsam referenzierte Dateien werden abgelehnt. Die App schreibt atomar und prüft jede verbleibende Datei zurück. Fehler lösen eine geprüfte Wiederherstellung aus; Sicherung und Journal bleiben unter Protokoll/Ablage erreichbar.
+5. Später im Webarchiv-Projekt dieselben Missionen wählen und mit **Neu anlegen** wieder aufs iPad übertragen. Archivkopien, Namen, Bilder und Versionen bleiben beim lokalen Entfernen bestehen.
+
+Die Funktion ist derzeit **nur für iPad/iPhone** verfügbar. Es erfolgt keine Löschung in der DJI-Cloud; vorhandene Cloud-Kopien können nach Synchronisation erneut auftauchen. Nicht im Webarchiv bestätigte oder defekte Einträge können nach ausdrücklicher Bestätigung ebenfalls lokal entfernt werden, haben aber dann nur die lokale vollständige Sicherung, keinen zugesicherten Webarchiv-Wiederimport.
+
+Validierung: 109 isolierte Tests, darunter exakte Auswahl trotz Filter, Abbrechen, iPad-Beschränkung, unveränderte übrige Zeilen/Tabellen, geänderte Dateien, gemeinsam referenzierte Dateien und Rollback nach unklarem Umbenennen oder teilweisem Löschen. Am echten iPad wurden nach ausdrücklicher Freigabe fünf alte, nie synchronisierte „Injected Mission“-Einträge und ihre zehn zugehörigen Dateien entfernt; alle übrigen Dateien wurden unverändert zurückgelesen. Kundendaten und die lokale Sicherung sind nicht Bestandteil dieses Repositorys.

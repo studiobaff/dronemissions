@@ -17,5 +17,24 @@ if sys.platform=='darwin':
  import plistlib
  info=root.parent/'outputs'/'dronemissions-bridge.app'/'Contents'/'Info.plist'
  with info.open('rb') as stream:metadata=plistlib.load(stream)
- metadata.update(CFBundleShortVersionString='0.6.0',CFBundleVersion='20261108.6',CFBundleName='dronemissions-bridge',CFBundleDisplayName='dronemissions-bridge',UIDesignRequiresCompatibility=True)
+ metadata.update(CFBundleShortVersionString='0.6.1',CFBundleVersion='20261108.7',CFBundleName='dronemissions-bridge',CFBundleDisplayName='dronemissions-bridge',UIDesignRequiresCompatibility=True)
  with info.open('wb') as stream:plistlib.dump(metadata,stream)
+
+ # PyInstaller thins and signs Mach-O inputs, so the bundled ADB is no longer
+ # byte-identical to Google's universal upstream binary. Keep both hashes and
+ # verify the exact shipped binary at runtime, without weakening verification.
+ app=info.parents[1]
+ subprocess.run(['codesign','--force','--deep','--sign','-',str(app)],check=True)
+ import hashlib,json
+ bundled=app/'Contents/Frameworks/platform-tools'
+ provenance=bundled/'provenance.json'
+ if provenance.is_file() and (bundled/'adb').is_file():
+  original=json.loads((root/'vendor/platform-tools/provenance.json').read_text())
+  original['sourceAdbSha256']=original['adbSha256']
+  original['adbSha256']=hashlib.sha256((bundled/'adb').read_bytes()).hexdigest()
+  original['packaging']='PyInstaller macOS architecture processing and ad-hoc signing'
+  provenance.write_text(json.dumps(original,indent=2)+'\n')
+ # Only the outer signature needs updating after the resource change. Rewriting
+ # nested signatures here would invalidate the newly recorded executable hash.
+ subprocess.run(['codesign','--force','--sign','-',str(app)],check=True)
+ subprocess.run(['codesign','--verify','--deep','--strict',str(app)],check=True)
