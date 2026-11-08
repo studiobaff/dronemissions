@@ -24,7 +24,7 @@ import credentials
 import ios
 import theme
 
-VERSION='0.6.1'
+VERSION='0.6.2'
 APP_NAME='dronemissions-bridge'  # Wortmarke wie die Web-App: drone·missions, dazu -bridge
 THUMB=QSize(176,118)
 TAB_DEVICE,TAB_ARCHIVE,TAB_TRANSFER,TAB_RUN=0,1,2,3
@@ -592,7 +592,7 @@ class Window(QMainWindow):
   path,_=QFileDialog.getOpenFileName(self,'ADB auswählen')
   if path:self.adb.setText(path);self.settings.setValue('adb',path);self.adb_note.setText('Eigener ADB-Pfad aus den Einstellungen.')
  def preview_text(self):
-  return {'3d':'3D-Ansicht: Route schräg mit echten Wegpunkthöhen, offline erzeugt; ohne vergleichbare Höhen Draufsicht.','map':'Luftbild: Route mit Wegpunktnummern auf dem Orthofoto; in Österreich basemap.at mit Beschriftung, sonst Esri World Imagery bzw. OpenStreetMap (braucht Internet). Ohne Kartenquelle 3D-Ansicht.','image':'Eigenes Bild: '+(self.background_path.name if self.background_path else ''),'archive':'Archivbild: Vorschau aus dem Webarchiv (Routenzeichnung oder Bild aus dem Vorschau-Editor) als Titelbild, ohne Internet.'}[self.preview_mode]
+  return {'3d':'3D-Ansicht: Route schräg mit echten Wegpunkthöhen, offline erzeugt; ohne vergleichbare Höhen Draufsicht. Lila POIs zeigen die Lage der Blickziele, keinen zugesicherten Höhenbezug.','map':'Luftbild: Route mit Wegpunktnummern und vorhandenen lila POIs (Lage) auf dem Orthofoto; in Österreich basemap.at mit Beschriftung, sonst Esri World Imagery bzw. OpenStreetMap (braucht Internet). Ohne Kartenquelle 3D-Ansicht.','image':'Eigenes Bild: '+(self.background_path.name if self.background_path else ''),'archive':'Archivbild: Vorschau aus dem Webarchiv (Routenzeichnung oder Bild aus dem Vorschau-Editor) als Titelbild, ohne Internet.'}[self.preview_mode]
  def set_preview_mode(self,mode,choose=True):
   if mode=='image' and choose:
    path,_=QFileDialog.getOpenFileName(self,'Bildhintergrund auswählen','','Bilder (*.jpg *.jpeg *.png)')

@@ -168,3 +168,11 @@ PyInstaller verarbeitet und signiert das gebündelte Mach-O-Binary. Der Mac-Buil
 Die Funktion ist derzeit **nur für iPad/iPhone** verfügbar. Es erfolgt keine Löschung in der DJI-Cloud; vorhandene Cloud-Kopien können nach Synchronisation erneut auftauchen. Nicht im Webarchiv bestätigte oder defekte Einträge können nach ausdrücklicher Bestätigung ebenfalls lokal entfernt werden, haben aber dann nur die lokale vollständige Sicherung, keinen zugesicherten Webarchiv-Wiederimport.
 
 Validierung: 109 isolierte Tests, darunter exakte Auswahl trotz Filter, Abbrechen, iPad-Beschränkung, unveränderte übrige Zeilen/Tabellen, geänderte Dateien, gemeinsam referenzierte Dateien und Rollback nach unklarem Umbenennen oder teilweisem Löschen. Am echten iPad wurden nach ausdrücklicher Freigabe fünf alte, nie synchronisierte „Injected Mission“-Einträge und ihre zehn zugehörigen Dateien entfernt; alle übrigen Dateien wurden unverändert zurückgelesen. Kundendaten und die lokale Sicherung sind nicht Bestandteil dieses Repositorys.
+
+## 0.6.2: POIs in erzeugten Vorschauen
+
+3D und Luftbild zeigen aktive WPML-Blickziele als lila Rauten mit „POI N“. Wiederholte Verweise auf dasselbe Blickziel werden zusammengefasst; der Bildausschnitt umfasst Route und POIs. Aus `followWayline`, sonstigen Kamerawinkeln oder inaktiven Platzhaltern werden keine POIs abgeleitet. WPML speichert POIs als Breite, Länge, Höhe, anders als KML.
+
+Die Darstellung zeigt die horizontale Lage. In der 3D-Ansicht stehen POI-Symbole auf der unteren Routenebene; der nicht bestätigte Höhenbezug wird nicht mit Wegpunkthöhen vermischt. Titelband unten bleibt erhalten. Eigene Fotos und vorhandene Archivbilder bleiben unverändert; für POI-Marker eine neue 3D-/Luftbildvorschau erzeugen. KMZ, Aktionen und Missionsversion werden durch die Darstellung nicht geändert.
+
+113 isolierte Tests bestehen einschließlich Koordinatenreihenfolge, aktiver/inaktiver POIs, Zusammenfassung, ungültiger Werte, Bildausschnitt und 3D-/Luftbildrendering mit Kachel-Fakes. Keine zusätzliche Geräteübertragung für diesen Darstellungswechsel. Die geprüfte iPad-Aufräumfunktion und der Verpackungsfix für eigenes ADB sind enthalten.

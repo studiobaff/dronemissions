@@ -34,7 +34,7 @@ def route_scene(details):
     points=details['points'];modes={s.get('heightMode','unbekannt') for s in details['segments']}
     use_height=all(isinstance(p.get('height'),(int,float)) and math.isfinite(p['height']) for p in points) and len(modes)==1 and modes<=KNOWN_REFERENCES
     heights=[float(p['height']) for p in points] if use_height else [0.0]*len(points)
-    bottom=min(heights);top=max(heights);metres=_local_metres(points)
+    bottom=min(heights);top=max(heights);pois=details.get('pois',[]);allmetres=_local_metres(points+pois);metres=allmetres[:len(points)];poimetres=allmetres[len(points):]
     spread=max(max(abs(x) for x,_ in metres),max(abs(y) for _,y in metres),1.0)*2
     exaggeration=1.0
     ca,sa=math.cos(AZIMUTH),math.sin(AZIMUTH);ce,se=math.cos(ELEVATION),math.sin(ELEVATION)
@@ -43,12 +43,12 @@ def route_scene(details):
         x=east*ca-north*sa;depth=east*sa+north*ca
         return x,depth*se-(h-bottom)*exaggeration*ce,depth
     route=[project(e,n,h) for (e,n),h in zip(metres,heights)];ground=[project(e,n,bottom) for e,n in metres]
-    allpts=route+ground;xs=[p[0] for p in allpts];ys=[p[1] for p in allpts]
+    poiscene=[project(e,n,bottom) for e,n in poimetres];allpts=route+ground+poiscene;xs=[p[0] for p in allpts];ys=[p[1] for p in allpts]
     scale=min(PLOT.width()/max(max(xs)-min(xs),1e-6),PLOT.height()/max(max(ys)-min(ys),1e-6))
     cx=(min(xs)+max(xs))/2;cy=(min(ys)+max(ys))/2
     fit=lambda p:(PLOT.center().x()+(p[0]-cx)*scale,PLOT.center().y()+(p[1]-cy)*scale,p[2])
     projected=[(*fit(p),h) for p,h in zip(route,heights)];footprint=[fit(p) for p in ground]
-    return {'points':projected,'ground':footprint,'is3d':use_height,'heightMin':bottom,'heightMax':top,'exaggeration':exaggeration,
+    return {'pois':[(q,*fit(p)) for q,p in zip(pois,poiscene)],'points':projected,'ground':footprint,'is3d':use_height,'heightMin':bottom,'heightMax':top,'exaggeration':exaggeration,
             'project':lambda e,n,h:fit(project(e,n,h)),'spread':spread}
 
 def draw_markers(painter,points,starts=frozenset(),dark_background=True):
@@ -72,6 +72,16 @@ def draw_markers(painter,points,starts=frozenset(),dark_background=True):
         x,y=points[i];r=12 if len(text)<3 else 15
         painter.setPen(QPen(QColor('#ffffff'),2.5));painter.setBrush(QBrush(QColor('#d9ff63') if i==0 else QColor('#254e3b')));painter.drawEllipse(QPointF(x,y),r,r)
         painter.setPen(QColor('#17372b') if i==0 else QColor('#ffffff'));painter.drawText(QRectF(x-r,y-r,2*r,2*r),Qt.AlignCenter,text)
+    painter.restore()
+
+
+def draw_pois(painter,items):
+    """Distinct purple diamonds; only explicit active WPML POIs, horizontal location."""
+    painter.save();painter.setRenderHint(QPainter.Antialiasing);painter.setFont(QFont('Helvetica Neue',11,QFont.Bold))
+    for poi,x,y in items:
+        painter.setPen(QPen(QColor('white'),2));painter.setBrush(QColor('#b45ee3'));path=QPainterPath();path.moveTo(x,y-9);path.lineTo(x+9,y);path.lineTo(x,y+9);path.lineTo(x-9,y);path.closeSubpath();painter.drawPath(path)
+        label=poi.get('label','POI');width=QFontMetrics(painter.font()).horizontalAdvance(label)+12;left=min(max(8,x+13),W-width-8);top=min(max(8,y-17),370)
+        painter.fillRect(QRectF(left,top,width,26),QColor('#44245e'));painter.setPen(QColor('white'));painter.drawText(QRectF(left+6,top,width-12,26),Qt.AlignVCenter,label)
     painter.restore()
 
 def draw_route(painter,details):
@@ -104,6 +114,7 @@ def draw_route(painter,details):
         colour=QColor(round(70+145*t),round(190+34*t),round(196-93*t)) if scene['is3d'] else QColor('#b5d969')
         painter.setPen(QPen(colour,3.8,Qt.SolidLine,Qt.RoundCap,Qt.RoundJoin));painter.drawLine(QPointF(a[0],a[1]),QPointF(b[0],b[1]))
     draw_markers(painter,[(p[0],p[1]) for p in points],starts)
+    draw_pois(painter,[(q,x,y) for q,x,y,_ in scene['pois']])
     painter.restore()
     painter.setFont(QFont('Helvetica Neue',14));painter.setPen(QColor('#b1c6bc'))
     if scene['is3d']:label=f'3D · Höhe {low:.0f}–{scene["heightMax"]:.0f} m · {len(points)} Wegpunkte'

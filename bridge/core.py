@@ -39,7 +39,7 @@ def inspect_kmz(raw:bytes)->dict:
    template=xml('wpmz/template.kml');route=xml('wpmz/waylines.wpml')
    if z.testzip():raise BridgeError('KMZ-Prüfsumme ungültig.')
  except (zipfile.BadZipFile,ET.ParseError,RuntimeError) as e:raise BridgeError('Ungültige KMZ-Datei: '+str(e)) from e
- points=[];segments=[]
+ points=[];segments=[];pois=[]
  for folder in route.iter():
   if local_name(folder.tag)!='Folder':continue
   start=len(points);seen_indices=set()
@@ -52,6 +52,17 @@ def inspect_kmz(raw:bytes)->dict:
    c=coords.split(',');lat=number(c[1] if len(c)>1 else None);lng=number(c[0])
    if lat is None or lng is None or abs(lat)>90 or abs(lng)>180:raise BridgeError('Ungültige Wegpunktkoordinaten.')
    points.append({'lat':lat,'lng':lng,'index':index,'height':number(value(p,'executeHeight')),'speed':number(value(p,'waypointSpeed'),number(value(folder,'autoFlightSpeed')))})
+   if value(p,'waypointHeadingMode')=='towardPOI':
+    rawpoi=value(p,'waypointPoiPoint','').split(',')
+    if len(rawpoi)==3:
+     plat,plng,alt=[number(v) for v in rawpoi]
+     if plat is not None and plng is not None and abs(plat)<=90 and abs(plng)<=180 and alt is not None:
+      key=(plat,plng,alt);poi=next((q for q in pois if (q['lat'],q['lng'],q['altitude'])==key),None)
+      if poi is None:
+       src=value(p,'waypointHeadingPoiIndex','');source=int(src) if src.isdigit() else None
+       poi={'lat':plat,'lng':plng,'altitude':alt,'sourceIndex':source,'waypoints':[]};pois.append(poi)
+      poi['waypoints'].append(len(points)-1)
+
   if seen_indices and sorted(seen_indices)!=list(range(len(seen_indices))):raise BridgeError('Wegpunktnummern sind nicht lückenlos ab 0.')
   if len(points)>start:segments.append({'start':start,'count':len(points)-start,'heightMode':value(folder,'executeHeightMode','unbekannt')})
  if not points:raise BridgeError('Keine ausführbaren Wegpunkte gefunden.')
@@ -60,7 +71,12 @@ def inspect_kmz(raw:bytes)->dict:
   for i in range(s['start']+1,s['start']+s['count']):
    a,b=points[i-1],points[i];dp=math.radians(b['lat']-a['lat']);dl=math.radians(b['lng']-a['lng']);h=math.sin(dp/2)**2+math.cos(math.radians(a['lat']))*math.cos(math.radians(b['lat']))*math.sin(dl/2)**2;d=6371000*2*math.asin(min(1,math.sqrt(h)));distance+=d
    if b['speed'] and b['speed']>0:seconds+=d/b['speed']
- return {'sha256':digest(raw),'bytes':len(raw),'waypoints':len(points),'points':points,'segments':segments,'distance':round(distance,2),'estimatedSeconds':round(seconds),'droneEnum':value(template,'droneEnumValue'),'droneSubEnum':value(template,'droneSubEnumValue'),'author':value(template,'author',''),'name':value(template,'name','')}
+ used=set()
+ for poi in pois:
+  label=poi['sourceIndex']+1 if poi['sourceIndex'] is not None else 1
+  while label in used:label+=1
+  used.add(label);poi['id']=label;poi['label']='POI '+str(label)
+ return {'pois':pois,'sha256':digest(raw),'bytes':len(raw),'waypoints':len(points),'points':points,'segments':segments,'distance':round(distance,2),'estimatedSeconds':round(seconds),'droneEnum':value(template,'droneEnumValue'),'droneSubEnum':value(template,'droneSubEnumValue'),'author':value(template,'author',''),'name':value(template,'name','')}
 
 
 def _xml_namespaces(raw:bytes)->dict:
