@@ -575,3 +575,16 @@ kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.6875rem;b
 .bridge-config strong{display:block;font-size:var(--fs-sm)}
 .bridge-config small{display:block;font-size:var(--fs-xs);color:var(--ink-3);overflow-wrap:anywhere}
 @media(max-width:900px){.bridge-file{grid-template-columns:auto minmax(0,1fr)}.bridge-file .btn{grid-column:1/-1;justify-self:start}.bridge-config{flex-direction:column;align-items:flex-start}}
+
+/* Preview editor: header and actions stay visible, only the body scrolls. */
+.preview-editor{width:min(1220px,96vw);max-width:96vw;max-height:92dvh;padding:0}
+.preview-editor[open]{display:flex;flex-direction:column}
+.preview-editor .dialog-head,.preview-editor .dialog-foot{flex-shrink:0;background:var(--surface,#fff);position:sticky;z-index:2}
+.preview-editor .dialog-head{top:0}.preview-editor .dialog-foot{bottom:0}
+.preview-editor .dialog-body{overflow:auto;min-height:0}
+.pv-layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:24px}
+#pv-canvas{width:100%;height:auto;border-radius:12px;background:#12372e;display:block}
+.pv-controls{display:flex;flex-direction:column;gap:14px}.pv-controls input[type=range]{width:100%}
+.pv-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:16px}
+.pv-image{border:2px solid #dce5df;border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:8px}.pv-image.active{border-color:#287c56}.pv-image img{width:100%;border-radius:6px}.pv-image span{font-size:12px}
+@media(max-width:760px){.pv-layout{grid-template-columns:1fr}.preview-editor .dialog-foot{flex-wrap:wrap}.pv-controls{gap:10px}}
