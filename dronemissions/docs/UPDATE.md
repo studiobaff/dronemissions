@@ -52,3 +52,8 @@ cd outputs && ditto -c -k --keepParent "Drone Missions Bridge.app" "Drone-Missio
 ```
 
 Erlaubte Endungen: zip, dmg, pkg, exe, msi, txt, md. Dateinamen mit „mac“ oder „win“ werden der Plattform zugeordnet. Die Web-App berechnet die SHA-256-Prüfsumme beim ersten Aufruf und zeigt sie im Dialog. Ein Windows-Paket entsteht nur auf einem Windows-Rechner (`bridge/README.md`, Abschnitt Windows 11).
+
+
+## Nachtrag Kartenebenen
+
+Mit den Kartenebenen kommt die Tabelle `map_layers` hinzu; `dm_migrate()` legt sie beim ersten Aufruf an. Vektor-Ebenen liegen als `.geojson` im Blob-Ordner des privaten Verzeichnisses. Für den WMTS-Import muss der Server ausgehende https-Verbindungen zu dem Dienst aufbauen dürfen. Die Integrationstests nehmen optional `--wmts-fixture <URL>`; mit `DRONEMISSIONS_DEV=1` darf der Dienst auf 127.0.0.1 liegen.

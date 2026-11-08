@@ -43,6 +43,7 @@ try {
  if($action==='logout'&&$method==='POST'){$_SESSION=[];session_destroy();respond(['ok'=>true]);}
  $current=scope();
  require __DIR__.'/previews.php';
+ require __DIR__.'/layers.php';
  if($action==='settings'){
   owner();if($method==='GET')respond(['authorName'=>$config['authorName']??'']);
   $config['authorName']=dm_text($input['authorName']??'',100);$tmp=tempnam(dm_private(),'.config-');
