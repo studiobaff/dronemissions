@@ -280,3 +280,104 @@ async def apply_new(serial,source,name,preview,work,*,fly_closed,replace=None):
             for path in [temp]+[stage for stage,_,_ in staged]:
                 try:await afc.rm_single(path,force=True)
                 except Exception:pass
+
+
+def removal_database(original,destination,targets):
+    """Remove exactly the selected local rows; preserve every other row and table."""
+    if not isinstance(targets,list) or not 1<=len(targets)<=500:raise BridgeError('Bitte 1 bis 500 Missionen anhaken.')
+    ids=[t.get('uuid') for t in targets]
+    if len(ids)!=len(set(ids)) or any(not isinstance(uid,str) or not re.fullmatch(r'[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}',uid) for uid in ids):raise BridgeError('Ungültige oder doppelte Missionsauswahl.')
+    destination.write_bytes(original);os.chmod(destination,0o600);validate_db(destination)
+    with sqlite3.connect(destination) as c:
+        c.row_factory=sqlite3.Row
+        before=[dict(r) for r in c.execute('SELECT * FROM kmzTable ORDER BY missionId')]
+        tables=[r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name<>'kmzTable'")]
+        other={t:list(c.execute('SELECT * FROM "'+t.replace('"','""')+'"')) for t in tables}
+        for target in targets:
+            row=next((r for r in before if r['missionId']==target['uuid']),None)
+            if row is None or str(row['deleteTime'])!='-1':raise BridgeError('Mission fehlt oder wurde inzwischen entfernt. Liste neu lesen.')
+            for key,column in [('name','name'),('updated','updateTime')]:
+                if key in target and str(target[key])!=str(row[column]):raise BridgeError('Mission wurde inzwischen geändert. Liste neu lesen.')
+        remaining=[r for r in before if r['missionId'] not in ids]
+        for r in remaining:
+            refs=' '.join(str(r.get(k) or '') for k in ('filePath','coverImagePath','waypointImageNames','poiImageNames')).lower()
+            if any(uid.lower() in refs for uid in ids):raise BridgeError('Eine ausgewählte Datei wird noch von einer anderen Mission verwendet.')
+        for uid in ids:c.execute('DELETE FROM kmzTable WHERE missionId=?',(uid,))
+        if [dict(r) for r in c.execute('SELECT * FROM kmzTable ORDER BY missionId')]!=remaining:raise BridgeError('Nicht ausgewählte Missionen wurden verändert.')
+        if any(list(c.execute('SELECT * FROM "'+t.replace('"','""')+'"'))!=rows for t,rows in other.items()):raise BridgeError('Andere Datenbanktabellen wurden verändert.')
+        if c.execute('PRAGMA foreign_key_check').fetchone():raise BridgeError('Datenbankverknüpfungen würden beschädigt.')
+        c.commit()
+    validate_db(destination)
+    return destination.read_bytes()
+
+
+async def remove_missions(serial,targets,work,*,fly_closed):
+    """Local removal, complete backup, CAS, exact file ownership and verified rollback.
+
+    No DJI cloud API is called. A remote copy may reappear during cloud sync.
+    """
+    if not fly_closed:raise BridgeError('DJI Fly zuerst vollständig schließen; kein Flug darf aktiv sein.')
+    work.mkdir(parents=True,exist_ok=False);os.chmod(work,0o700)
+    journal={'mode':'remove-local','status':'backing-up','missions':targets,'device':serial};atomic_json(work/'transfer.json',journal)
+    async with connect(serial) as (afc,container,version):
+        saved=await snapshot(afc,work/'before',serial)
+        original=(work/'before/mission_db/wpmz.sqlite3').read_bytes()
+        updated=removal_database(original,work/'without-selected.sqlite3',targets)
+        ids=[t['uuid'] for t in targets]
+        owned=[p for p in saved['files'] if any(p.startswith(BASE+'/'+uid+'/') or p.startswith(BASE+'/map_preview/'+uid+'/') or p==BASE+'/map_preview/'+uid+'.jpg' for uid in ids)]
+        owned_dirs=[]
+        base_entries=set(await afc.listdir(BASE))
+        map_entries=set(await afc.listdir(BASE+'/map_preview')) if 'map_preview' in base_entries else set()
+        for uid in ids:
+            if uid in base_entries:owned_dirs.append(BASE+'/'+uid)
+            if uid in map_entries:owned_dirs.append(BASE+'/map_preview/'+uid)
+        async def empty_folder(path):
+            for name in await afc.listdir(path):
+                if name in ('.','..'):continue
+                if '/' in name or '\\' in name or name in ('','..'):raise BridgeError('Unsicherer Unterordner.')
+                child=path+'/'+name;stat=await afc.stat(child)
+                if stat['st_ifmt']!='S_IFDIR':raise BridgeError('Neue Datei im zu entfernenden Missionsordner.')
+                await empty_folder(child)
+            await afc.rm_single(path)
+        journal.update(status='prepared',files=owned,databaseBefore=digest(original),databaseAfter=digest(updated));atomic_json(work/'transfer.json',journal)
+        temp=DB+'.missionbridge-'+uuid.uuid4().hex;attempted=False
+        try:
+            await afc.set_file_contents(temp,updated)
+            if await afc.get_file_contents(temp)!=updated:raise BridgeError('Datenbank-Staging fehlgeschlagen.')
+            if await database(afc)!=original:raise BridgeError('Datenbank inzwischen geändert. Nichts entfernt.')
+            current=[p for p in await files(afc) if p!=temp]
+            if current!=sorted(saved['files']):raise BridgeError('Missionsbestand inzwischen geändert. Nichts entfernt.')
+            for path,info in saved['files'].items():
+                if digest(await afc.get_file_contents(path))!=info['sha256']:raise BridgeError('Missionsdatei inzwischen geändert. Nichts entfernt.')
+            attempted=True;await afc.rename(temp,DB)
+            if await database(afc)!=updated:raise BridgeError('Datenbank-Rückleseprüfung fehlgeschlagen.')
+            for path in owned:await afc.rm_single(path)
+            expected=set(saved['files'])-set(owned)
+            if set(await files(afc))!=expected:raise BridgeError('Entfernte Dateien konnten nicht bestätigt werden.')
+            for path in expected:
+                sha=digest(updated) if path==DB else saved['files'][path]['sha256']
+                if digest(await afc.get_file_contents(path))!=sha:raise BridgeError('Rückleseprüfung einer verbleibenden Datei fehlgeschlagen.')
+            for folder in owned_dirs:await empty_folder(folder)
+            journal.update(status='removed-and-verified',flyVersion=version,removed=len(ids),removedFiles=len(owned),remainingFiles=len(expected));atomic_json(work/'transfer.json',journal)
+            return journal
+        except Exception as error:
+            journal.update(status='failed',error=str(error))
+            if attempted:
+                try:
+                    current=await database(afc)
+                    if current not in (original,updated):raise BridgeError('DJI Fly hat die Datenbank geändert; manuelle Wiederherstellung erforderlich.')
+                    for path in owned:
+                        raw=(work/'before'/path[len(BASE)+1:]).read_bytes()
+                        await afc.makedirs(path.rsplit('/',1)[0])
+                        await afc.set_file_contents(path,raw)
+                        if digest(await afc.get_file_contents(path))!=saved['files'][path]['sha256']:raise BridgeError('Datei-Rollback fehlgeschlagen.')
+                    await afc.set_file_contents(temp,original)
+                    if await afc.get_file_contents(temp)!=original:raise BridgeError('Rollback-Staging fehlgeschlagen.')
+                    await afc.rename(temp,DB)
+                    if await database(afc)!=original:raise BridgeError('Datenbank-Rollback fehlgeschlagen.')
+                    journal['rollback']='verified'
+                except Exception as rollback:journal['rollback']='manual-recovery-required: '+str(rollback)
+            atomic_json(work/'transfer.json',journal);raise
+        finally:
+            try:await afc.rm_single(temp,force=True)
+            except Exception:pass

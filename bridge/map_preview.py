@@ -11,7 +11,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt,QRectF
 from PySide6.QtGui import QImage,QPainter,QColor,QPen,QPainterPath,QFont
 from core import BridgeError
-from preview import draw_markers
+from preview import draw_markers,draw_pois
 
 USER_AGENT='studiobaff-DroneMissionsBridge/0.5 (+https://github.com/studiobaff/dronemissions)'
 PROVIDERS={
@@ -42,9 +42,11 @@ def map_background(details,destination,cache,providers=None):
 
 def _render(name,points,details,destination,cache):
     provider=PROVIDERS[name]
+    allpoints=points+details.get('pois',[])
     for zoom in range(provider['max_zoom'],2,-1):
-        coords=[world(p['lat'],p['lng'],zoom) for p in points];xs,ys=zip(*coords)
+        coords=[world(p['lat'],p['lng'],zoom) for p in allpoints];xs,ys=zip(*coords)
         if max(xs)-min(xs)<=700 and max(ys)-min(ys)<=280:break
+    poicoords=coords[len(points):];coords=coords[:len(points)]
     left=(min(xs)+max(xs))/2-450;top=(min(ys)+max(ys))/2-210
     tiles=[(x,y) for x in range(math.floor(left/256),math.ceil((left+900)/256))
                  for y in range(math.floor(top/256),math.ceil((top+420)/256))]
@@ -70,6 +72,7 @@ def _render(name,points,details,destination,cache):
     painter.setPen(QPen(QColor('#20392d'),8,Qt.SolidLine,Qt.RoundCap,Qt.RoundJoin));painter.drawPath(route)
     painter.setPen(QPen(QColor('#d9ff63'),4,Qt.SolidLine,Qt.RoundCap,Qt.RoundJoin));painter.drawPath(route)
     draw_markers(painter,[(x-left,y-top) for x,y in coords],starts,dark_background=False)
+    draw_pois(painter,[(p,x-left,y-top) for p,(x,y) in zip(details.get('pois',[]),poicoords)])
     painter.fillRect(105,393,690,25,QColor(255,255,255,220));painter.setFont(QFont('Helvetica Neue',10));painter.setPen(QColor('#17372b'))
     painter.drawText(QRectF(105,393,690,25),Qt.AlignCenter,provider['credit'])
     painter.end();destination=Path(destination);destination.parent.mkdir(parents=True,exist_ok=True)
