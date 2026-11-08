@@ -1,3 +1,54 @@
-.ke-dialog{width:min(1400px,calc(100vw - 24px));max-width:none;height:calc(100dvh - 24px);max-height:none;padding:0;overflow:hidden}.ke-dialog[open]{display:flex;flex-direction:column}.ke-head,.ke-footer,.ke-tools{display:flex;align-items:center;gap:10px;padding:10px 16px;flex-shrink:0}.ke-head,.ke-tools{border-bottom:1px solid #dce3dc}.ke-head>div,.ke-footer>span{flex:1;min-width:0}.ke-head .hint{white-space:nowrap;text-overflow:ellipsis;overflow:hidden}.ke-tools .btn,.ke-body .btn{padding:7px 10px;min-height:34px;font-size:13px}.ke-body{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:0;flex:1}.ke-body aside{overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;border-right:1px solid #dce3dc}.ke-body .field{gap:4px;font-size:13px}.ke-body input,.ke-body select{padding:7px;min-height:36px;font-size:14px}.ke-body .hint{font-size:12px;line-height:1.45}.ke-body details{font-size:13px}.ke-navigation{display:flex;gap:8px}.ke-navigation button{flex:1}#ke-map{min-height:250px;min-width:0}.ke-footer{border-top:1px solid #dce3dc;font-size:13px}.ke-footer .btn{white-space:normal}.ke-marker{border-radius:50%;background:#2771b5;color:white;border:2px solid white;text-align:center;line-height:22px;font-size:12px;font-weight:700;box-shadow:0 1px 4px #3338}.ke-marker.ke-selected{background:#148051;outline:3px solid #93dab0}.ke-nudge{display:grid;grid-template-columns:38px 38px 38px;align-self:center;align-items:center;justify-items:center;gap:4px}.ke-nudge [data-ke-move=north]{grid-column:2}.ke-nudge [data-ke-move=west]{grid-column:1}.ke-nudge [data-ke-move=south]{grid-column:2}.ke-nudge span{font-size:12px}.ke-nudge button{width:38px}.ke-tools{flex-wrap:wrap}.ke-tools #ke-count{font-size:12px;margin-left:auto}.ke-footer .error{color:#a32424}@media(max-width:700px){.ke-body{grid-template-columns:190px minmax(0,1fr)}.ke-body aside{padding:8px}.ke-head,.ke-footer,.ke-tools{padding:8px}.ke-footer{align-items:flex-start}.ke-footer .btn{max-width:180px}.ke-tools #ke-count{width:100%}}@media(max-width:430px){.ke-body{grid-template-columns:155px minmax(0,1fr)}.ke-tools .btn{font-size:11px;padding:5px}.ke-footer{font-size:11px}}
-
-.ke-body .field{display:grid;margin:0}.ke-body input,.ke-body select{margin:0;height:36px}.ke-body aside{gap:8px}.ke-body aside>button{flex-shrink:0}.ke-body .ke-navigation{margin-bottom:0}
+/* Same workspace proportions and controls as the planner, isolated to the KMZ editor. */
+.ke-dialog{width:98vw;max-width:1920px;height:97dvh;max-height:97dvh;padding:0;overflow:hidden;font-size:13px}
+.ke-dialog[open]{display:flex;flex-direction:column}
+.ke-dialog [hidden]{display:none!important}
+.ke-dialog .btn{min-height:30px;padding:.25rem .6rem;font-size:12px;font-weight:500;gap:.35rem}
+.ke-dialog .btn-icon{min-width:32px;min-height:32px;padding:0;color:var(--ink-2)}
+.ke-dialog .btn:disabled,.ke-dialog .ke-step:disabled{opacity:.4;cursor:default}
+.ke-dialog .ke-icon{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.ke-dialog .hint{font-size:11px;line-height:1.45;color:var(--ink-3);margin:.4rem 0}
+.ke-head,.ke-footer{display:flex;align-items:center;gap:.8rem;flex-shrink:0;padding:.45rem .85rem}
+.ke-heading{display:flex;align-items:center;gap:.6rem;flex-shrink:0}
+.ke-head h2{font-size:17px;margin:0;white-space:nowrap}
+.ke-badge{padding:.2rem .5rem;border-radius:999px;background:var(--surface-2);color:var(--ink-2);font-size:11px;font-weight:600;white-space:nowrap}
+.ke-subtitle{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--ink-3)}
+.ke-body{display:flex;gap:.6rem;min-height:0;flex:1;padding:.25rem .85rem .4rem}
+.ke-options{width:310px;min-width:250px;max-width:560px;flex:0 0 auto;resize:horizontal;overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:0 .1rem .6rem;scrollbar-width:thin}
+.ke-dialog.ke-options-hidden .ke-options{display:none}
+.ke-point-picker{padding:.6rem .8rem;border-bottom:1px solid var(--line-soft)}
+.ke-navigation{display:grid;grid-template-columns:30px minmax(0,1fr) 30px;gap:.3rem;margin-top:.3rem}
+.ke-section{border-bottom:1px solid var(--line-soft)}
+.ke-section>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.6rem .8rem;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);user-select:none;-webkit-user-select:none}
+.ke-section>summary::-webkit-details-marker{display:none}
+.ke-section>summary::after{content:'';width:8px;height:8px;flex-shrink:0;border-right:2px solid var(--ink-4);border-bottom:2px solid var(--ink-4);transform:rotate(45deg);margin-right:.25rem}
+.ke-section[open]>summary::after{transform:rotate(-135deg)}
+.ke-section-body{padding:0 .8rem .6rem}
+.ke-dialog .field{display:block;margin:0 0 .4rem;font-size:12px;color:var(--ink-2)}
+.ke-dialog .field>span{display:block;margin-bottom:.2rem}
+.ke-dialog .field input[type=number],.ke-dialog input,.ke-dialog select{width:100%;min-width:0;min-height:30px;height:32px;margin:0;padding:.3rem .5rem;font-size:13px;font-variant-numeric:tabular-nums;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)}
+.ke-stepper{display:grid;grid-template-columns:26px minmax(0,1fr) 26px;align-items:stretch}
+.ke-stepper input{border-radius:0;text-align:center}
+.ke-step{border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);font-size:15px;line-height:1;cursor:pointer;padding:0;min-height:30px}
+.ke-step:first-child{border-radius:6px 0 0 6px;border-right:0}.ke-step:last-child{border-radius:0 6px 6px 0;border-left:0}.ke-step:hover{background:var(--line-soft)}
+.ke-nudge{display:grid;grid-template-columns:32px 32px 32px;align-items:center;justify-items:center;justify-content:center;gap:4px;margin:.6rem 0 .2rem}
+.ke-nudge [data-ke-move=north]{grid-column:2}.ke-nudge [data-ke-move=west]{grid-column:1}.ke-nudge [data-ke-move=south]{grid-column:2}.ke-nudge span{font-size:11px;color:var(--ink-3)}.ke-nudge .btn{width:32px;padding:0}
+.ke-visual{position:relative;flex:1;min-width:0;min-height:240px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface-2)}
+#ke-map{position:absolute;inset:0;width:100%;height:100%}
+.ke-map-tools{position:absolute;inset:0;z-index:1100;pointer-events:none}
+.ke-tool-group{position:absolute;display:flex;gap:.25rem;padding:.3rem;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);pointer-events:auto}
+.ke-edit-tools{left:.6rem;top:.6rem;flex-direction:column}.ke-view-tools{right:.6rem;top:.6rem}.ke-tool-separator{height:1px;background:var(--line);margin:.15rem .2rem}
+.ke-map-summary{position:absolute;left:50%;bottom:1.6rem;transform:translateX(-50%);z-index:1000;max-width:calc(100% - 110px);padding:.35rem .8rem;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);font-size:12px;line-height:1.35;color:var(--ink);pointer-events:none;display:flex;flex-direction:column;gap:2px}
+.ke-map-summary span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#ke-selection{font-size:11px;color:var(--ink-2)}
+.ke-dialog .leaflet-top.leaflet-right{top:3.5rem}
+.ke-dialog .leaflet-bottom.leaflet-left .leaflet-control-scale{margin-bottom:4.2rem}
+.ke-marker{border-radius:50%;background:#2771b5;color:#fff;border:2px solid #fff;text-align:center;line-height:22px;font-size:12px;font-weight:700;box-shadow:0 1px 4px #3338}.ke-marker.ke-selected{background:var(--ink);outline:3px solid #93dab0}
+.ke-footer{border-top:1px solid var(--line-soft);gap:.5rem}.ke-footer>span{flex:1;min-width:0;font-size:12px}.ke-footer .error{color:var(--danger,#b83446);font-weight:600}.ke-footer .btn{white-space:normal;flex-shrink:0}
+@media(max-width:850px){
+ .ke-dialog{width:calc(100vw - .6rem);height:calc(100dvh - .6rem);max-height:none}
+ .ke-head{flex-wrap:wrap;gap:.3rem .6rem}.ke-heading{flex:1}.ke-subtitle{order:3;flex-basis:100%}.ke-badge{font-size:10px}
+ .ke-body{flex-direction:column;overflow:auto}.ke-visual{order:-1;min-height:280px;flex:1 0 45%}.ke-options{width:auto;min-width:0;max-width:none;resize:none;flex:1 0 220px}
+ .ke-dialog .leaflet-top.leaflet-right{top:7rem}
+ .ke-edit-tools{flex-direction:row}.ke-tool-separator{height:auto;width:1px;margin:.2rem .15rem}.ke-view-tools{top:3.6rem}
+ .ke-footer{flex-wrap:wrap}.ke-footer>span{flex-basis:100%}.ke-footer .btn{margin-left:auto}
+ .ke-map-summary{max-width:calc(100% - 90px);font-size:11px;padding:.3rem .5rem}
+}
