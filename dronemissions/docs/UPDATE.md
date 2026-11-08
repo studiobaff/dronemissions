@@ -1,3 +1,11 @@
+## Missionsplaner 0.5.2 · Einzelbilder / Video · 8.11.2026
+
+Aufnahmeauswahl in der oberen Werkzeugleiste; keine Bezeichnung „SkySplat“. Video-Grid erzeugt nur Anfang/Ende jeder Bahn. Gelände kann zusätzliche Höhenstützpunkte verlangen; Helix behält ihre Kurvenstützpunkte. Jeder KMZ-Abschnitt richtet die Kamera aus, startet die Aufnahme und stoppt sie am letzten Wegpunkt. Gimbal-Pitch wird zwischen benachbarten Punkten interpoliert. Keine Foto-/Hover-Aktionen im Videoexport. Bestehende Wegpunkt-Stopps bleiben erhalten; kein Versprechen eines unterbrechungsfreien Rundflugs.
+
+Aufnahmeart wird im Entwurf gespeichert, alte Entwürfe öffnen als Einzelbilder. Prüfsumme umfasst jetzt neben Punkten auch Exportparameter. Video zeigt Wegpunkte, Videoabschnitte und reine Streckenzeit statt Fotozahlen/Fotopausen. Fotoabstand und Längsüberlappung sind beim Video-Grid ausgeblendet; Bahnenabstand/Querüberdeckung bleiben einstellbar. Videocrop, Seitenverhältnis und FOV müssen zum tatsächlichen Aufnahmeformat passen. Auflösung/Bildrate werden in DJI Fly eingestellt, nicht vom Planer gesetzt.
+
+PHP-Geometrie-/Exporttests und API-Lebenszyklus mit synthetischen Daten bestanden, einschließlich Gelände, Abschnittsteilung, Speichern/Wiederöffnen und Archivkonflikten. Browser: Wechsel 30 Fotos → 6 Video-Wegpunkte bei identischen Bahnen; Bahnabstand ändert die Vorschau automatisch. DJI-Fly-Geräte-/Flugtest für Video weiterhin offen. Nur Web-App; kein Bridge-Build nötig. Details: `PLANNER.md`.
+
 ## Missionsplaner 0.5.1 · Kalotte mit Gelände · 8.11.2026
 
 Die bisherige pauschale Sperre „feste Kugelkalotte kann nicht dem Gelände folgen“ entfällt. Das bestehende DEM-Verfahren hebt/senkt die Flugpunkte, richtet die Kamera neu auf den POI aus und erhält den Nadir-Scheitel. FOV-Anzeigen unterscheiden jetzt Winkelüberdeckung nach DEM und Windungswerte vor DEM. Fehlende Daten, Mindesthöhe und Bewegungsgrenzen bleiben geprüft. Starres Kippen/Rotation der Flugroute ist nicht enthalten. Nur Web-App; kein Bridge-Build. Details in `PLANNER.md`.
