@@ -71,6 +71,16 @@ Anforderungen des Eigentümers für die Bridge-Oberfläche (unverändert überno
 
 Nächste Schritte: Auf dem Mac `python bridge/build_desktop.py` ausführen, die App am iPad („Neu anlegen“) und an der RC Pro 2 („Ersetzen“) durchspielen, Rückmeldung zur Logik einarbeiten. Windows-11-Paket auf einem Windows-Rechner bauen (siehe `bridge/README.md`). Gerätetests kann nur der Eigentümer machen. Erst danach den Hinweis „USB-Übertragung über die Bridge-App“ in der Web-UI um einen echten Download- oder Kopplungsweg ergänzen.
 
+## Web-App Nachtrag 2026-11-08 (Branch `claude/drone-missions-ui-handoff-4nsj6e`)
+
+Nur `public/` geändert, kein Schema, keine privaten Daten:
+
+- **Vorschau-Editor** (`previews.js`): Route in 3D mit Umriss, Höhenfärbung und Wegpunktmarkern wie in Web-Karte und Bridge (Start „1“, Ende mit Nummer, kleine Punkte dazwischen, bei vielen Punkten ausgedünnt), Beschriftung „3D · Höhe … · N Wegpunkte“. Karte/Luftbild weltweit: in Österreich basemap.at (Luftbild mit Beschriftungs-Overlay), sonst OpenStreetMap (Karte) bzw. Esri World Imagery (Luftbild), Quellenangabe im Bild. Kartenzoom wird beim Öffnen so gewählt, dass die ganze Route sichtbar ist. Titel im Band vertikal zentriert. Die Server-Validierung (`provider` map|aerial) bleibt unverändert.
+- **Kartenleiste „Karte & Zonen“** (`zones.js`, `style.css`): „Hintergrundkarte“ ist standardmäßig aufgeklappt und hat einen Akkordeon-Pfeil; die Leiste begrenzt ihre Höhe auf die Kartenhöhe und scrollt statt über den Kartenrand zu laufen.
+- **OpenStreetMap „Access blocked“**: Ursache war `Referrer-Policy: no-referrer` in `index.php`; OSM sperrt Kachelanfragen ohne Referer. Jetzt `strict-origin-when-cross-origin`, zusätzlich `referrerPolicy` an Leaflet-Kacheln und Editor-Bildern. Freigabe-Token stehen nur im `#`-Teil der Adresse und werden nie übertragen.
+- **Adresszeile** (`app.js`): `#projekt=<id>`, `#ansicht=archiv|ohne`, `#mission=<id>` werden beim Navigieren gesetzt und beim Laden bzw. Login wieder angewendet; Kundenlinks (`#share=`) unverändert. Fenstertitel und Kopf heißen `dronemissions`.
+- Geprüft: `tests/integration.py` gegen eine frische lokale Installation (alle PASS) und Browserlauf mit Kachel-Fakes (Editor 3D/Karte/Luftbild, Kartenleiste, Deep Links).
+
 ## Bridge 0.6.0 (Branch `claude/drone-missions-ui-handoff-4nsj6e`, Stand 2026-11-08)
 
 Gestaltungsdurchgang nach dem Apple-Design-Skill, Logik unverändert: Systemschrift, helles und dunkles Schema folgen dem System (`bridge/theme.py`), Symbolleiste mit Icon und Beschriftung, Schlüssel-Wert-Infoblock auf der Prüfseite, Projektbaum ohne Fokusrahmen, Vorschaubilder passen sich dem Platz an, Warteschlange zeigt sofort Bilder, Archivbild aus dem Webarchiv als Standard-Titelbild für Archivmissionen. Einstellungsfenster in einer Scrollfläche, damit sich Zeilen auf dem Mac nicht mehr überlagern. Nachtrag: App-Name `dronemissions-bridge` (Bundle umbenannt, Einstellungen/Schlüsselbund unverändert), Wortmarke wie die Website, Symbolleiste mit Kreis-Icons wie macOS 26, Kapsel-Knöpfe, iPad-Titelbilder werden beim Lesen geladen, Archivbild als Rückfall, „Vorschauen ins Webarchiv“ (API `preview-save`), Entfernen per Checkbox in Schritt 3 und 4, Umbenennen bei einer angehakten Mission. Web-App: Fenstertitel `dronemissions`. Bildschirmfotos hell und dunkel unter `bridge/docs/screenshots-0.5/`. 99 Tests ohne Gerät.
