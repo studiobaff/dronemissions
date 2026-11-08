@@ -71,6 +71,10 @@ Anforderungen des Eigentümers für die Bridge-Oberfläche (unverändert überno
 
 Nächste Schritte: Auf dem Mac `python bridge/build_desktop.py` ausführen, die App am iPad („Neu anlegen“) und an der RC Pro 2 („Ersetzen“) durchspielen, Rückmeldung zur Logik einarbeiten. Windows-11-Paket auf einem Windows-Rechner bauen (siehe `bridge/README.md`). Gerätetests kann nur der Eigentümer machen. Erst danach den Hinweis „USB-Übertragung über die Bridge-App“ in der Web-UI um einen echten Download- oder Kopplungsweg ergänzen.
 
+## Bridge 0.6.0 (Branch `claude/drone-missions-ui-handoff-4nsj6e`, Stand 2026-11-08)
+
+Gestaltungsdurchgang nach dem Apple-Design-Skill, Logik unverändert: Systemschrift, helles und dunkles Schema folgen dem System (`bridge/theme.py`), Symbolleiste mit Icon und Beschriftung, Schlüssel-Wert-Infoblock auf der Prüfseite, Projektbaum ohne Fokusrahmen, Vorschaubilder passen sich dem Platz an, Warteschlange zeigt sofort Bilder, Archivbild aus dem Webarchiv als Standard-Titelbild für Archivmissionen. Einstellungsfenster in einer Scrollfläche, damit sich Zeilen auf dem Mac nicht mehr überlagern. Bildschirmfotos hell und dunkel unter `bridge/docs/screenshots-0.5/`. 89 Tests ohne Gerät.
+
 ## Bridge 0.5.0 (Branch `claude/drone-missions-ui-handoff-4nsj6e`, Stand 2026-11-08)
 
 Umgesetzt nach `bridge/docs/UI-HANDOFF-2026-11-08.md` und PR #6: Einstellungsfenster (`⌘,`) für Archiv, Schlüssel, Konfiguration und ADB; Schritt 2 mit Projektbaum wie die Website, kombinierter Suche/Sortierung, großen Vorschauen und echten Checkboxen (nur KMZ); Pfeilleiste „Gerät wählen → Missionen auswählen → Vorschauen prüfen → Übertragen“; Warteschlange mit getrenntem „Neu anlegen“/„Ersetzen“, eindeutigen Zielen, serieller Übertragung, Fehlerstopp, Anhalten, Fortsetzen ohne Doppelanlage; Wegpunktnummern in beiden Vorschauen; Luftbild mit basemap.at-Beschriftung in Österreich und Esri/OSM-Rückfall weltweit. Details und Bildschirmfotos: `bridge/README.md` (Abschnitte 0.5.0) und `bridge/docs/screenshots-0.5/`.

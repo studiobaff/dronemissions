@@ -86,6 +86,11 @@ class QueueTests(test_desktop.DesktopCase):
         w.archive_use();self.wait(lambda:len(w.queue)==2,'download')
         self.assertEqual(w.tabs.currentIndex(),TAB_TRANSFER);self.assertEqual([e['name'] for e in w.queue],['Rundflug','Hof']);self.assertEqual(w.archive_checked,set());self.assertEqual(w.queue_count.text(),'2 Mission(en)')
         self.assertTrue(all(e['archiveMission'] for e in w.queue));self.assertEqual(w.queue[0]['source'].read_bytes(),KMZ);self.assertIn('Webarchiv',w.queue[0]['note'])
+        # Archivbild: Vorschau aus dem Webarchiv wird gerastert, als Listenbild genutzt und ist Standard-Titelbild
+        self.assertTrue(all(e['archivePreview'] and Path(e['archivePreview']).is_file() for e in w.queue));self.assertEqual([e['previewMode'] for e in w.queue],['archive','archive']);self.assertTrue(w.queue[0]['preview'] and Path(w.queue[0]['preview']).is_file())
+        self.assertFalse(w.preview_archive.isHidden());self.assertTrue(w.preview_archive.isChecked());w.prepare();self.wait_review();self.assertEqual([e['plan']['previewMode'] for e in w.queue],['archive','archive']);self.assertEqual(w.summary_preview.text(),'Archivbild')
+        with tempfile.TemporaryDirectory() as t:
+            self.add_local(t,'Lokal');self.assertEqual(w.queue[2]['previewMode'],'3d');self.assertTrue(w.preview_archive.isHidden());w.set_preview_mode('archive');self.assertEqual(w.preview_mode,'3d')
     def test_local_kmz_can_be_queued_without_archive_login(self):
         w=self.window;self.assertIsNone(w.archive)
         with tempfile.TemporaryDirectory() as t:

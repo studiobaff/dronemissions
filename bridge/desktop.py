@@ -9,9 +9,9 @@ from __future__ import annotations
 import json,os,re,shutil,sys,uuid,shlex
 from datetime import datetime
 from pathlib import Path
-from PySide6.QtCore import QThread,Signal,QSettings,QStandardPaths,Qt,QUrl,QTimer,QSize
-from PySide6.QtGui import QDesktopServices,QPixmap,QPainter,QColor,QFont,QIcon,QAction,QKeySequence
-from PySide6.QtWidgets import (QLayout,QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,QDialog,
+from PySide6.QtCore import QThread,Signal,QSettings,QStandardPaths,Qt,QUrl,QTimer,QSize,QRectF
+from PySide6.QtGui import QDesktopServices,QPixmap,QPainter,QColor,QFont,QIcon,QAction,QKeySequence,QImage
+from PySide6.QtWidgets import (QLayout,QToolBar,QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,QDialog,
  QLabel,QPushButton,QComboBox,QLineEdit,QFileDialog,QListWidget,QListWidgetItem,QPlainTextEdit,QTreeWidget,QTreeWidgetItem,
  QMessageBox,QCheckBox,QStackedWidget,QFrame,QProgressBar,QTabWidget,QTabBar,QButtonGroup,QSizePolicy,QScrollArea,QInputDialog,QSplitter)
 from PySide6.QtSvg import QSvgRenderer
@@ -22,8 +22,9 @@ from archive import ArchiveClient,safe_filename
 from mission_list import sort_rows,archive_state,metadata,numeric,folder_tree,in_selected_folder
 import credentials
 import ios
+import theme
 
-VERSION='0.5.0'
+VERSION='0.6.0'
 THUMB=QSize(176,118)
 TAB_DEVICE,TAB_ARCHIVE,TAB_TRANSFER,TAB_RUN=0,1,2,3
 STEP_TITLES=['Gerät wählen','Missionen auswählen','Vorschauen prüfen','Übertragen']
@@ -54,7 +55,7 @@ def app_icon():
 
 def placeholder(size,text):
  pixmap=QPixmap(size);pixmap.fill(QColor('#1b332b'));painter=QPainter(pixmap);painter.setPen(QColor('#a7c577'))
- painter.setFont(QFont('Helvetica Neue',11));painter.drawText(pixmap.rect(),Qt.AlignCenter|Qt.TextWordWrap,text);painter.end();return pixmap
+ painter.setFont(QFont(theme.system_font(),11));painter.drawText(pixmap.rect(),Qt.AlignCenter|Qt.TextWordWrap,text);painter.end();return pixmap
 
 def picture_from(data,content_type='',size=THUMB):
  pixmap=QPixmap()
@@ -65,8 +66,40 @@ def picture_from(data,content_type='',size=THUMB):
  if data and pixmap.loadFromData(data):return pixmap.scaled(size,Qt.KeepAspectRatioByExpanding,Qt.SmoothTransformation)
  return None
 
+def archive_preview_file(raw,content_type,destination):
+ """Vorschau aus dem Webarchiv als JPEG ablegen; SVG-Routenzeichnungen werden auf 900×600 gerastert. Liefert None bei leeren Daten."""
+ if not raw:return None
+ destination=Path(destination);destination.parent.mkdir(parents=True,exist_ok=True)
+ if 'svg' in (content_type or '') or raw.lstrip().startswith(b'<'):
+  renderer=QSvgRenderer(raw)
+  if not renderer.isValid():return None
+  image=QImage(900,600,QImage.Format_RGB32);image.fill(QColor('#152e2b'));painter=QPainter(image);painter.setRenderHint(QPainter.Antialiasing)
+  box=renderer.viewBoxF();ratio=min(900/max(box.width(),1),600/max(box.height(),1)) if box.width() and box.height() else 1;w,h=(box.width()*ratio,box.height()*ratio) if box.width() and box.height() else (900,600)
+  renderer.render(painter,QRectF((900-w)/2,(600-h)/2,w,h));painter.end();path=destination.with_suffix('.jpg')
+  return path if image.save(str(path),'JPEG',90) else None
+ image=QImage.fromData(raw)
+ if image.isNull():return None
+ path=destination.with_suffix('.jpg');return path if image.convertToFormat(QImage.Format_RGB32).save(str(path),'JPEG',90) else None
+
 def badge(text,kind):
  label=QLabel(text);label.setObjectName('missionBadge');label.setProperty('badge',kind);return label
+
+class PreviewLabel(QLabel):
+ """Großes Vorschaubild, das sich in den verfügbaren Platz einpasst statt den Platz zu bestimmen.
+
+ Das Quellbild wird gemerkt und bei jeder Größenänderung neu skaliert; die Mindestgröße bleibt klein, damit der
+ Infoblock und die Knöpfe darunter nie überdeckt werden. Ohne Bild erscheint ein beschrifteter Platzhalter.
+ """
+ def __init__(self,empty_text,minimum=QSize(320,200)):
+  super().__init__();self.setObjectName('preview');self.setMinimumSize(minimum);self.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding);self.setAlignment(Qt.AlignCenter);self.empty_text=empty_text;self.source=None;self.set_source(None)
+ def set_source(self,pixmap):
+  self.source=pixmap if pixmap is not None and not pixmap.isNull() else None;self.refresh()
+ def refresh(self):
+  size=self.size() if self.width()>1 and self.height()>1 else self.minimumSize()
+  if self.source is None:QLabel.setPixmap(self,placeholder(QSize(min(size.width(),480),min(size.height(),320)),self.empty_text));return
+  QLabel.setPixmap(self,self.source.scaled(size,Qt.KeepAspectRatio,Qt.SmoothTransformation))
+ def resizeEvent(self,event):super().resizeEvent(event);self.refresh()
+ def sizeHint(self):return self.minimumSize()
 
 class ArchiveRow(QWidget):
  """Eine Zeile der Webarchiv-Liste: Hakerl, Vorschaubild, Name, Projektpfad, Format, Wegpunkte, Strecke."""
@@ -111,7 +144,7 @@ class QueueRow(QWidget):
   picture=QLabel();picture.setFixedSize(QSize(132,88));picture.setObjectName('thumb');picture.setAlignment(Qt.AlignCenter)
   pixmap=QPixmap(str(entry['preview'])) if entry.get('preview') and Path(entry['preview']).is_file() else QPixmap()
   picture.setPixmap(pixmap.scaled(132,88,Qt.KeepAspectRatioByExpanding,Qt.SmoothTransformation) if not pixmap.isNull() else placeholder(QSize(132,88),'Vorschau folgt'));layout.addWidget(picture)
-  text=QVBoxLayout();text.setSpacing(3);title=QLabel(entry['name'] or Path(entry['original']).stem);title.setObjectName('rowTitle');title.setWordWrap(True);text.addWidget(title)
+  text=QVBoxLayout();text.setSpacing(3);title=QLabel(entry['name'] or Path(entry['original']).stem);title.setObjectName('rowTitle');title.setWordWrap(False);title.setToolTip(entry['name']);text.addWidget(title)
   origin='Webarchiv: '+entry['archiveMission']['folder'] if entry.get('archiveMission') else 'Lokale Datei: '+Path(entry['original']).name
   meta=QLabel(origin+(f" · {entry['details']['waypoints']} Wegpunkte · {entry['details']['distance']/1000:.2f} km" if entry.get('details') else ''));meta.setObjectName('muted');meta.setWordWrap(True);text.addWidget(meta)
   badges=QHBoxLayout();badges.setSpacing(6);badges.addWidget(badge('Ersetzen: '+(entry.get('targetLabel') or 'Ziel fehlt') if entry['mode']=='replace' else 'Neu anlegen','replace' if entry['mode']=='replace' else 'new'))
@@ -125,7 +158,7 @@ class Window(QMainWindow):
   # root: Anwendungsdatenordner; Tests übergeben einen temporären Ordner, damit weder names.json noch Sicherungen des Nutzers berührt werden.
   self.settings=QSettings('studiobaff','DroneMissionsBridge');self.root=Path(root) if root else Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation));self.root.mkdir(parents=True,exist_ok=True)
   self.rows=[];self.registry={};self.job=None;self.prepared=None;self.stop_requested=False
-  self.queue=[];self.current=-1;self.pending_target=None;self.mode='new';self.loose_transfer=None
+  self.queue=[];self.current=-1;self.pending_target=None;self.mode='new';self.loose_transfer=None;self.quick_timer=QTimer(self);self.quick_timer.setSingleShot(True);self.quick_timer.setInterval(350);self.quick_timer.timeout.connect(self.quick_preview)
   self.archive=None;self.archive_rows=[];self.archive_widgets=[];self.archive_checked=set();self.archive_selection='all';self.client_factory=client_factory or ArchiveClient;self.credential_store=credential_store or credentials;self.archive_auto=False;self.checked=set();self.device_rows_widgets=[];self.preview_mode=self.settings.value('previewMode','3d') or '3d';self.background_path=None
   try:self.registry=json.loads((self.root/'names.json').read_text())
   except (OSError,ValueError):pass
@@ -141,16 +174,29 @@ class Window(QMainWindow):
 
  # ---------- Aufbau ----------
  def build_header(self,outer):
-  header=QHBoxLayout();header.setSpacing(12)
-  title=QLabel('Drone Missions Bridge');title.setObjectName('windowTitle');header.addWidget(title)
-  header.addSpacing(18);header.addWidget(QLabel('Gerät'))
-  self.device=QComboBox();self.device.setMinimumHeight(40);self.device.setMinimumWidth(260);self.device.currentIndexChanged.connect(self.changed_device);header.addWidget(self.device,1)
-  self.refresh_button=QPushButton('Neu suchen');self.refresh_button.clicked.connect(self.refresh_devices);header.addWidget(self.refresh_button)
-  log=QPushButton('Protokoll');log.setObjectName('quiet');log.clicked.connect(self.show_log);header.addWidget(log)
-  settings=QPushButton('Einstellungen …');settings.setObjectName('quiet');settings.clicked.connect(self.show_settings);header.addWidget(settings)
-  outer.addLayout(header)
+  """Symbolleiste wie in macOS-Programmen: Gerät links, Aktionen mit Icon und Beschriftung rechts."""
+  bar=QToolBar('Hauptfunktionen');bar.setMovable(False);bar.setFloatable(False);bar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon);bar.setIconSize(QSize(22,22));bar.setContextMenuPolicy(Qt.PreventContextMenu);self.toolbar=bar;self.addToolBar(Qt.TopToolBarArea,bar)
+  holder=QWidget();row=QHBoxLayout(holder);row.setContentsMargins(4,0,12,0);row.setSpacing(8);row.addWidget(QLabel('Gerät'))
+  self.device=QComboBox();self.device.setMinimumHeight(40);self.device.setMinimumWidth(300);self.device.currentIndexChanged.connect(self.changed_device);row.addWidget(self.device,1);bar.addWidget(holder)
+  self.tool_actions={}
+  def add(name,text,slot,icon_name):
+   action=QAction(text,self);action.triggered.connect(lambda *_:slot());action.setProperty('iconName',icon_name);bar.addAction(action);self.tool_actions[name]=action;return bar.widgetForAction(action)
+  self.refresh_button=add('refresh','Neu suchen',self.refresh_devices,'refresh');add('list','Missionen lesen',self.list_missions,'list');add('backup','Gerät sichern',self.backup,'backup');bar.addSeparator()
+  add('log','Protokoll',self.show_log,'log');add('settings','Einstellungen',self.show_settings,'settings')
+  self.theme_changed(theme.scheme_for(QApplication.instance()))
   self.device_note=QLabel('Gerät auswählen, um fortzufahren.');self.device_note.setObjectName('muted');self.device_note.setWordWrap(True);outer.addWidget(self.device_note)
-
+ def theme_changed(self,scheme):
+  """Icons in der Textfarbe des aktuellen Schemas neu rendern."""
+  colour=theme.tokens(scheme)['text']
+  for action in getattr(self,'tool_actions',{}).values():action.setIcon(theme.icon(action.property('iconName'),colour))
+  self.setProperty('dmScheme',scheme)
+ def key_values(self,rows):
+  """Infoblock wie im Festplattendienstprogramm: Schlüssel links in Grau, Wert rechts, Zeilen durch feine Linien getrennt."""
+  box=QWidget();layout=QVBoxLayout(box);layout.setContentsMargins(0,4,0,0);layout.setSpacing(0)
+  for key,value in rows:
+   frame=QFrame();frame.setObjectName('kvRow');row=QHBoxLayout(frame);row.setContentsMargins(0,7,0,7);row.setSpacing(12)
+   label=QLabel(key);label.setObjectName('kvKey');label.setMinimumWidth(96);row.addWidget(label);value.setObjectName('kvValue');value.setAlignment(Qt.AlignRight|Qt.AlignTop);row.addWidget(value,1);layout.addWidget(frame)
+  return box
  def card(self,parent_layout,stretch=0):
   frame=QFrame();frame.setObjectName('card');layout=QVBoxLayout(frame);layout.setContentsMargins(22,20,22,20);layout.setSpacing(12);parent_layout.addWidget(frame,stretch);return layout
  def heading(self,layout,title,description=None):
@@ -217,14 +263,14 @@ class Window(QMainWindow):
   layout=self.tab('');self.stack=QStackedWidget();layout.addWidget(self.stack,1)
   # Seite 0: Warteschlange bearbeiten
   page=QWidget();columns=QHBoxLayout(page);columns.setContentsMargins(0,0,0,0);columns.setSpacing(14);self.stack.addWidget(page)
-  left=self.card(columns,2);head=QHBoxLayout();title=QLabel('Warteschlange');title.setObjectName('pageTitle');head.addWidget(title,1)
+  left=self.card(columns,2);left.parentWidget().setMinimumWidth(440);head=QHBoxLayout();title=QLabel('Warteschlange');title.setObjectName('pageTitle');head.addWidget(title,1)
   self.queue_count=QLabel('');self.queue_count.setObjectName('muted');head.addWidget(self.queue_count);left.addLayout(head)
   self.queue_list=QListWidget();self.queue_list.setObjectName('missions');self.queue_list.setSelectionMode(QListWidget.SingleSelection);self.queue_list.setSpacing(4);self.queue_list.currentRowChanged.connect(self.queue_selected);left.addWidget(self.queue_list,1)
   self.queue_empty=QLabel('Noch keine Mission in der Warteschlange.\nIn Schritt 2 Missionen aus dem Webarchiv übernehmen oder KMZ-Dateien vom Mac wählen.');self.queue_empty.setObjectName('emptyList');self.queue_empty.setAlignment(Qt.AlignCenter);self.queue_empty.setWordWrap(True);left.addWidget(self.queue_empty,1)
   qa=QHBoxLayout();add=QPushButton('KMZ-Dateien hinzufügen …');add.setObjectName('quiet');add.clicked.connect(self.choose_kmz);qa.addWidget(add)
   self.queue_remove=QPushButton('Entfernen');self.queue_remove.setObjectName('quiet');self.queue_remove.setEnabled(False);self.queue_remove.clicked.connect(self.remove_current);qa.addWidget(self.queue_remove)
   self.queue_clear=QPushButton('Leeren');self.queue_clear.setObjectName('quiet');self.queue_clear.setEnabled(False);self.queue_clear.clicked.connect(self.clear_queue);qa.addWidget(self.queue_clear);qa.addStretch();left.addLayout(qa)
-  right=self.card(columns,3);self.editor=QWidget();ev=QVBoxLayout(self.editor);ev.setContentsMargins(0,0,0,0);ev.setSpacing(12);right.addWidget(self.editor,1)
+  right=self.card(columns,3);self.editor=QWidget();self.editor.setMinimumWidth(520);ev=QVBoxLayout(self.editor);ev.setContentsMargins(0,0,0,0);ev.setSpacing(12);right.addWidget(self.editor,1)
   mode=QHBoxLayout();mode.setSpacing(6);self.mode_group=QButtonGroup(self);self.mode_group.setExclusive(True)
   self.mode_new=QPushButton('Neu anlegen');self.mode_replace=QPushButton('Ersetzen')
   for i,button in enumerate([self.mode_new,self.mode_replace]):button.setCheckable(True);button.setObjectName('segment');self.mode_group.addButton(button,i);mode.addWidget(button)
@@ -243,11 +289,11 @@ class Window(QMainWindow):
   label=QLabel('Missionsname');label.setObjectName('sectionTitle');grid.addWidget(label,0,1);self.name=QLineEdit();self.name.setPlaceholderText('Zum Beispiel: Baustelle Nord · Panorama');self.name.setMaxLength(200);self.name.textChanged.connect(self.name_edited);grid.addWidget(self.name,1,1)
   self.name_note=QLabel('Titel im Vorschaubild; auf dem iPad auch Listenname in DJI Fly. Auf Android ist der Listenname nicht setzbar.');self.name_note.setObjectName('muted');self.name_note.setWordWrap(True);grid.addWidget(self.name_note,2,1);grid.setColumnStretch(0,1);grid.setColumnStretch(1,1);ev.addLayout(grid)
   pv=QHBoxLayout();label=QLabel('Titelbild');label.setObjectName('sectionTitle');pv.addWidget(label);self.preview_group=QButtonGroup(self);self.preview_group.setExclusive(True)
-  self.preview_3d=QPushButton('3D-Ansicht');self.preview_map=QPushButton('Luftbild');self.preview_image_button=QPushButton('Eigenes Bild …')
-  for i,button in enumerate([self.preview_3d,self.preview_map,self.preview_image_button]):button.setCheckable(True);button.setObjectName('segment');self.preview_group.addButton(button,i);pv.addWidget(button)
-  pv.addStretch();ev.addLayout(pv);self.preview_group.idClicked.connect(lambda i:self.set_preview_mode(['3d','map','image'][i]))
+  self.preview_3d=QPushButton('3D-Ansicht');self.preview_map=QPushButton('Luftbild');self.preview_image_button=QPushButton('Eigenes Bild …');self.preview_archive=QPushButton('Archivbild');self.preview_archive.setToolTip('Vorschaubild aus dem Webarchiv (Routenzeichnung oder Bild aus dem Vorschau-Editor) als Titelbild.')
+  for i,button in enumerate([self.preview_3d,self.preview_map,self.preview_image_button,self.preview_archive]):button.setCheckable(True);button.setObjectName('segment');self.preview_group.addButton(button,i);pv.addWidget(button)
+  pv.addStretch();ev.addLayout(pv);self.preview_group.idClicked.connect(lambda i:self.set_preview_mode(['3d','map','image','archive'][i]))
   self.preview_label=QLabel();self.preview_label.setObjectName('muted');self.preview_label.setWordWrap(True);ev.addWidget(self.preview_label)
-  self.image=QLabel();self.image.setObjectName('preview');self.image.setMinimumSize(420,280);self.image.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding);self.image.setAlignment(Qt.AlignCenter);self.image.setPixmap(placeholder(QSize(420,280),'Vorschau erscheint nach „Vorschauen erzeugen“'));ev.addWidget(self.image,1)
+  self.image=PreviewLabel('Vorschau erscheint nach „Vorschauen erzeugen“',QSize(420,240));ev.addWidget(self.image,1)
   row=QHBoxLayout();back=QPushButton('◂  Missionen');back.setObjectName('quiet');back.clicked.connect(lambda:self.tabs.setCurrentIndex(TAB_ARCHIVE));row.addWidget(back);row.addStretch();self.prepare_button=QPushButton('Vorschauen erzeugen und prüfen  ▸');self.prepare_button.setObjectName('primary');self.prepare_button.clicked.connect(self.prepare);row.addWidget(self.prepare_button);right.addLayout(row)
   self.set_preview_mode(self.preview_mode,choose=False)
   # Seite 1: Prüfen
@@ -255,11 +301,11 @@ class Window(QMainWindow):
   left=self.card(review,3);self.heading(left,'Passt alles?','Jede Mission mit Titelbild, Name und Ziel prüfen. Vor jeder Übertragung wird der Bestand gesichert und jede Datei zurückgelesen.')
   self.review_list=QListWidget();self.review_list.setObjectName('missions');self.review_list.setSpacing(4);self.review_list.currentRowChanged.connect(self.review_selected);left.addWidget(self.review_list,1)
   right=self.card(review,3)
-  self.review_image=QLabel();self.review_image.setObjectName('preview');self.review_image.setMinimumSize(480,320);self.review_image.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding);self.review_image.setAlignment(Qt.AlignCenter);right.addWidget(self.review_image,1)
+  self.review_image=PreviewLabel('Keine Vorschau',QSize(420,200));right.addWidget(self.review_image,1)
   self.summary_mode=QLabel();self.summary_mode.setObjectName('eyebrow');right.addWidget(self.summary_mode)
   self.summary_name=QLabel();self.summary_name.setObjectName('pageTitle');self.summary_name.setWordWrap(True);right.addWidget(self.summary_name)
-  self.summary_points=QLabel();self.summary_points.setObjectName('muted');right.addWidget(self.summary_points)
-  self.summary_target=QLabel();self.summary_target.setWordWrap(True);right.addWidget(self.summary_target)
+  self.summary_points=QLabel();self.summary_target=QLabel();self.summary_target.setWordWrap(True);self.summary_source=QLabel();self.summary_source.setWordWrap(True);self.summary_preview=QLabel()
+  right.addWidget(self.key_values([('Wegpunkte',self.summary_points),('Ziel',self.summary_target),('Quelle',self.summary_source),('Titelbild',self.summary_preview)]))
   self.review_note=QLabel();self.review_note.setWordWrap(True);self.review_note.setObjectName('hintBox');right.addWidget(self.review_note)
   self.closed=QCheckBox('DJI Fly ist vollständig geschlossen. Es ist kein Flug aktiv.');self.closed.toggled.connect(lambda checked:self.apply_button.setEnabled(checked and self.all_prepared()));right.addWidget(self.closed)
   row=QHBoxLayout();self.back_button=QPushButton('◂  Zurück');self.back_button.setObjectName('quiet');self.back_button.clicked.connect(lambda:self.stack.setCurrentIndex(0));row.addWidget(self.back_button);row.addStretch()
@@ -359,8 +405,12 @@ class Window(QMainWindow):
  @property
  def original_source(self):e=self.entry();return e['original'] if e else None
  def all_prepared(self):return bool(self.queue) and all(e['plan'] is not None for e in self.queue if e['status']!='done')
- def add_entry(self,path,name=None,archive_mission=None):
-  original=Path(path);entry={'id':uuid.uuid4().hex,'original':original,'source':original,'name':name or original.stem,'mode':self.mode,'target':None,'targetLabel':None,'previewMode':self.preview_mode,'background':self.background_path if self.preview_mode=='image' else None,'archiveMission':archive_mission,'details':None,'plan':None,'preview':None,'status':'ready','error':None,'note':''}
+ def add_entry(self,path,name=None,archive_mission=None,archive_preview=None):
+  """archive_preview: Bilddatei (JPEG/PNG) aus dem Webarchiv; Archivmissionen nutzen sie als Listenbild und standardmäßig als Titelbild."""
+  original=Path(path);mode=self.preview_mode
+  if archive_preview:mode='archive'
+  elif mode=='archive':mode='3d'
+  entry={'id':uuid.uuid4().hex,'original':original,'source':original,'name':name or original.stem,'mode':self.mode,'target':None,'targetLabel':None,'previewMode':mode,'background':self.background_path if mode=='image' else None,'archiveMission':archive_mission,'archivePreview':Path(archive_preview) if archive_preview else None,'details':None,'plan':None,'preview':None,'status':'ready','error':None,'note':''}
   try:
    prepared=prepare_source(original,self.root/'cleaned');entry['source']=prepared['path'];details=inspect_kmz(entry['source'].read_bytes());entry['details']=details
    text=f'{details["waypoints"]} Wegpunkte · {details["distance"]/1000:.2f} km · {len(details["segments"])} Flugroute(n)'
@@ -368,6 +418,9 @@ class Window(QMainWindow):
     merged=', '.join(str(m['index']+1) for m in prepared['report']['merged']);text+=f' · Übertragungskopie: doppelter Schlusspunkt {merged} zusammengeführt (Stopp erhalten), Original unverändert';self.log_line(f'Übertragungskopie angelegt: {entry["source"]} (Original {original})')
    if archive_mission:text+=f' · aus dem Webarchiv, V{archive_mission.get("version") or "?"}, Prüfsumme bestätigt'
    entry['note']=text
+   # Sofort eine schnelle Vorschau für Liste und Editor (Archivbild oder Offline-3D); das endgültige Titelbild entsteht bei „Vorschauen erzeugen“.
+   try:entry['preview']=render_preview(self.root/'previews'/('quick-'+entry['id']+'.jpg'),entry['name'],details,entry['archivePreview'])
+   except Exception as e:self.log_line('Schnellvorschau nicht möglich: '+str(e))
   except Exception as e:entry['note']='Datei kann nicht gelesen werden: '+str(e);entry['error']=str(e)
   if self.mode=='replace' and self.pending_target and not any(x.get('target')==self.pending_target['uuid'] for x in self.queue):
    entry['target']=self.pending_target['uuid'];entry['targetLabel']=self.pending_target['label'];self.pending_target=None
@@ -382,7 +435,7 @@ class Window(QMainWindow):
  def render_queue(self):
   self.queue_list.blockSignals(True);self.queue_list.clear()
   for i,e in enumerate(self.queue):
-   item=QListWidgetItem();item.setSizeHint(QSize(0,104));self.queue_list.addItem(item);self.queue_list.setItemWidget(item,QueueRow(e,i,i==self.current))
+   row=QueueRow(e,i,i==self.current);item=QListWidgetItem();item.setSizeHint(QSize(0,max(104,row.sizeHint().height()+4)));self.queue_list.addItem(item);self.queue_list.setItemWidget(item,row)
   if 0<=self.current<len(self.queue):self.queue_list.setCurrentRow(self.current)
   self.queue_list.blockSignals(False);has=bool(self.queue);self.queue_list.setVisible(has);self.queue_empty.setVisible(not has);self.editor.setEnabled(has);self.queue_remove.setEnabled(self.entry() is not None);self.queue_clear.setEnabled(has);self.prepare_button.setEnabled(has)
   prepared=sum(1 for e in self.queue if e['plan']);self.queue_count.setText(f'{len(self.queue)} Mission(en)'+(f' · {prepared} geprüft' if prepared else ''))
@@ -397,16 +450,23 @@ class Window(QMainWindow):
    self.name.setText(e['name']);self.mode=e['mode'];self.mode_new.setChecked(e['mode']=='new');self.mode_replace.setChecked(e['mode']=='replace')
    self.source_label.setText(e['original'].name);self.source_label.setToolTip(str(e['original']));self.source_meta.setText(e['note'])
    self.preview_mode=e['previewMode'];self.background_path=e['background']
-   for button,key in [(self.preview_3d,'3d'),(self.preview_map,'map'),(self.preview_image_button,'image')]:button.setChecked(key==self.preview_mode)
+   self.preview_archive.setVisible(bool(e.get('archivePreview')))
+   for button,key in [(self.preview_3d,'3d'),(self.preview_map,'map'),(self.preview_image_button,'image'),(self.preview_archive,'archive')]:button.setChecked(key==self.preview_mode)
    self.preview_label.setText(self.preview_text())
    pixmap=QPixmap(str(e['preview'])) if e.get('preview') and Path(e['preview']).is_file() else QPixmap()
-   self.image.setPixmap(pixmap.scaled(self.image.size(),Qt.KeepAspectRatio,Qt.SmoothTransformation) if not pixmap.isNull() else placeholder(QSize(420,280),'Vorschau erscheint nach „Vorschauen erzeugen“'))
-  else:self.name.setText('');self.source_label.setText('Noch keine KMZ ausgewählt');self.source_meta.setText('Export aus Litchi, Map Creator oder dem Webarchiv.');self.image.setPixmap(placeholder(QSize(420,280),'Vorschau erscheint nach „Vorschauen erzeugen“'))
+   self.image.set_source(pixmap)
+  else:self.name.setText('');self.source_label.setText('Noch keine KMZ ausgewählt');self.source_meta.setText('Export aus Litchi, Map Creator oder dem Webarchiv.');self.image.set_source(None)
   for w in (self.name,self.mode_new,self.mode_replace):w.blockSignals(False)
   self.target_panel.setVisible(self.mode=='replace');self.new_note.setVisible(self.mode=='new');self.update_mode_notes();self.queue_remove.setEnabled(e is not None)
  def name_edited(self,text):
   e=self.entry()
-  if e and e['name']!=text:e['name']=text;self.invalidate()
+  if e and e['name']!=text:e['name']=text;self.invalidate();self.quick_timer.start()
+ def quick_preview(self):
+  """Schnellvorschau mit dem aktuellen Namen erneuern (entprellt, 350 ms nach der letzten Eingabe)."""
+  e=self.entry()
+  if not e or not e.get('details') or e['status']=='done':return
+  try:e['preview']=render_preview(self.root/'previews'/('quick-'+e['id']+'.jpg'),e['name'].strip() or e['original'].stem,e['details'],e.get('archivePreview') if e['previewMode']=='archive' else None);self.image.set_source(QPixmap(str(e['preview'])));self.render_queue()
+  except Exception as err:self.log_line('Schnellvorschau nicht möglich: '+str(err))
  def remove_current(self):
   e=self.entry()
   if not e:return
@@ -498,16 +558,18 @@ class Window(QMainWindow):
   path,_=QFileDialog.getOpenFileName(self,'ADB auswählen')
   if path:self.adb.setText(path);self.settings.setValue('adb',path);self.adb_note.setText('Eigener ADB-Pfad aus den Einstellungen.')
  def preview_text(self):
-  return {'3d':'3D-Ansicht: Route schräg mit echten Wegpunkthöhen, offline erzeugt; ohne vergleichbare Höhen Draufsicht.','map':'Luftbild: Route mit Wegpunktnummern auf dem Orthofoto; in Österreich basemap.at mit Beschriftung, sonst Esri World Imagery bzw. OpenStreetMap (braucht Internet). Ohne Kartenquelle 3D-Ansicht.','image':'Eigenes Bild: '+(self.background_path.name if self.background_path else '')}[self.preview_mode]
+  return {'3d':'3D-Ansicht: Route schräg mit echten Wegpunkthöhen, offline erzeugt; ohne vergleichbare Höhen Draufsicht.','map':'Luftbild: Route mit Wegpunktnummern auf dem Orthofoto; in Österreich basemap.at mit Beschriftung, sonst Esri World Imagery bzw. OpenStreetMap (braucht Internet). Ohne Kartenquelle 3D-Ansicht.','image':'Eigenes Bild: '+(self.background_path.name if self.background_path else ''),'archive':'Archivbild: Vorschau aus dem Webarchiv (Routenzeichnung oder Bild aus dem Vorschau-Editor) als Titelbild, ohne Internet.'}[self.preview_mode]
  def set_preview_mode(self,mode,choose=True):
   if mode=='image' and choose:
    path,_=QFileDialog.getOpenFileName(self,'Bildhintergrund auswählen','','Bilder (*.jpg *.jpeg *.png)')
    if not path:self.set_preview_mode('image' if self.background_path else '3d',choose=False);return
    self.background_path=Path(path)
   if mode!='image':self.background_path=None
+  current=self.entry()
+  if mode=='archive' and not (current and current.get('archivePreview')):mode='3d'  # Archivbild gibt es nur für Missionen aus dem Webarchiv
   self.preview_mode=mode if mode!='image' or self.background_path else '3d'
   if self.preview_mode!='image':self.settings.setValue('previewMode',self.preview_mode)
-  for button,key in [(self.preview_3d,'3d'),(self.preview_map,'map'),(self.preview_image_button,'image')]:button.setChecked(key==self.preview_mode)
+  for button,key in [(self.preview_3d,'3d'),(self.preview_map,'map'),(self.preview_image_button,'image'),(self.preview_archive,'archive')]:button.setChecked(key==self.preview_mode)
   self.preview_label.setText(self.preview_text())
   e=self.entry()
   if e and (e['previewMode']!=self.preview_mode or e['background']!=self.background_path):e['previewMode']=self.preview_mode;e['background']=self.background_path;self.invalidate()
@@ -818,10 +880,14 @@ class Window(QMainWindow):
   def download():
    out=[]
    for m in picked:
-    folder=self.root/'archive'/safe_filename(m['id']);destination=folder/(safe_filename(m['name'])+'.kmz');out.append((m,client.download(m,destination)))
+    folder=self.root/'archive'/safe_filename(m['id']);destination=folder/(safe_filename(m['name'])+'.kmz');path=client.download(m,destination);preview=None
+    try:
+     raw,content_type=client.preview(m);preview=archive_preview_file(raw,content_type,folder/'vorschau')
+    except Exception as err:self.log_line(f'Archivbild für „{m["name"]}“ nicht geladen: {err}')
+    out.append((m,path,preview))
    return out
   def done(results):
-   for m,path in results:self.add_entry(path,name=m['name'],archive_mission=m)
+   for m,path,preview in results:self.add_entry(path,name=m['name'],archive_mission=m,archive_preview=preview)
    self.archive_checked=set();self.archive_filter();self.tabs.setCurrentIndex(TAB_TRANSFER);self.status.setText(f'{len(results)} Mission(en) aus dem Webarchiv übernommen. Namen prüfen, dann Vorschauen erzeugen.')
   self.task(f'{len(picked)} KMZ aus dem Webarchiv laden und prüfen …',download,done)
 
@@ -847,6 +913,7 @@ class Window(QMainWindow):
    results=[]
    for n,e in enumerate(entries):
     report((n,len(entries)));source=e['source'];raw=source.read_bytes();details=inspect_kmz(raw);name=e['name'].strip();preview_path=self.root/'previews'/(uuid.uuid4().hex+'.jpg');chosen=e['background'];mode_used=e['previewMode']
+    if e['previewMode']=='archive':chosen=e.get('archivePreview')
     if e['previewMode']=='map':
      try:chosen=map_background(details,self.root/'previews'/(uuid.uuid4().hex+'-luftbild.jpg'),self.root/'tilecache')
      except Exception as err:notes.append(f'„{name}“: Luftbild nicht verfügbar ({err}). 3D-Ansicht verwendet.');mode_used='3d';chosen=None
@@ -866,16 +933,17 @@ class Window(QMainWindow):
  def render_review(self):
   self.review_list.blockSignals(True);self.review_list.clear()
   for i,e in enumerate(self.queue):
-   item=QListWidgetItem();item.setSizeHint(QSize(0,104));self.review_list.addItem(item);self.review_list.setItemWidget(item,QueueRow(e,i))
+   row=QueueRow(e,i);item=QListWidgetItem();item.setSizeHint(QSize(0,max(104,row.sizeHint().height()+4)));self.review_list.addItem(item);self.review_list.setItemWidget(item,row)
   self.review_list.blockSignals(False)
   if self.queue:self.review_list.setCurrentRow(max(0,min(self.current,len(self.queue)-1)));self.review_selected(self.review_list.currentRow())
  def review_selected(self,row):
   if row<0 or row>=len(self.queue):return
   e=self.queue[row];r=self.current_device() or {};mode=e['mode']
   pixmap=QPixmap(str(e['preview'])) if e.get('preview') else QPixmap()
-  self.review_image.setPixmap(pixmap.scaled(self.review_image.size(),Qt.KeepAspectRatio,Qt.SmoothTransformation) if not pixmap.isNull() else placeholder(QSize(480,320),'Keine Vorschau'))
+  self.review_image.set_source(pixmap)
   self.summary_mode.setText(('ERSETZEN' if mode=='replace' else 'NEU ANLEGEN')+f' · {row+1} von {len(self.queue)} · '+r.get('name',''));self.summary_name.setText(e['name'])
   d=e.get('details');self.summary_points.setText(f'{d["waypoints"]} Wegpunkte · {d["distance"]/1000:.2f} km' if d else '');self.summary_target.setText(('Ersetzt: '+(e.get('targetLabel') or e.get('target') or '')) if mode=='replace' else 'Neue Mission auf '+r.get('name','dem Gerät'))
+  self.summary_source.setText(('Webarchiv · '+e['archiveMission']['folder']+f" · V{e['archiveMission'].get('version') or '?'}") if e.get('archiveMission') else 'Lokale Datei · '+Path(e['original']).name);self.summary_preview.setText({'3d':'3D-Ansicht','map':'Luftbild','image':'Eigenes Bild','archive':'Archivbild'}.get((e.get('plan') or {}).get('previewMode') or e['previewMode'],'3D-Ansicht'))
   ios_device=r.get('kind')=='ios'
   if ios_device:text='Neue Mission mit Name und Titelbild. Anschließend in DJI Fly öffnen und bei Bedarf synchronisieren.' if mode=='new' else 'Der Eintrag wird nach Sicherung ersetzt (am iPad noch nicht geprüft). Anschließend in DJI Fly öffnen und Speichern prüfen.'
   else:text='Der gewählte Eintrag wird nach Sicherung ersetzt. Anschließend RC Pro 2 neu starten, Mission öffnen und Speichern prüfen.' if mode=='replace' else 'Experimentell: Neue Kennung wird geprüft übertragen. Anschließend RC Pro 2 neu starten und prüfen, ob DJI Fly die Mission anzeigt.'
@@ -885,7 +953,7 @@ class Window(QMainWindow):
  def render_run_list(self):
   self.run_list.clear()
   for i,e in enumerate(self.queue):
-   item=QListWidgetItem();item.setSizeHint(QSize(0,104));self.run_list.addItem(item);self.run_list.setItemWidget(item,QueueRow(e,i))
+   row=QueueRow(e,i);item=QListWidgetItem();item.setSizeHint(QSize(0,max(104,row.sizeHint().height()+4)));self.run_list.addItem(item);self.run_list.setItemWidget(item,row)
   has=bool(self.queue);self.run_list.setVisible(has);self.run_empty.setVisible(not has)
   done=sum(1 for e in self.queue if e['status']=='done');self.run_progress.setText(f'{done} von {len(self.queue)} übertragen' if self.queue else '')
   self.retry_button.setEnabled(any(e['status']=='failed' for e in self.queue));self.resume_button.setEnabled(any(e['status'] in ('prepared','skipped') and e['plan'] for e in self.queue) and not (self.job and self.job.isRunning()))
@@ -943,60 +1011,12 @@ class Window(QMainWindow):
     QMessageBox.information(self,'Übertragung geprüft',f'{done_count} Mission(en) übertragen und zurückgelesen.\n\n'+('Jetzt DJI Fly öffnen und Mission sowie Cloud-Synchronisation prüfen.' if r['kind']=='ios' else 'Jetzt RC Pro 2 neu starten und Missionen in DJI Fly prüfen.')+'\n\nDie Sicherungen sind über „Protokoll“ erreichbar.')
   self.task(f'{len(todo)} Mission(en) sichern, übertragen und zurücklesen …',work,done,progress=progress)
 
-STYLE='''
-QWidget{background:#f4f6f2;color:#173c31;font-family:"Helvetica Neue","Segoe UI";font-size:13px}QMainWindow,QDialog,QMessageBox{background:#f4f6f2}QToolTip{background:#173c31;color:white;border:none;padding:6px}QComboBox QAbstractItemView{background:white;color:#173c31;selection-background-color:#dcebd3;selection-color:#173c31}
-QLabel#windowTitle{font-size:22px;font-weight:650;background:transparent}QLabel#pageTitle{font-size:20px;font-weight:600;background:transparent}
-QLabel#eyebrow{font-size:11px;font-weight:650;letter-spacing:1px;color:#6e7c75;background:transparent}QLabel#progressText{font-size:15px;font-weight:650;color:#254e3b;background:transparent}
-QLabel#sectionTitle,QLabel#fileName{font-weight:600;background:transparent}QLabel#muted{color:#6e7c75;font-size:12px;background:transparent}QLabel#errorText{color:#9c3540;font-size:12px;background:transparent}
-QLabel#rowTitle{font-size:15px;font-weight:600;background:transparent}QLabel#ident{color:#95a19a;font-size:11px;background:transparent}QLabel#queueNumber{font-size:16px;font-weight:700;color:#6e7c75;background:transparent}
-QLabel#thumb{background:#1b332b;border-radius:8px}QLabel#emptyList{color:#85918b;font-size:14px;background:transparent}
-QTabWidget::pane{border:none;background:#f4f6f2}QTabBar{background:#f4f6f2;qproperty-drawBase:0}
-QTabBar::tab{background:#e9eee6;color:#6e7c75;padding:12px 18px;margin-right:6px;border-radius:8px;font-size:14px;font-weight:600;min-width:160px}
-QTabBar::tab:selected{background:#254e3b;color:white}QTabBar::tab:hover:!selected{background:#dfe7da;color:#173c31}QTabBar::tab:disabled{color:#b3bdb5;background:#eef1ec}
-QFrame#card{background:white;border:1px solid #dce3dc;border-radius:12px}QFrame#card QWidget{background:white}QFrame#card QLabel{background:transparent}
-QFrame#card QPushButton{background:#edf2e9}QFrame#card QPushButton#quiet{background:transparent}QFrame#card QPushButton#primary{background:#254e3b}QFrame#card QPushButton#primary:hover{background:#35644d}QFrame#card QPushButton#primary:disabled{background:#e7ece5}QFrame#card QPushButton#segment{background:#f1f5ed}QFrame#card QPushButton#segment:checked{background:#254e3b}
-QFrame#card QListWidget#missions QWidget{background:transparent}QFrame#card QLabel#thumb,QFrame#card QLabel#preview{background:#1b332b}QFrame#card QLabel#hintBox{background:#edf3e9}QFrame#card QLineEdit,QFrame#card QPlainTextEdit{background:white}
-QFrame#card QFrame#target{background:#f3f7ef;border:1px solid #d7e2d1;border-radius:10px}QFrame#card QFrame#target QPushButton#quiet{background:white}
-QFrame#card QTreeWidget#folders{background:white;border:none;font-size:13px}QFrame#card QTreeWidget#folders::item{padding:6px 4px;border-radius:6px}QFrame#card QTreeWidget#folders::item:selected{background:#dcebd3;color:#173c31}QFrame#card QTreeWidget#folders::item:hover{background:#f1f5ed}
-QLabel#hintBox{background:#edf3e9;color:#395b47;border-radius:8px;padding:12px;font-size:12px}
-QLabel#status{color:#67776c;font-size:12px;min-height:22px}QLabel#preview{background:#152e2b;border-radius:10px}
-QPushButton{background:#edf2e9;color:#254735;border:1px solid #d3dece;border-radius:7px;padding:9px 14px;font-weight:550}
-QPushButton:hover{background:#e2ebda}QPushButton#quiet{background:transparent;border:1px solid #d8e0d7;color:#5d7063;font-size:12px;padding:8px 12px}
-QPushButton#primary{background:#254e3b;color:white;border:1px solid #254e3b;min-width:150px}
-QPushButton#primary:hover{background:#35644d}QPushButton:disabled,QPushButton#primary:disabled{color:#9ca79e;background:#e7ece5;border-color:#dce3da}
-QPushButton#segment{background:#f1f5ed;color:#5d7063;border:1px solid #d3dece;padding:9px 18px;min-width:120px}
-QPushButton#segment:checked{background:#254e3b;color:white;border-color:#254e3b;font-weight:650}
-QLineEdit,QComboBox{background:white;border:1px solid #ced9cd;border-radius:6px;padding:9px;min-height:20px;selection-background-color:#dbe9d3}
-QListWidget#missions{background:white;border:1px solid #d9e2d7;border-radius:8px;outline:none}
-QListWidget#missions::item{border-bottom:1px solid #edf0ea;border-radius:6px}
-QListWidget#missions::item:selected{background:#dcebd3}QListWidget#missions::item:hover{background:#f1f5ed}
-QLabel#missionBadge{border-radius:8px;padding:3px 8px;font-size:11px;font-weight:600;background:#eef1ed;color:#5b685e}
-QLabel#missionBadge[badge="saved"]{background:#dcefe2;color:#245535}QLabel#missionBadge[badge="missing"]{background:#fff0d7;color:#80551d}
-QLabel#missionBadge[badge="local"]{background:#e6eee8;color:#315a42}QLabel#missionBadge[badge="cloud-or-missing"]{background:#e1ecf8;color:#315c85}
-QLabel#missionBadge[badge="new"]{background:#dcefe2;color:#245535}QLabel#missionBadge[badge="replace"]{background:#fff0d7;color:#80551d}
-QLabel#missionBadge[badge="status-prepared"]{background:#e1ecf8;color:#315c85}QLabel#missionBadge[badge="status-running"]{background:#fff0d7;color:#80551d}QLabel#missionBadge[badge="status-done"]{background:#254e3b;color:white}QLabel#missionBadge[badge="status-failed"]{background:#f6dcdc;color:#8a2b2b}QLabel#missionBadge[badge="status-skipped"]{background:#eef1ed;color:#6e7c75}
-QFrame#card QListWidget#missions QLabel#missionBadge{background:#eef1ed;color:#5b685e}
-QFrame#card QListWidget#missions QLabel#missionBadge[badge="saved"]{background:#dcefe2;color:#245535}QFrame#card QListWidget#missions QLabel#missionBadge[badge="missing"]{background:#fff0d7;color:#80551d}
-QFrame#card QListWidget#missions QLabel#missionBadge[badge="local"]{background:#e6eee8;color:#315a42}QFrame#card QListWidget#missions QLabel#missionBadge[badge="cloud-or-missing"]{background:#e1ecf8;color:#315c85}
-QFrame#card QListWidget#missions QLabel#missionBadge[badge="new"]{background:#dcefe2;color:#245535}QFrame#card QListWidget#missions QLabel#missionBadge[badge="replace"]{background:#fff0d7;color:#80551d}
-QFrame#card QListWidget#missions QLabel#missionBadge[badge="status-prepared"]{background:#e1ecf8;color:#315c85}QFrame#card QListWidget#missions QLabel#missionBadge[badge="status-running"]{background:#fff0d7;color:#80551d}
-QFrame#card QListWidget#missions QLabel#missionBadge[badge="status-done"]{background:#254e3b;color:white}QFrame#card QListWidget#missions QLabel#missionBadge[badge="status-failed"]{background:#f6dcdc;color:#8a2b2b}QFrame#card QListWidget#missions QLabel#missionBadge[badge="status-skipped"]{background:#eef1ed;color:#6e7c75}
-QPlainTextEdit{background:white;border:1px solid #d7e0d4;border-radius:6px;font-family:Menlo,monospace;font-size:11px;padding:8px}
-QCheckBox{spacing:9px;font-size:12px}QCheckBox::indicator{width:19px;height:19px;border:1px solid #a8b9a3;border-radius:4px;background:white}
-QCheckBox::indicator:checked{background:#254e3b;border:1px solid #254e3b;image:url("__CHECKMARK__")}
-QCheckBox::indicator:indeterminate{background:#254e3b;border:1px solid #254e3b;image:url("__CHECKPARTIAL__")}
-QCheckBox::indicator:disabled{border-color:#c7d0c6;background:#e5ebe2}
-QProgressBar{background:#e1e9dc;border:none;border-radius:2px}QProgressBar::chunk{background:#7b9f68}
-QScrollArea#settingsScroll,QScrollArea#settingsScroll>QWidget>QWidget#settingsContent{background:#f4f6f2;border:none}
-QScrollBar:vertical{background:transparent;width:10px}QScrollBar::handle:vertical{background:#cdd8c9;border-radius:5px;min-height:30px}
-QSplitter::handle{background:transparent;width:8px}
-'''
-STYLE=STYLE.replace('__CHECKMARK__',(Path(getattr(sys,'_MEIPASS',Path(__file__).resolve().parent))/'assets'/'checkmark.svg').as_posix()).replace('__CHECKPARTIAL__',(Path(getattr(sys,'_MEIPASS',Path(__file__).resolve().parent))/'assets'/'checkpartial.svg').as_posix())
+STYLE=theme.stylesheet('light')  # Rückwärtskompatibel für Skripte; die App nutzt theme.apply_theme()
 
 def main():
  if '--diagnose' in sys.argv:
   target=Path(sys.argv[sys.argv.index('--diagnose')+1]);rows=ios.run(ios.discover());result={'iosDevices':len(rows),'paired':sum(r['state']=='device' for r in rows)}
   if rows and rows[0]['state']=='device':result['readableMissions']=len(ios.run(ios.list_missions(rows[0]['serial'],target.parent/'diagnostic-reads')))
   atomic_json(target,result);return
- app=QApplication(sys.argv);app.setOrganizationName('studiobaff');app.setApplicationName('Drone Missions Bridge');app.setStyle('Fusion');app.setStyleSheet(STYLE);app.setWindowIcon(app_icon());window=Window();window.show();sys.exit(app.exec())
+ app=QApplication(sys.argv);app.setOrganizationName('studiobaff');app.setApplicationName('Drone Missions Bridge');app.setStyle('Fusion');theme.apply_theme(app);theme.follow_system(app);app.setWindowIcon(app_icon());window=Window();window.show();sys.exit(app.exec())
 if __name__=='__main__':main()

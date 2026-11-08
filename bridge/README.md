@@ -1,4 +1,4 @@
-# Drone Missions Bridge 0.5
+# Drone Missions Bridge 0.6
 
 Lokale Mac-Oberfläche für DJI-KMZ-Dateien. Der Kern verwendet für Android separat installiertes ADB; der iPad/iPhone-Adapter verwendet pymobiledevice3 über USB. Keine Injector-Bibliotheken werden gebündelt.
 
@@ -100,7 +100,7 @@ Beim erneuten Sichern wird nach der Zielordner-Auswahl eine identische, bereits 
 
 ## Einstellungsfenster, Ordnerbaum und Warteschlange (0.5.0)
 
-Die Oberfläche folgt jetzt vier Schritten, die als Pfeilleiste über die ganze Breite laufen: **1 Gerät wählen → 2 Missionen auswählen → 3 Vorschauen prüfen → 4 Übertragen**. Jeder Schritt ist jederzeit anklickbar (auch über `⌘1`–`⌘4`), Schritt 4 wird erst mit gefüllter Warteschlange aktiv. Bildschirmfotos mit synthetischen Daten liegen unter `docs/screenshots-0.5/`.
+Die Oberfläche folgt jetzt vier Schritten, die als Pfeilleiste über die ganze Breite laufen: **1 Gerät wählen → 2 Missionen auswählen → 3 Vorschauen prüfen → 4 Übertragen**. Jeder Schritt ist jederzeit anklickbar (auch über `⌘1`–`⌘4`), Schritt 4 wird erst mit gefüllter Warteschlange aktiv. Bildschirmfotos mit synthetischen Daten liegen unter `docs/screenshots-0.5/light/` und `docs/screenshots-0.5/dark/`.
 
 **Einstellungen (`⌘,` oder „Einstellungen …“)**: Archiv-Adresse, Zugangsschlüssel, „Schlüssel merken in“ (macOS-Schlüsselbund, 1Password, Windows DPAPI), „Schlüssel vergessen“, „Konfiguration laden …“, ADB-Pfad und Ablageordner liegen in einem eigenen, nicht blockierenden Fenster. Die Archiv-Adresse wird beim Verlassen des Felds normalisiert und gemerkt; Schlüssel landen nie in den Einstellungen. Schritt 2 zeigt nur noch den Verbindungsstatus („verbunden als Eigentümer · 6 Missionen · Adresse“), „Verbinden“/„Neu laden“ und einen Link ins Einstellungsfenster. Ohne hinterlegten Schlüssel öffnet „Verbinden“ die Einstellungen.
 
@@ -112,7 +112,7 @@ Die Oberfläche folgt jetzt vier Schritten, die als Pfeilleiste über die ganze 
 
 **Ehrliche Beschriftungen**: „So lädst du Cloud-Missionen herunter …“ erklärt den Weg in DJI Fly; die Bridge lädt nichts aus der DJI-Cloud. Löschen auf dem Gerät gibt es nicht. Das Fenster bleibt mindestens 1020 × 720 Punkte groß; der Menüpunkt „Übertragen“ führt zu Schritt 4, „Vorschauen prüfen“ zu Schritt 3.
 
-**Tests**: `python3 -m unittest discover -s bridge/tests` (83 Tests) läuft mit `QT_QPA_PLATFORM=offscreen`, temporären INI-Einstellungen, einem Fake-Schlüsselbund und einem temporären Ablageordner; echter Schlüsselbund, echte Einstellungen und `names.json` des Nutzers werden nie gelesen oder beschrieben. `tests/test_queue.py` deckt Ordnerfilter mit und ohne Unterordner, Mehrfachauswahl mit verdeckten Treffern, Reihenfolge der Übernahme, lokale KMZ ohne Anmeldung, Zielprüfung beim Ersetzen, Gerätewechsel, seriellen Ablauf mit Fehlerstopp, Anhalten, Fortsetzen ohne Doppelanlage, Dateiänderung vor dem Start sowie die Lage der Verbindungsfelder im Einstellungsfenster ab. Gerätetests wurden in dieser Version nicht ausgeführt.
+**Tests**: `python3 -m unittest discover -s bridge/tests` (89 Tests) läuft mit `QT_QPA_PLATFORM=offscreen`, temporären INI-Einstellungen, einem Fake-Schlüsselbund und einem temporären Ablageordner; echter Schlüsselbund, echte Einstellungen und `names.json` des Nutzers werden nie gelesen oder beschrieben. `tests/test_queue.py` deckt Ordnerfilter mit und ohne Unterordner, Mehrfachauswahl mit verdeckten Treffern, Reihenfolge der Übernahme, lokale KMZ ohne Anmeldung, Zielprüfung beim Ersetzen, Gerätewechsel, seriellen Ablauf mit Fehlerstopp, Anhalten, Fortsetzen ohne Doppelanlage, Dateiänderung vor dem Start sowie die Lage der Verbindungsfelder im Einstellungsfenster ab. Gerätetests wurden in dieser Version nicht ausgeführt.
 
 ## Wegpunktmarker und Kartenquellen (0.5.0)
 
@@ -125,3 +125,18 @@ Kartenquellen für „Luftbild“ (`map_preview.py`, nur der Ausschnitt von weni
 - **Rückfall**: ist auch das nicht erreichbar, die OpenStreetMap-Standardkarte (ODbL, © OpenStreetMap-Mitwirkende). Fällt alles aus, erscheint die 3D-Ansicht mit Hinweis im Protokoll.
 
 Eine weitere WMTS-Quelle lässt sich in `PROVIDERS` als Liste von Kachel-URLs (`{z}/{x}/{y}`) mit Quellenangabe und maximaler Zoomstufe ergänzen, etwa die französische Geoplateforme (ORTHOIMAGERY.ORTHOPHOTOS) oder regionale italienische Orthofotos; `provider_for()` wählt die Reihenfolge nach der Lage der Route.
+
+## Erscheinungsbild nach Apple-Grundsätzen (0.6.0)
+
+Die Oberfläche folgt den Gestaltungsgrundsätzen aus Apples WWDC-Vorträgen (Vertrautheit, Klarheit, Handwerk, sofortige Rückmeldung), übersetzt auf Qt. Die Vier-Schritte-Logik bleibt unverändert.
+
+- **Systemschrift**: San Francisco auf dem Mac, Segoe UI auf Windows; keine fest verdrahtete Schriftart mehr. Große Titel laufen enger (negatives Tracking), kleine Beschriftungen bleiben offen.
+- **Hell und dunkel folgen dem System** (`theme.py`): ein Stylesheet-Template mit Farbtokens wird je Schema gerendert; wechselt macOS oder Windows das Erscheinungsbild, zieht die Bridge sofort nach. `DRONEMISSIONS_THEME=light|dark` erzwingt ein Schema (auch für Bildschirmfotos). Vorschaubilder und Platzhalter bleiben in beiden Schemata dunkelgrün, Status-Chips behalten ihre Pastellfarben wie macOS-Tags.
+- **Symbolleiste** statt Kopfzeile: Gerätewahl links, rechts „Neu suchen“, „Missionen lesen“, „Gerät sichern“, „Protokoll“ und „Einstellungen“ als Icon mit Beschriftung. Die Icons sind einfache Linienzeichnungen, in der Textfarbe des Schemas gerendert (Retina-tauglich). Knöpfe quittieren den Druck sofort (`:pressed`).
+- **Infoblock** auf der Prüfseite wie im Festplattendienstprogramm: Wegpunkte, Ziel, Quelle und Titelbild als Schlüssel-Wert-Zeilen mit feinen Trennlinien statt Fließtext.
+- **Projektbaum**: Pfeile als eigene Grafik, Verzweigungsspalte ohne Fokusrahmen; markierte Ordner mit und ohne Unterordner sehen gleich aus.
+- **Vorschaubilder passen sich dem Platz an** (`PreviewLabel`): das Quellbild wird bei jeder Größenänderung neu skaliert, Infoblock und Knöpfe werden nie überdeckt.
+- **Warteschlange zeigt sofort Bilder**: Beim Hinzufügen entsteht eine schnelle Offline-Vorschau (3D oder Archivbild), beim Umbenennen wird sie entprellt erneuert. Das endgültige Titelbild entsteht weiterhin bei „Vorschauen erzeugen“.
+- **Archivbild als Titelbild**: Missionen aus dem Webarchiv bringen ihre Vorschau mit (Routenzeichnung als SVG oder Bild aus dem Vorschau-Editor). Sie wird als JPEG abgelegt, ist Standard-Titelbild für Archivmissionen und steht als vierte Option „Archivbild“ neben 3D-Ansicht, Luftbild und eigenem Bild; für lokale Dateien ist die Option ausgeblendet.
+
+Tests dazu: `tests/test_theme.py` (beide Schemata ohne offene Platzhalter, Icons, Symbolleiste, Infoblock) und `tests/test_queue.py` (Archivbild als Listenbild und Titelbild). Gesamt 89 Tests, ohne Gerät.
