@@ -125,3 +125,7 @@ Kartenquellen für „Luftbild“ (`map_preview.py`, nur der Ausschnitt von weni
 - **Rückfall**: ist auch das nicht erreichbar, die OpenStreetMap-Standardkarte (ODbL, © OpenStreetMap-Mitwirkende). Fällt alles aus, erscheint die 3D-Ansicht mit Hinweis im Protokoll.
 
 Eine weitere WMTS-Quelle lässt sich in `PROVIDERS` als Liste von Kachel-URLs (`{z}/{x}/{y}`) mit Quellenangabe und maximaler Zoomstufe ergänzen, etwa die französische Geoplateforme (ORTHOIMAGERY.ORTHOPHOTOS) oder regionale italienische Orthofotos; `provider_for()` wählt die Reihenfolge nach der Lage der Route.
+
+### ADB im Mac-Build
+
+PyInstaller verarbeitet und signiert das gebündelte Mach-O-Binary. Der Mac-Build bewahrt deshalb die Upstream-Prüfsumme als `sourceAdbSha256` und trägt unter `adbSha256` die Prüfsumme der tatsächlich ausgelieferten Datei ein. Die Laufzeitprüfung bleibt aktiv. Nach diesem Ressourcen-Update wird nur die äußere App-Signatur neu gesetzt.
