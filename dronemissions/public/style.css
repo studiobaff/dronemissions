@@ -602,6 +602,7 @@ kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.6875rem;b
 #settings-dialog{width:min(760px,calc(100vw - 2rem))}
 .layer-settings{border-top:1px solid var(--line-soft);margin-top:1.2rem;padding-top:1rem}.layer-settings h3{font-size:var(--fs-md);margin-bottom:.4rem}
 .layer-list{display:flex;flex-direction:column;gap:.5rem;margin:.8rem 0}.layer-item{display:flex;align-items:center;gap:.7rem;border:1px solid var(--line);border-radius:var(--radius);padding:.55rem .8rem;background:var(--surface)}
+.layer-order{display:flex;gap:.2rem}.layer-order .btn-icon{min-width:28px;min-height:28px;padding:0;font-size:.7rem}
 .layer-item .layer-swatch{width:14px;height:14px;border-radius:4px;flex-shrink:0}.layer-item .layer-text{min-width:0;flex:1}.layer-item .layer-text strong{display:block;font-size:var(--fs-sm)}.layer-item .layer-text span{display:block;font-size:var(--fs-xs);color:var(--ink-4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .layer-add{border:1px solid var(--line-soft);border-radius:var(--radius);padding:.3rem .9rem;margin-top:.6rem}.layer-add>summary{cursor:pointer;font-weight:600;font-size:var(--fs-sm);padding:.5rem 0}.layer-add[open]>summary{margin-bottom:.4rem}
 .layer-row{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:.8rem;align-items:end}.layer-row .field{margin-bottom:.6rem}.layer-check{display:flex;align-items:center;gap:.5rem;font-size:var(--fs-sm);padding-bottom:.6rem}
