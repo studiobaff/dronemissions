@@ -1,4 +1,6 @@
-# Missionsplaner – Pause am 8. November 2026
+# Missionsplaner – Zwischenstand der Pause am 8. November 2026
+
+Fortsetzung vom Nutzer am selben Tag angefordert. Dieser Text dokumentiert den damaligen Zwischenstand; den aktuellen Funktionsumfang beschreibt PLANNER.md.
 
 Auf ausdrücklichen Wunsch des Nutzers pausiert. Keine Veröffentlichung in diesem Arbeitsgang. Der Nutzer fährt den Mac herunter.
 
