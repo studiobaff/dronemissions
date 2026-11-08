@@ -1,3 +1,7 @@
+## Missionsplaner 0.5.1 · Kalotte mit Gelände · 8.11.2026
+
+Die bisherige pauschale Sperre „feste Kugelkalotte kann nicht dem Gelände folgen“ entfällt. Das bestehende DEM-Verfahren hebt/senkt die Flugpunkte, richtet die Kamera neu auf den POI aus und erhält den Nadir-Scheitel. FOV-Anzeigen unterscheiden jetzt Winkelüberdeckung nach DEM und Windungswerte vor DEM. Fehlende Daten, Mindesthöhe und Bewegungsgrenzen bleiben geprüft. Starres Kippen/Rotation der Flugroute ist nicht enthalten. Nur Web-App; kein Bridge-Build. Details in `PLANNER.md`.
+
 ## Missionsplaner 0.5.0 · Höhenreferenzen und FOV · 8.11.2026
 
 Branch `codex/planner-height-references`. Nur Web-App; kein Bridge-Build. Veröffentlichung über eigenen PR nach bestandenen Checks.
