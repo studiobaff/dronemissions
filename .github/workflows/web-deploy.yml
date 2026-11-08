@@ -42,10 +42,13 @@ jobs:
           python3 dronemissions/tests/integration.py --base http://127.0.0.1:18764/dronemissions/ --access "$test_private/access.json" --allow-test-writes
           python3 dronemissions/tests/previews.py --base http://127.0.0.1:18764/dronemissions/ --access "$test_private/access.json"
           python3 dronemissions/tests/project-maps-pois.py --base http://127.0.0.1:18764/dronemissions/ --access "$test_private/access.json"
+          python3 dronemissions/tests/planner-api.py --base http://127.0.0.1:18764/dronemissions/ --access "$test_private/access.json"
       - name: Release switching and rollback tests
         run: php deploy/tests/receiver.php
       - name: Parser regression tests
-        run: php dronemissions/tests/parser.php
+        run: |
+          php dronemissions/tests/parser.php
+          php dronemissions/tests/planner.php
   deploy:
     needs: check
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
