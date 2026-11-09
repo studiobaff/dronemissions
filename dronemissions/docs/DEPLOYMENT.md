@@ -81,3 +81,28 @@ Die neue Eigentümeraktion „Kartenlink erstellen“ erstellt eine 30 Tage gül
 „PDF herunterladen“ erzeugt lokal im Browser ein A4-PDF mit dem sichtbaren Kartenausschnitt, aktiven Vektorflächen/Referenzen, H-/Aufnahmesymbolen und gestrichelter Verbindung; Folgeseiten enthalten die WGS84-Koordinatenliste. Die Naturschutzkategorien müssen vollständig für den Ausschnitt geladen sein. Kartenkacheln benötigen CORS-Freigabe für den Export; bei einem nicht exportierbaren fremden Hintergrund erscheint ein Fehler statt eines leeren PDFs. Daten und Bilder werden für den PDF-Export nicht an einen weiteren Server hochgeladen.
 
 Zusätzlich behoben: Die ED-269-Kategorienfunktion rief sich selbst rekursiv auf; eine Filterstelle verwendete `filters.hasdmZoneCategory`. Dies wurde als „Geozonen nicht verfügbar“ abgefangen, obwohl der Server Daten lieferte. Regressionstest prüft Luftfahrt-, Naturschutz- und unbekannte Kategorien.
+
+## Panorama planner and mission list
+
+Flight types `panorama` and `sphere` use two explicitly drawn flight positions:
+WP1 is an approach position at mission height, WP2 owns the hovering photo sequence.
+The separate ground takeoff marker is never inserted into executable KMZ files.
+Panorama exports use sequential WPML `rotateYaw`, `gimbalRotate`, `hover` and
+`takePhoto` actions in both XML documents (DJI common-element documentation:
+https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/dji-wpml/common-element.html).
+Horizontal/vertical sampling follows camera FOV and the selected overlap.
+Sphere mode includes nadir and reports the unphotographed zenith gap; stitching is
+external. DEM-following panorama approaches are explicitly rejected; plan those
+separately rather than silently flattening them. Device/firmware acceptance still
+requires controller tests; structural export tests are not flight validation.
+
+`map_sort` is an additive nullable mission column. Reordering is scope-checked,
+revision-checked and transactional, with natural filename ordering as the fallback.
+List positions `(1)`, `(2)` are distinct from stable mission labels such as `008`.
+Reordering, moving a ground marker and refreshing reference layers preserve map
+center and zoom. Single-mission maps export only that mission, its original route,
+waypoints and optional ground start as PNG or PDF, with nature polygons and credits.
+
+Validation: `tests/planner.php`, `tests/planner-api.py`, `tests/panorama_api.py`,
+plus browser checks for grip drag, checkboxes, start-marker drag, unchanged tile
+URLs/placement after saving, and a rendered two-page single-mission PDF.
