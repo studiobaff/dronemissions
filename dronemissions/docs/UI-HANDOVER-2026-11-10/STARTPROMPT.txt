@@ -1,0 +1,10 @@
+Bitte überarbeite das UI und die PDF-Ausgabe von Drone Missions anhand dronemissions/docs/UI-HANDOVER-2026-11-10/BRIEFING.txt.
+Die Anforderungen sind dort priorisiert und mit dem aktuellen Funktionsstand getrennt.
+Besonders wichtig: kompakte Liste mit Checkbox rechts und Griff links; klare Akzente;
+DE/EN/Ukrainisch; elegante Kartenlinien und Marker; Antrag-PDF mit Legende, Quellen
+und sauberer Missionen-/Punktetabelle statt Status- und Absatztext; konsistente Logos,
+Abstände und Typografie. Sieh die synthetischen Beispielbilder und PDFs unter beispiele/ wirklich an.
+Erhalte die vorhandenen Funktionen und Datenverträge. Die unfertige Benutzerverwaltung
+gehört nicht in diese UI-Änderung. Arbeite auf einem separaten Branch und liefere PR/Commit,
+Screenshots und gerenderte Beispiel-PDFs zurück. Nicht main mergen oder deployen:
+Codex übernimmt Prüfung und Deployment nach deiner Rückgabe.

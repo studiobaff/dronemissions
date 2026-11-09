@@ -1,0 +1,185 @@
+HANDOVER AN CLAUDE — DRONE MISSIONS / UI UND PDF
+Stand: 10. November 2026, Europe/Vienna
+
+AUFTRAG
+Die vorhandenen Funktionen sind gestalterisch uneinheitlich und zu schwerfällig.
+Bitte Liste, Kacheln, Karten, Marker, Linien, PDF und Branding als EIN System
+überarbeiten. Kein bloßes Hinzufügen einzelner CSS-Regeln. Die beiliegenden
+Screenshots zeigen konkrete Probleme, nicht ein Design, das kopiert werden soll.
+Nach deiner Rückgabe übernimmt Codex Funktionsprüfung, Exportprüfung und Deployment.
+Nicht selbst auf main mergen oder live deployen: main veröffentlicht automatisch.
+
+1. VERBINDLICHE ENTSCHEIDUNGEN DES NUTZERS
+- Kompakte Listenansicht OHNE Vorschaubilder. Eine klare Zeile pro Mission.
+- Sichtbare Positionszahl 1, 2, 3 … OHNE Klammern.
+- Titel sowie kompakte Projekt-/Typ-Chips. Keine langen Beschreibungen in der Zeile.
+- Öffnen-Button und Checkboxen ausdrücklich gewünscht; CHECKBOXEN RECHTS.
+- Links ein gut erkennbarer geriffelter Griff zum Umordnen per Drag-and-drop.
+- Deutlichere, gezielte Akzentfarben; nicht alles in gedämpftem Grün.
+- Sprachen: Deutsch, English, Українська. Ukrainischer Sprachcode intern: uk.
+- Benutzernamen, Missionsnamen, Projektbezeichnungen und Kennungen NICHT übersetzen.
+- Eine Mission mit Namen …008 trägt auf der Karte die Kennung 008, niemals eine
+  zufällige Listenposition wie 10. Listenposition und Missionskennung sind getrennt.
+- H im echten Kreis für den separat gesetzten Startplatz AM BODEN.
+- Aufnahmearten Foto, Video, Panorama, Kugelpanorama mit passenden klaren Symbolen.
+- Startplatz direkt ziehen; Listenposition am Griff ziehen. Das sind zwei Aktionen.
+- Nach Startplatz setzen/ziehen SPEICHERN OHNE Zoom- oder Ausschnittswechsel.
+- Einzelmission als Karte mit ihrem Startplatz und Wegpunkten anzeigen/exportieren.
+- Projektkarte und Einzelmissionskarte als PDF; PNG-Export ist ebenfalls vorhanden.
+
+2. PDF IST EIN DOKUMENT FÜR ANTRAG ODER INFORMATION
+- Titel/Projekt, Karte, relevante Missionen und Punkte; optional passende vorhandene
+  Logos/Absendergestaltung. Keine überflüssige App-Oberfläche als Ausdruck.
+- LEGENDE: JA. QUELLEN: JA. Knapp, sauber, vollständig, lesbar.
+- KEINE internen Statusmeldungen, Bedienhinweise, Geräteprüfungs-Badges,
+  Export-/Entwicklerhinweise oder langen technischen Erklärungen im Antrag-PDF.
+- Missionen/Punkte als SCHÖNE LISTE/TABELLE mit klaren Spalten und Ausrichtung.
+  Nicht je Mission mehrere Word-artige Absätze mit eingerückten Koordinatensätzen.
+- Vorschlag Projekt-Tabelle: Kennung | Mission | Aufnahmeart | Startplatz (Lat/Lon) |
+  Aufnahmepunkt (Lat/Lon) | relevante Höhe. Bei Bedarf sinnvolle Zeilenumbrüche
+  innerhalb fester Spalten, wiederholte Kopfzeile auf Folgeseiten.
+- Einzelmission: Wegpunkt-Tabelle mit Nr., Funktion, Breite, Länge, Höhe/Höhenbezug.
+  Fehlende Werte dezent als Strich, keine langen Statussätze pro Tabellenzelle.
+- Weißraum gezielt nutzen: aktuell viel zu großer Abstand zwischen Titel und Karte,
+  unnötig große Lücke zwischen Karte und Quellen, uneinheitliche Seitenrhythmen.
+- Keine abgeschnittenen langen Kopf-/Legendensätze. Papierformat und Umbruch testen.
+- H muss auch im PDF RUND sein, Kennung als separate kleine Beschriftung.
+- Markenlogos sauber proportionieren, konsistente Ränder; keine neuen Logos erfinden.
+  Branding muss konfigurierbar bleiben: eigene Installation Studio Baff, andere
+  Betreiber können ihren eigenen Namen/Autor verwenden. Kein fest eingebautes
+  Studio-Baff-Branding in der allgemein herunterladbaren Projektversion.
+- Quellen-/Lizenzangaben von basemap.at und Naturschutzdaten erhalten. Die bestehende
+  technische Standardwarnung nicht als Absatzblock ins Antragspapier übernehmen.
+- PDF unterstützt bisher Helvetica/WinAnsi: das reicht NICHT für Ukrainisch.
+  Eine korrekt lizenzierte Unicode-Schrift und echte ukrainische Glyphen vorsehen.
+  Falls neue Assets/Formate nötig sind: beide Deployment-Allowlisten und Tests
+  berücksichtigen. Keine ungeprüften externen CDN-Abhängigkeiten/CSP-Abschwächung.
+
+3. KARTE, LINIEN UND MARKER
+Der Nutzer findet die Linien immer noch zu 'patschert'/grob.
+- Startplatz → WP2: gestrichelte ZUORDNUNG, keine ausführbare Flugroute.
+- Flugroute: davon klar unterscheidbare durchgezogene Linie.
+- Auch über Wald, Wiese und Orthofoto lesbar. Aktuell dunkel mit weißer Kontur;
+  Gewicht, Kontrast, Dash-Rhythmus, Enden und Prioritäten harmonischer ausarbeiten.
+- Bahntrasse/Referenzlinien dürfen nicht als überbreite blaue Hauptachse dominieren.
+  Fachliche Schutzgebietsfarben erhalten, nicht alle Flächen brandgrün umfärben.
+- H, Foto/Video/Panorama/Kugel und Kennungen benötigen eine gemeinsame Formsprache.
+  Labels nicht in Symbole quetschen; Überlagerungen und enge Standorte beachten.
+- Auswahl einer Mission klar hervorheben, restliche Karte ruhig halten.
+- Keine Bedeutungen vermischen: H am Boden, Anflug-WP1, Aufnahme-WP2,
+  Listenposition 1..N und Missionskennung 001..015 sind verschiedene Dinge.
+- Naturschutz soll beim Öffnen automatisch laden. Explizites Ausblenden des Nutzers
+  bleibt wirksam. Laden/Fehler gehören ins Kartenpanel, nicht ins Antrags-PDF.
+
+4. KACHELN UND LISTE ALS ZUSAMMENGEHÖRENDE ANSICHTEN
+- Kartenansicht, Kachelansicht, Liste klar benennen und konsistent umschalten.
+- Nummer rechts oben auf Kacheln, schlicht und kompakt; Vorschau nicht dominieren.
+- Reale Missionsnamen gut lesbar, einheitlicher Zeilenrhythmus und Abstände.
+- In Liste keine Thumbnail-Fläche und keine Bild-Anfragen/Platzhalter erzwingen.
+- Auswahlzustand, Hover, Fokus, Drag-Ziel und Öffnen-Aktion klar unterscheidbar.
+- Mehrfachauswahl und In-Ordner-Verschieben erhalten.
+- Natürliche Namenssortierung 001, 002, … 009, 010; Pano010 und Pano.010 sowie
+  Groß-/Kleinschreibung dürfen die Reihenfolge nicht durcheinanderbringen.
+- Eigene Reihenfolge wird gespeichert. Markerkennung bleibt bei Umordnen stabil.
+- Keyboard-Bedienung des Griffs (Pfeiltasten) und echte Drag-and-drop-Funktion erhalten.
+- Nicht nur Desktop: Tablet, kleine Fenster und Touch berücksichtigen.
+
+5. FUNKTIONALER STAND — WAS ERHALTEN BLEIBEN MUSS
+PR37 ist auf main und live: 323f0f41ec99a8cb97d3fe97e0daadeb0feebd0e
+- Panorama und Kugelpanorama im Flugplaner als echte Fotoaktions-Sequenzen.
+  Zwei gezeichnete Flugpositionen: WP1 anfliegen, WP2 schweben/fotografieren.
+  Fotoanzahl aus FOV/Überlappung; Kugel bis Nadir, verbleibender Zenit ausgewiesen.
+  Externes Stitching. Geräte-/Firmwareannahme ist noch nicht auf RCs bestätigt.
+- Startplatz unabhängig von Missions-Wegpunkten, separat gespeichert, direkt ziehbar.
+- Gestrichelte Zuordnung zum echten WP2. Keine Änderung der Original-KMZ dadurch.
+- Naturdaten, Ebenen/Trassen, Geozonen, Adresssuche, Originale, Versionshistorie,
+  Auswahl/Ordnerzuordnung, Bridge, Planner und KMZ-Editor existieren bereits.
+- Einzelmissionskarte mit Originalroute/-wegpunkten, H, PNG und PDF.
+- Kompakte Liste mit Checkbox, Griff, Position, Name, Chips, Öffnen.
+  Checkbox liegt noch LINKS: gemäß aktuellem Auftrag RECHTS neu gestalten.
+- Eigene Reihenfolge: additive nullable DB-Spalte map_sort, Scope- und Revisionsschutz.
+
+PR38 ist gemergt: a327f1f3a7e7a45fbcb0a32f320aec6d56922e22
+Inhalt des beigelegten Quellstands: 21a37f463fa6f0a3018ab26dc750aacd8435d8cb
+(gleicher fachlicher Inhalt wie der Merge, ohne dessen Merge-Metadaten).
+- Naturschutz standardmäßig an, nach Kartenbereitschaft/initialem Fit laden.
+- Kategorienanfragen werden kurz wiederverwendet, explizites Ausblenden gemerkt.
+- H-Kreise im Browser 34×34, im PDF Kreis statt Ellipse, Kennung separat.
+- Positionszahlen ohne Klammern.
+- Merge a327f1f ist live und wurde per release.json und Dateiinhalt geprüft.
+
+Aktualisierung aus Claudes Rückmeldung:
+- Branch claude/nature-overlay-opt-in, Commit 57d7f158c8f9ce11a61242c63167ba93fed8981d,
+  nimmt den Default-Autoload wieder zurück. Nicht gemergt oder von Codex deployed.
+- Das ist ein separater Verhaltensänderungs-Branch, nicht Teil dieses UI-Handover-Branches.
+  Bei Bedarf gezielt übernehmen und als eigene Entscheidung kenntlich machen; nicht
+  nebenbei im Layout-PR das Naturschutz-Verhalten ändern.
+- Freigabelink ?nature=1 und PDF-Vollständigkeit in jedem Fall erhalten.
+
+6. OFFEN — NICHT ALS FERTIG AUSGEBEN
+Benutzerverwaltung ist ein getrennter technischer Arbeitsstrang bei Codex:
+separater lokaler Codex-Arbeitsordner (nicht Teil dieses Branches)
+Noch NICHT live und noch NICHT vollständig geprüft. Es gibt dort unfertige
+Backend-Dateien accounts-core.php / accounts-api.php und Änderungen an API/Lib/Planner.
+Diese NICHT aus dem Arbeitsordner in eine UI-Version kopieren oder deployen.
+Der stabile UI-Quellstand dieses Branches enthält diese Entwürfe absichtlich nicht.
+
+Vereinbartes Ziel der globalen Verwaltung unter Einstellungen:
+- E-Mail-Code, Passcode und persönlicher Zugangsschlüssel als erlaubte Anmeldearten.
+- Personen, Rollen, Gruppen, Zugriffe, Sperren/Widerruf global verwalten.
+- Eigene Missionen, mit mir geteilte Missionen und Projekte klar unterscheiden.
+- Personen können mehreren Gruppen angehören: z.B. Person A privat; Team 1 und
+  Team 2 mit gemeinsamen Projekten. Private Inhalte sind nicht automatisch sichtbar.
+- Kilian ggf. separater Testbereich mit synthetischen Daten; kein Zugang erzeugt.
+- Mailversand über vorhandenen Publisher-SMTP wurde privat getestet und vom Nutzer
+  als empfangen bestätigt. Zugangsdaten/Config sind NICHT Teil dieses Pakets.
+- Keine reale Person außer dem beauftragten Administrator ohne nötige Angaben anlegen;
+  keine Einladungen, E-Mails oder neuen Freigabelinks eigenständig verschicken.
+
+Abschließende RC-Gerätetests stehen aus:
+- RC Pro 2 / Mavic 4 Pro und vorhandener Mavic-3-Controller als Vergleich.
+- Import/Ersetzen, Name/Kennung, Vorschau, WP1/WP2, Fotos, Panorama/Kugel und Video.
+- Strukturtests des KMZ sind kein bestandener Gerätetest. Nicht als 'fluggeprüft' labeln.
+- Keine automatischen Flüge oder ungefragten Geräte-Schreibaktionen.
+
+Kilian wurde bereits kontaktiert, nicht doppelt posten:
+https://github.com/hdrpano/DJI-KMZ-Injector/issues/1#issuecomment-6753621369
+Kommentar enthält bisherigen Fehlerbericht, Einladung zum öffentlichen Planerprojekt,
+und den korrekten Hinweis, dass die RC-Tests noch ausstehen. Keine privaten Daten/Keys.
+
+7. DATEIEN UND ARBEITSWEISE
+Quellcode in diesem Branch: dronemissions/public/
+- app.js, view.html, style.css: Kacheln, kompakte Liste, Dialoge, Kartenintegration.
+- permit-map.js: Startplatz, stabile Kennungen, Sortierung, Zeilen, Einzelkarte.
+- permit-pdf.js: Canvas-Komposition, PDF-Erzeugung, aktuelle Absatz-/Koordinatenlisten.
+- nature.js / nature.php: Schutzgebiete/Kategorien/Laden/Quelle.
+- zones.js: Kartenpanel, Geozonen, Suche, Standortinformationen.
+- planner.js / planner-core.php / planner-panorama.php: Flugplaner und echte Exporte.
+- api.php / lib.php: bestehende Datenverträge/Berechtigungen. Nicht für Styling umbauen.
+- deploy/: Paketierung/Allowlisten. .github/workflows/: main deployt automatisch.
+
+Repo: https://github.com/studiobaff/dronemissions
+Live: https://service.studiobaff.com/dronemissions/
+Keine Zugangsschlüssel, Serverkonfigurationen oder echten Missionsdaten sind enthalten.
+Die Original-Screenshots aus dem privaten ZIP wurden NICHT veröffentlicht.
+Beigelegte Bilder und PDFs unter beispiele/ zeigen ausschließlich synthetische
+Testmissionen. Die konkreten Layoutprobleme sind vollständig in diesem Text beschrieben.
+
+Bitte auf separatem Branch arbeiten und PR/Commit plus Änderungsübersicht zurückgeben.
+Keine Schlüsselfelder/API-Namen umbenennen und keine Schutzprüfungen zum Vereinfachen
+entfernen. Insbesondere gekoppelte KMZ-Aktionen nicht ungeprüft entsperren.
+
+8. ABNAHME / RÜCKGABE AN CODEX
+- Desktop, Tablet, kleines Fenster: Liste, Kacheln, Projektkarte, Einzelkarte ansehen.
+- DE/EN/UK inklusive langer Texte und ukrainischer Schrift in UI und PDF ansehen.
+- Checkbox rechts, Öffnen, Mehrfachauswahl, Griff-Drag, Tastatur-Umordnen prüfen.
+- 001/008/010 sortieren und verschieben: Kennungen bleiben korrekt.
+- H ziehen/speichern: Ausschnitt/Zoom bleiben gleich; auch nach asynchronen Ebenen.
+- Orthofoto über Wald/Wiese: Linien/Icons/Labels lesbar, nicht grob und überladen.
+- PDF für eine Mission und ganzes Projekt: Legende/Quellen ja; interne Statusprosa nein.
+- Tabelle mit fehlenden Startpunkten, langen Namen, vielen Missionen und Folgeseiten.
+- Logos/Schriften nicht verzerrt, Kreise rund, keine abgeschnittenen Texte.
+- PDF mit Standardwerkzeug rendern, ALLE Seiten wirklich visuell prüfen.
+- Vorher/Nachher-Screenshots und 2 repräsentative PDFs mitliefern.
+- Bestehende PHP-/JS-/Planner-/API-Tests weiter grün; neue Assets lizenzieren/packagen.
+- Codex führt abschließenden Review, Regressionen, Deployment und RC-Testplanung durch.
