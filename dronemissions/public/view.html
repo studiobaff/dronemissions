@@ -15,8 +15,8 @@
 <link rel="stylesheet" href="kmz-editor.css">
 <script defer src="vendor/leaflet.js"></script>
 <script defer src="vendor/geoman/leaflet-geoman.js"></script>
-<script defer src="zones.js"></script>
-<script defer src="app.js"></script>
+<script defer src="nature.js"></script><script defer src="zones.js"></script>
+<script defer src="permit-pdf.js"></script><script defer src="permit-map.js"></script><script defer src="app.js"></script>
 <script defer src="previews.js"></script>
 <script defer src="layers.js"></script>
 <script defer src="planner-live.js"></script>
@@ -175,7 +175,9 @@
   </div>
 
   <p id="result-line" class="result-line" aria-live="polite"></p>
+  <section id="permit-tools" class="permit-tools hidden" aria-label="Karte für Naturschutz-Freigabe"><div><strong>Freigabekarte</strong><span> H = Startplatz · Kamera = Aufnahmepunkt / WP2 · gestrichelt = Zuordnung, keine Flugroute</span></div><div class="permit-actions"><label id="permit-mission-label">Mission<select id="permit-mission" aria-label="Mission für Startplatz"></select></label><label id="permit-type-label">Aufnahmeart<select id="permit-type" aria-label="Aufnahmeart"><option value="photo">Foto</option><option value="video">Video</option><option value="panorama">Panorama</option><option value="sphere">Kugelpanorama</option></select></label><button id="permit-set-start" type="button" class="btn btn-primary">Startplatz auf Karte setzen</button><button id="permit-clear-start" type="button" class="btn btn-outline">Startplatz entfernen</button><button id="permit-share" type="button" class="btn btn-outline">Kartenlink erstellen</button><button id="permit-print" type="button" class="btn btn-outline">PDF herunterladen</button><button id="permit-fit" type="button" class="btn btn-outline">Alle Punkte zeigen</button><button id="permit-auth" type="button" class="btn btn-outline hidden">Archiv anmelden</button></div><p id="permit-hint" class="hint" role="status"></p></section>
   <div id="overview-map" class="overview-map hidden" role="region" aria-label="Übersichtskarte"></div>
+  <section id="permit-print-list" class="permit-print-list"></section>
   <section id="cards" class="cards" aria-live="polite"></section>
   <div id="empty" class="empty hidden">
    <div class="empty-icon"><svg class="icon"><use href="#i-route"/></svg></div>

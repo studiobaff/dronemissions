@@ -11,3 +11,5 @@ assert.equal(context.dmZoneScheduleState(weekly,Date.parse('2026-11-09T08:00:00Z
 assert.equal(context.dmZoneScheduleState({applicability:[{permanent:'YES'}]}).kind,'unknown');assert.equal(context.dmZoneScheduleState({applicability:[{startDateTime:'2022-01-01T00:00:00Z',endDateTime:'2100-12-31T23:59:59Z'}]}).kind,'unknown');
 const overnight={applicability:[{schedule:[{day:['FRI'],startTime:'22:00:00Z',endTime:'02:00:00Z'}]}]};assert.equal(context.dmZoneScheduleState(overnight,Date.parse('2026-11-07T01:00:00Z')).kind,'scheduled');
 console.log('PASS: scheduled hours, weekend/next opening in Vienna time, overnight range, missing MCTR hours remain unknown.');
+
+assert.equal(context.dmZoneCategory({restriction:'REQ_AUTHORISATION',reason:[]}), 'REQ_AUTHORISATION');assert.equal(context.dmZoneCategory({restriction:'CONDITIONAL',reason:['NATURE']}), 'NATURE');assert.equal(context.dmZoneCategory({restriction:'UNKNOWN',reason:[]}), 'OTHER');console.log('PASS: geozone categories do not recurse; air-traffic/nature/unknown cases.');

@@ -240,7 +240,7 @@ function render() {
   else { $('#empty-title').textContent = folder ? 'Noch keine Mission in diesem Projekt.' : 'Raum für deinen nächsten Flug.'; $('#empty-text').textContent = 'Lade KMZ, CSV, native Litchi-Missionen oder Map-Creator-Projekte hoch. Route und Höhenprofil für KMZ/CSV; Projektdateien werden unverändert archiviert.'; $('#empty-upload').classList.toggle('hidden', !canEdit()); }
  }
  updateSelection();
- $('#cards').classList.toggle('hidden', showMap); $('#overview-map').classList.toggle('hidden', !showMap);
+ document.body.classList.toggle('permit-map-active',showMap);$('#permit-tools').classList.toggle('hidden',!showMap);$('#cards').classList.toggle('hidden', showMap); $('#overview-map').classList.toggle('hidden', !showMap);
  $('#planner-open').classList.toggle('hidden',!canEdit());
  $('#project-reference').classList.toggle('hidden',data.role!=='owner'||!folder);
  if (showMap) renderOverview();
@@ -320,20 +320,22 @@ function drawRoute(map, mission, group = null, numbered = true) {
  return points.concat(mission.details.pois||[]).map(p => [p.lat,p.lng]);
 }
 function renderOverview() {
+ const previousPermitView=overview?{center:overview.getCenter(),zoom:overview.getZoom(),nature:overview.dmNature?.enabled()}:null;
+ dmRenderPermitTools();
  if(overview){overview.remove();overview=null;}
  if (!overview) {
   overview = L.map('overview-map').setView([47.8968, 16.3674], 13); tiles(overview); overviewLayers = L.layerGroup().addTo(overview);
-  overview.on('click', e => { if (picking) { stopPicking(); openPoint(null, e.latlng); } });
+  overview.on('click', e => { if (mapPointPick) { dmPickStart(e.latlng);return; } if (picking) { stopPicking(); openPoint(null, e.latlng); } });
  }
  overviewLayers.clearLayers(); const coords = [];
  for (const m of visibleMissions()) {
-  if (canEdit() && m.details.points.length) coords.push(...drawRoute(overview, m, overviewLayers, false));
+  if (dmDrawPermitMission(overview,m,overviewLayers,coords)) continue;
   const p = m.overviewPoint; if (!p) continue; coords.push([p.lat, p.lng]);
   L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'mission-marker-wrap', html: '<span class="mission-marker"></span>', iconSize: [16, 16], iconAnchor: [8, 8] }), keyboard: false }).addTo(overviewLayers).bindTooltip(esc(m.name)).on('click', () => run(() => openMission(m.id)));
  }
  for (const p of visiblePoints()) { coords.push([p.lat, p.lng]); L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'pano-marker', html: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>', iconSize: [30, 30], iconAnchor: [15, 15] }), keyboard: false }).addTo(overviewLayers).bindTooltip(esc(p.name)).on('click', () => canEdit() ? openPoint(p) : openCustomerMission({ ...p, overviewPoint: p, locationOnly: true })); }
- const currentMap=overview;currentMap.dmFitProject=()=>{if(currentMap.dmDisposed||picking)return;const bounds=L.latLngBounds(coords);if(currentMap.dmReferenceBounds)bounds.extend(currentMap.dmReferenceBounds);if(bounds.isValid())currentMap.fitBounds(bounds,{padding:[45,45],maxZoom:17});};
- setTimeout(()=>{if(currentMap.dmDisposed)return;currentMap.invalidateSize();currentMap.dmFitProject();},80);
+ const currentMap=overview;currentMap.dmFitProject=()=>{if(currentMap.dmDisposed||picking||mapPointPick)return;const bounds=L.latLngBounds(coords);if(currentMap.dmReferenceBounds)bounds.extend(currentMap.dmReferenceBounds);if(bounds.isValid())currentMap.fitBounds(bounds,{padding:[45,45],maxZoom:17});};
+ setTimeout(()=>{if(currentMap.dmDisposed)return;currentMap.invalidateSize();if(dmPermitKeepView&&previousPermitView)currentMap.setView(previousPermitView.center,previousPermitView.zoom,{animate:false});else currentMap.dmFitProject();dmPermitKeepView=false;if(previousPermitView?.nature)currentMap.dmNature?.enable();},80);
 }
 function stopPicking() { picking = false; $('#overview-map').classList.remove('picking'); $('#add-point span').textContent = 'Planungspunkt'; }
 
@@ -372,7 +374,7 @@ function bindChart(root, details) {
 
 /* ---------- Kundenansicht (Lesefreigabe): nur Standort und Navigation ---------- */
 function openCustomerMission(m) {
- const p = m.overviewPoint;
+ const p = m.overviewPoint||m.takeoffPoint;
  $('#detail-content').innerHTML = `<div class="dialog-head"><div><div class="eyebrow">${esc(pathFor(m.folder) || 'Standort')}</div><h2>${esc(m.name)}</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Schließen">${icon('i-close')}</button></div><div class="dialog-body"><div id="customer-map" class="detail-map"></div><p class="num hint" style="margin-top:.6rem">${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}</p>${navigation(m)}<p class="notice">${icon('i-info')}<span>Navigation zum freigegebenen Ort. Flugroute und Missionsdatei sind nicht Teil dieser Freigabe.</span></p></div>`;
  if (detailMap) { detailMap.remove(); detailMap = null; }
  const dlg = $('#detail-dialog'); dlg.classList.add('dialog-customer'); if (!dlg.open) dlg.showModal();
@@ -416,8 +418,8 @@ async function openMission(id) {
       <label class="field"><span>Projektordner</span><select id="mission-folder">${folderOptions(m.folder)}</select></label>
       <label class="field"><span>Punkt für Projektkarte <em>Kunden &amp; Navigation</em></span><select id="mission-overview" ${kmz ? '' : 'disabled'}><option value="">Nicht in der Projektkarte anzeigen</option>${kmz ? m.details.points.map((p, i) => `<option value="${i}" ${m.overviewPoint && Number(m.overview_waypoint) === i ? 'selected' : ''}>Wegpunkt ${i + 1} · ${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}</option>`).join('') : ''}</select></label>
       <p class="hint">${kmz ? 'Nur dieser Punkt wird für Kunden und Navigation freigegeben. Wegpunkt auch direkt auf der Karte anklicken. Nach einer neuen Dateiversion erneut auswählen.' : 'Nur DJI-KMZ-Missionen können einen Punkt für die Projektkarte freigeben.'}</p>
-      <label class="field"><span>Litchi-Hub-Link <em>optional</em></span><input id="mission-litchi" value="${esc(m.litchi_url || '')}" inputmode="url" placeholder="https://hub.flylitchi.com/?m=…"></label>
-      <label class="field"><span>Notizen</span><textarea id="mission-notes" rows="3" maxlength="20000" placeholder="Startpunkt, Besonderheiten, Freigaben …">${esc(m.notes)}</textarea></label>
+      <button id="mission-set-start" type="button" class="btn btn-outline"><span class="start-h-icon" aria-hidden="true">H</span>Startplatz auf Karte setzen</button><label class="field"><span>Litchi-Hub-Link <em>optional</em></span><input id="mission-litchi" value="${esc(m.litchi_url || '')}" inputmode="url" placeholder="https://hub.flylitchi.com/?m=…"></label>
+      ${m.takeoffPoint?'<p class="hint">Freigabekarte: separater Startplatz und fest Wegpunkt 2 als Aufnahmepunkt.</p>':''}<label class="field"><span>Notizen</span><textarea id="mission-notes" rows="3" maxlength="20000" placeholder="Startpunkt, Besonderheiten, Freigaben …">${esc(m.notes)}</textarea></label>
       <button id="save-mission" class="btn btn-primary btn-block" type="button" data-busy="Wird gespeichert …">${icon('i-check')}<span>Änderungen speichern</span></button>
      </div>
      <dl class="facts">
@@ -454,6 +456,7 @@ async function openMission(id) {
  $('#new-version').onclick = () => openUpload(m);
  const editKmz=$('#edit-kmz');if(editKmz)editKmz.onclick=()=>run(()=>window.dmKmzEditor.open(m.id));
  $('#archive-mission').onclick = e => run(async () => { await api('mission', { id: m.id, revision: m.revision, archived: !m.archived }); dlg.close(); await refresh(); toast(m.archived ? 'Mission wiederhergestellt.' : 'Mission archiviert. Originaldateien bleiben erhalten.'); }, e.currentTarget);
+ const startButton=$('#mission-set-start');if(startButton)startButton.onclick=()=>{const id=m.id;$('#detail-dialog').close();folder=m.folder;view=folder?'folder':'all';setMode(true);dmBeginStartPick(id);};
  const attach = $('#attach-source'); if (attach) attach.onclick = e => run(async () => { const source = data.missions.find(x => x.id === $('#source-attachment').value); if (!source) throw Error('Bitte eine Projektdatei auswählen.'); await api('attach-source', { target: m.id, targetRevision: m.revision, source: source.id, sourceRevision: source.revision }); await refresh(); await openMission(m.id); toast('Projektdatei und KMZ gehören jetzt zu einem Missionseintrag. Originale unverändert.'); }, e.currentTarget);
  await renderVersions(m.id);
 }
@@ -515,7 +518,7 @@ $('#sidebar-toggle').onclick = () => { const collapsed = !document.body.classLis
 function showLibrary() { $('#login').classList.add('hidden'); $('#shell').classList.remove('hidden'); if (!loaded) renderSkeleton(); }
 
 /* ---------- Ereignisse ---------- */
-$('#login-form').onsubmit = e => { e.preventDefault(); const b = $('button[type=submit]', e.target); run(async () => { try { const d = await api('login', { password: $('#password').value }); csrf = d.csrf; $('#password').value = ''; $('#login-error').textContent = ''; showLibrary(); await refresh(); applyHash(); } catch (err) { $('#login-error').textContent = err.message; $('#password').focus(); } }, b); };
+$('#login-form').onsubmit = e => { e.preventDefault(); const b = $('button[type=submit]', e.target); run(async () => { try { const d = await api('login', { password: $('#password').value }); csrf = d.csrf; $('#password').value = ''; $('#login-error').textContent = ''; showLibrary(); await refresh(); applyHash(); dmApplyPermitView(); } catch (err) { $('#login-error').textContent = err.message; $('#password').focus(); } }, b); };
 $('#settings').onclick = () => run(async () => { const d = await api('settings'); $('#settings-form').elements.authorName.value = d.authorName; $('#settings-dialog').showModal(); });
 $('#settings-form').onsubmit = e => { e.preventDefault(); run(async () => { await api('settings', { authorName: e.target.elements.authorName.value }); location.reload(); }, $('button[type=submit]', e.target)); };
 $('#logout').onclick = () => run(async () => { await api('logout', {}); location.href = location.pathname; });
@@ -578,17 +581,19 @@ document.addEventListener('click', e => {
 });
 $('#detail-dialog').addEventListener('close', () => { if (detailMap) { detailMap.remove(); detailMap = null; } selected = null; syncHash(); });
 
+dmInitPermitMap();
+
 /* ---------- Start ---------- */
 run(async () => {
  const s = await api('session'); csrf = s.csrf;
  const token = new URLSearchParams(location.hash.slice(1)).get('share');
  if (token) {
-  history.replaceState(null, '', location.pathname);
-  try { const d = await api('share-login', { token }); csrf = d.csrf; history.replaceState(null, '', location.pathname); showLibrary(); await refresh(); }
+  history.replaceState(null, '', location.pathname+location.search);
+  try { const d = await api('share-login', { token }); csrf = d.csrf; history.replaceState(null, '', location.pathname+location.search); showLibrary(); await refresh(); dmApplyPermitView(); }
   catch (e) { $('#shell').classList.add('hidden'); $('#login').classList.remove('hidden'); $('#login-error').textContent = e.message; }
   return;
  }
- if (s.authenticated) { showLibrary(); await refresh(); applyHash(); } else { $('#login').classList.remove('hidden'); $('#password').focus(); }
+ if (s.authenticated) { showLibrary(); await refresh(); applyHash(); dmApplyPermitView(); } else { $('#login').classList.remove('hidden'); $('#password').focus(); }
 });
 
 $('#project-reference').onclick=()=>{$('#settings').click();setTimeout(()=>{const f=$('#vector-folder');f.value=folder||'';f.closest('details').open=true;f.scrollIntoView({block:'center'});f.focus();},100);};
