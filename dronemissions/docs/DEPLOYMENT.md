@@ -68,3 +68,16 @@ Zonenstatus wird ausschließlich aus auswertbaren ED-269-Datums- und Wochenzeitp
 ### Ordner löschen und Seitenleiste
 
 Nur Eigentümer können einen leeren Projektordner endgültig löschen. Der Server prüft direkte Unterordner, alle zugeordneten Missionen einschließlich archivierter und Planungspunkte sowie Name/Elternordner gegen den geöffneten Stand. Die Löschung widerruft Freigaben dieses Ordners innerhalb derselben Transaktion. Befüllte Ordner können weiterhin archiviert werden. Die einklappbare Icon-Leiste speichert ihre Ansicht ausschließlich lokal im Browser.
+
+
+### Naturschutz-Freigabekarte
+
+Pro Mission kann ein unabhängiger Startplatz (`takeoff_lat`, `takeoff_lng`) gesetzt werden. Die Aufnahme bleibt Wegpunkt 2 des aktuellen Originals. Fehlt dieser bei einem nativen Projekt, wird kein Aufnahmepunkt erfunden; die Karte nennt ihn nicht verfügbar. `map_capture_type` speichert ausschließlich das Kartensymbol (Foto, Video, Panorama, Kugelpanorama). Beide Metadatenaktionen prüfen Schreibscope und Missionsrevision; Originale und Versionen bleiben unverändert. Startplätze erscheinen als Kreis mit H, Aufnahmen mit dem gewählten Symbol, verbunden durch eine gestrichelte Zuordnungslinie.
+
+Die neue Eigentümeraktion „Kartenlink erstellen“ erstellt eine 30 Tage gültige, widerrufbare Lesefreigabe mit `presentation=map`. Der Server liefert nur Startplatz/Aufnahmepunkt, Namen und erlaubte projektspezifische Referenzebenen. Weitere Flugwegpunkte, Dateien, Notizen und Anhänge bleiben gesperrt. Alte Bibliotheksfreigaben behalten ihre bisherige Präsentation.
+
+`nature.php` fragt zehn Kategorien des offiziellen UBA-Datensatzes „Naturschutzgebiete Österreich 2025“ über dessen ArcGIS-Dienst ab, seitenweise und auf den sichtbaren österreichischen Ausschnitt beschränkt. Daten liegen sieben Tage im privaten Cache. Bekannte Quelldatenlücken (u.a. UNESCO-/Ramsar-Abgrenzungen) bleiben bestehen. Ab Zoomstufe 9 und bei begrenzter Ausschnittsgröße wird geladen; unvollständige oder gescheiterte Kategorien werden angezeigt. Quelle/Attribution: Umweltbundesamt auf Basis der INSPIRE-Dienste aller neun Bundesländer, CC BY 4.0. Schutzgebiete sind keine pauschalen Drohnenverbote und keine behördliche Freigabe.
+
+„PDF herunterladen“ erzeugt lokal im Browser ein A4-PDF mit dem sichtbaren Kartenausschnitt, aktiven Vektorflächen/Referenzen, H-/Aufnahmesymbolen und gestrichelter Verbindung; Folgeseiten enthalten die WGS84-Koordinatenliste. Die Naturschutzkategorien müssen vollständig für den Ausschnitt geladen sein. Kartenkacheln benötigen CORS-Freigabe für den Export; bei einem nicht exportierbaren fremden Hintergrund erscheint ein Fehler statt eines leeren PDFs. Daten und Bilder werden für den PDF-Export nicht an einen weiteren Server hochgeladen.
+
+Zusätzlich behoben: Die ED-269-Kategorienfunktion rief sich selbst rekursiv auf; eine Filterstelle verwendete `filters.hasdmZoneCategory`. Dies wurde als „Geozonen nicht verfügbar“ abgefangen, obwohl der Server Daten lieferte. Regressionstest prüft Luftfahrt-, Naturschutz- und unbekannte Kategorien.
