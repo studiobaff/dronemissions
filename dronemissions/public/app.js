@@ -14,8 +14,8 @@ let data = { folders: [], missions: [], points: [], role: 'viewer', scope: null 
 let view = 'all';          // all | unfiled | archive | folder
 let folder = null;         // aktive Ordner-ID
 let filter = 'all';        // all | kmz | csv | native | mproj | points
-let sort = 'updated';      // updated | name | distance
-let showMap = false;
+let sort = 'map';      // updated | name | distance
+let showMap = false,showList=false,missionOrderDrag=null;
 let picking = false;       // Planungspunkt per Kartenklick (auch von zones.js gelesen)
 let selected = null, uploadMission = null, editFolder = null, editPoint = null;
 let overview = null, overviewLayers = null, detailMap = null;
@@ -113,7 +113,7 @@ function visibleMissions() {
   if (!matchesFilter(m)) return false;
   return `${m.name} ${m.filename} ${pathFor(m.folder)} ${m.notes}`.toLocaleLowerCase().includes(q);
  });
- const by = { updated: (a, b) => new Date(b.updated) - new Date(a.updated), name: (a, b) => a.name.localeCompare(b.name, 'de'), distance: (a, b) => (b.details.distance || 0) - (a.details.distance || 0) }[sort];
+ const by = { updated: (a, b) => new Date(b.updated) - new Date(a.updated), name: (a, b) => dmPermitNameKey(a).localeCompare(dmPermitNameKey(b),'de',{numeric:true,sensitivity:'base'}), map: (a,b)=>(a.mapOrder??Number.MAX_SAFE_INTEGER)-(b.mapOrder??Number.MAX_SAFE_INTEGER)||dmPermitNameKey(a).localeCompare(dmPermitNameKey(b),'de',{numeric:true,sensitivity:'base'}), distance: (a, b) => (b.details.distance || 0) - (a.details.distance || 0) }[sort];
  return list.sort(by);
 }
 function visiblePoints() {
@@ -184,16 +184,18 @@ function navigation(m) {
  const coords = encodeURIComponent(`${Number(p.lat)},${Number(p.lng)}`);
  return `<div class="navigation-links"><a class="btn btn-outline btn-sm" href="https://www.google.com/maps/dir/?api=1&destination=${coords}" target="_blank" rel="noreferrer noopener">${icon('i-navigate')}<span>Google Maps</span></a><a class="btn btn-outline btn-sm" href="https://maps.apple.com/?daddr=${coords}" target="_blank" rel="noreferrer noopener">${icon('i-navigate')}<span>Apple Maps</span></a>${m.id && !m.locationOnly ? `<a class="btn btn-outline btn-sm" href="api.php?action=location&id=${m.id}">${icon('i-globe')}<span>Ort für Google Earth</span></a>` : ''}</div>`;
 }
-function missionCard(m) {
+function missionCard(m,position=0) {
+ if(showList)return missionListRow(m,position);
  const archived = m.archived || isArchived(m.folder), native = isNative(m), type = sourceType(m), checked = checkedMissions.has(m.id);
  if (!canEdit()) return `<article class="card card-location" data-mission="${m.id}" tabindex="0" role="button" aria-label="Standort ${esc(m.name)} öffnen"><div class="card-media">${icon('i-pin')}<small>Freigegebener Standort</small></div><div class="card-body"><div class="card-path">${icon('i-folder')}<span>${esc(pathFor(m.folder))}</span></div><h2 title="${esc(m.name)}">${esc(m.name)}</h2><p class="card-notes num">${Number(m.overviewPoint.lat).toFixed(5)}, ${Number(m.overviewPoint.lng).toFixed(5)}</p>${navigation(m)}</div></article>`;
  return `<article class="card ${archived ? 'is-archived' : ''} ${checked ? 'is-selected' : ''}" data-mission="${m.id}" draggable="true" tabindex="0" role="button" aria-label="Mission ${esc(m.name)} öffnen">
   <label class="card-select"><input type="checkbox" data-select="${m.id}" ${checked ? 'checked' : ''} aria-label="${esc(m.name)} auswählen"></label>
-  <div class="card-media"><img src="api.php?action=preview&id=${m.id}&version=${m.versionId}" alt="" loading="lazy" decoding="async"><div class="card-badges"><span class="badge badge-dark">V${m.version} · ${type}</span>${archived ? '<span class="badge badge-muted">Archiv</span>' : ''}${m.overviewPoint ? `<span class="badge badge-dark" title="In der Projektkarte">${icon('i-pin')}</span>` : ''}</div><span class="card-arrow">${icon('i-arrow')}</span></div>
+  <div class="card-media"><span class="card-position" title="Listenposition in der aktuellen Sortierung">(${position+1})</span><img src="api.php?action=preview&id=${m.id}&version=${m.versionId}" alt="" loading="lazy" decoding="async"><div class="card-badges"><span class="badge badge-dark">V${m.version} · ${type}</span>${archived ? '<span class="badge badge-muted">Archiv</span>' : ''}${m.overviewPoint ? `<span class="badge badge-dark" title="In der Projektkarte">${icon('i-pin')}</span>` : ''}</div><span class="card-arrow">${icon('i-arrow')}</span></div>
   <div class="card-body"><button type="button" class="card-path card-path-link" data-project="${m.folder || ''}" title="${esc(pathFor(m.folder) || 'Ohne Projekt')} · nach Projekt filtern">${icon('i-folder')}<span>${esc(pathFor(m.folder) || 'Ohne Projekt')}</span></button><h2 title="${esc(m.name)}">${esc(m.name)}</h2>
   <div class="card-meta">${native ? `<span>${icon('i-file')}${type === 'MPROJ' ? 'Map-Creator-Projekt' : 'Litchi-Original'}</span><span>${icon('i-route')}Route offen</span>` : `<span>${icon('i-route')}${plural(m.details.count, 'Wegpunkt', 'Wegpunkte')}</span><span>${icon('i-ruler')}${km(m.details.distance, 2)}</span>`}${m.attachments?.length ? `<span>${icon('i-link')}${plural(m.attachments.length, 'Projektdatei', 'Projektdateien')}</span>` : ''}</div>
   <div class="card-foot"><span class="verified">${icon('i-shield')}Original geprüft</span>${timeEl(m.updated)}</div></div></article>`;
 }
+function missionListRow(m,position){return `<article class="card mission-list-row ${checkedMissions.has(m.id)?'is-selected':''}" data-mission="${m.id}" tabindex="0" role="button" aria-label="Mission ${esc(m.name)} öffnen">${canEdit()?`<label class="list-check"><input type="checkbox" data-select="${m.id}" ${checkedMissions.has(m.id)?'checked':''} aria-label="${esc(m.name)} auswählen"></label><button type="button" class="permit-row-grip" draggable="true" data-order-grip="${m.id}" aria-label="${esc(m.name)} in Liste verschieben" title="Reihenfolge ändern · ziehen oder Pfeiltaste hoch/runter">⠿</button>`:''}<span class="list-position">(${position+1})</span><strong class="list-title">${esc(m.name)}</strong><button type="button" class="card-path-link list-chip" data-project="${m.folder||''}">${esc(pathFor(m.folder)||'Ohne Projekt')}</button><span class="list-chip">${esc(sourceType(m))}</span><button type="button" class="btn btn-outline btn-sm" data-open-list="${m.id}">Öffnen</button></article>`;}
 function pointCard(p) {
  const body = canEdit() ? `<p class="card-notes">${esc(p.notes || 'Wiederverwendbarer Aufnahmeort')}</p><div class="card-foot"><span class="num">${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}</span><span>${plural(Number(p.settings?.height ?? 0), 'm', 'm')} · ${esc({ sphere: 'Kugel', wideAngle: 'Weitwinkel', photo: 'Foto' }[p.settings?.capture] || 'Panorama')}</span></div>` : `<p class="card-notes num">${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}</p>${navigation({ overviewPoint: p })}`;
  return `<article class="card card-point" data-point="${p.id}" tabindex="0" role="button" aria-label="Planungspunkt ${esc(p.name)} öffnen"><div class="card-media">${icon('i-crosshair')}<small>Panorama-Standort</small></div><div class="card-body"><div class="card-path" title="${esc(pathFor(p.folder))}">${icon('i-folder')}<span>${esc(pathFor(p.folder))}</span></div><h2 title="${esc(p.name)}">${esc(p.name)}</h2>${body}</div></article>`;
@@ -266,8 +268,9 @@ $('#select-visible').onchange = e => { checkedMissions = e.target.checked ? new 
 $('#clear-selection').onclick = () => { checkedMissions.clear(); render(); };
 $('#move-selected').onclick = () => { $('#move-folder').innerHTML = folderOptions(folder); $('#move-summary').textContent = `${plural(checkedMissions.size, 'ausgewählte Mission', 'ausgewählte Missionen')} gemeinsam einem Projektordner zuordnen. Originaldateien bleiben unverändert.`; $('#move-dialog').showModal(); };
 $('#move-form').onsubmit = e => { e.preventDefault(); run(async () => { await moveMissions([...checkedMissions], $('#move-folder').value); $('#move-dialog').close(); }, $('button[type=submit]', e.target)); };
-$('#cards').ondragstart = e => { const card = e.target.closest('[data-mission]'); if (!card || !canEdit() || e.target.closest('input,button,a')) { e.preventDefault(); return; } draggedMissions = checkedMissions.has(card.dataset.mission) ? [...checkedMissions] : [card.dataset.mission]; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', `${draggedMissions.length} Missionen`); card.classList.add('is-dragging'); };
-$('#cards').ondragend = () => { draggedMissions = null; $$('.drop-target').forEach(el => el.classList.remove('drop-target')); $$('.is-dragging').forEach(el => el.classList.remove('is-dragging')); };
+$('#cards').ondragstart = e => {const grip=e.target.closest('[data-order-grip]');if(grip&&canEdit()){missionOrderDrag=grip.dataset.orderGrip;draggedMissions=null;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',missionOrderDrag);return;}const card = e.target.closest('[data-mission]'); if (!card || !canEdit() || e.target.closest('input,button,a')) { e.preventDefault(); return; } draggedMissions = checkedMissions.has(card.dataset.mission) ? [...checkedMissions] : [card.dataset.mission]; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', `${draggedMissions.length} Missionen`); card.classList.add('is-dragging'); };
+$('#cards').ondragover=e=>{if(!missionOrderDrag)return;const row=e.target.closest('[data-mission]');if(row){e.preventDefault();$$('.drop-target').forEach(x=>x.classList.remove('drop-target'));row.classList.add('drop-target');}};$('#cards').ondrop=e=>{const row=e.target.closest('[data-mission]');if(!row||!missionOrderDrag)return;e.preventDefault();const id=missionOrderDrag;missionOrderDrag=null;dmMoveMissionOrder(id,row.dataset.mission,visibleMissions());};
+$('#cards').ondragend = () => {missionOrderDrag=null; draggedMissions = null; $$('.drop-target').forEach(el => el.classList.remove('drop-target')); $$('.is-dragging').forEach(el => el.classList.remove('is-dragging')); };
 $('#folders').ondragover = e => { const target = e.target.closest('[data-folder]'); if (!target || !draggedMissions || !canEdit()) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; $$('.drop-target').forEach(el => el.classList.remove('drop-target')); target.classList.add('drop-target'); };
 $('#folders').ondragleave = e => { const target = e.target.closest('[data-folder]'); if (target && !target.contains(e.relatedTarget)) target.classList.remove('drop-target'); };
 $('#folders').ondrop = e => { const target = e.target.closest('[data-folder]'); if (!target || !draggedMissions || !canEdit()) return; e.preventDefault(); const ids = draggedMissions; draggedMissions = null; target.classList.remove('drop-target'); run(() => moveMissions(ids, target.dataset.folder)); };
@@ -320,6 +323,7 @@ function drawRoute(map, mission, group = null, numbered = true) {
  return points.concat(mission.details.pois||[]).map(p => [p.lat,p.lng]);
 }
 function renderOverview() {
+ const keepPermitView=dmPermitKeepView;dmPermitKeepView=false;
  const previousPermitView=overview?{center:overview.getCenter(),zoom:overview.getZoom(),nature:overview.dmNature?.enabled()}:null;
  dmRenderPermitTools();
  if(overview){overview.remove();overview=null;}
@@ -328,14 +332,14 @@ function renderOverview() {
   overview.on('click', e => { if (mapPointPick) { dmPickStart(e.latlng);return; } if (picking) { stopPicking(); openPoint(null, e.latlng); } });
  }
  overviewLayers.clearLayers(); const coords = [];
- for (const m of visibleMissions()) {
+ for (const m of dmPermitMissions()) {
   if (dmDrawPermitMission(overview,m,overviewLayers,coords)) continue;
   const p = m.overviewPoint; if (!p) continue; coords.push([p.lat, p.lng]);
   L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'mission-marker-wrap', html: '<span class="mission-marker"></span>', iconSize: [16, 16], iconAnchor: [8, 8] }), keyboard: false }).addTo(overviewLayers).bindTooltip(esc(m.name)).on('click', () => run(() => openMission(m.id)));
  }
  for (const p of visiblePoints()) { coords.push([p.lat, p.lng]); L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'pano-marker', html: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>', iconSize: [30, 30], iconAnchor: [15, 15] }), keyboard: false }).addTo(overviewLayers).bindTooltip(esc(p.name)).on('click', () => canEdit() ? openPoint(p) : openCustomerMission({ ...p, overviewPoint: p, locationOnly: true })); }
- const currentMap=overview;currentMap.dmFitProject=()=>{if(currentMap.dmDisposed||picking||mapPointPick)return;const bounds=L.latLngBounds(coords);if(currentMap.dmReferenceBounds)bounds.extend(currentMap.dmReferenceBounds);if(bounds.isValid())currentMap.fitBounds(bounds,{padding:[45,45],maxZoom:17});};
- setTimeout(()=>{if(currentMap.dmDisposed)return;currentMap.invalidateSize();if(dmPermitKeepView&&previousPermitView)currentMap.setView(previousPermitView.center,previousPermitView.zoom,{animate:false});else currentMap.dmFitProject();dmPermitKeepView=false;if(previousPermitView?.nature)currentMap.dmNature?.enable();},80);
+ const currentMap=overview;currentMap.dmKeepPermitView=keepPermitView;currentMap.dmFitProject=()=>{if(currentMap.dmDisposed||currentMap.dmKeepPermitView||picking||mapPointPick)return;const bounds=L.latLngBounds(coords);if(currentMap.dmReferenceBounds)bounds.extend(currentMap.dmReferenceBounds);if(bounds.isValid())currentMap.fitBounds(bounds,{padding:[45,45],maxZoom:17});};
+ setTimeout(()=>{if(currentMap.dmDisposed)return;currentMap.invalidateSize();if(keepPermitView&&previousPermitView)currentMap.setView(previousPermitView.center,previousPermitView.zoom,{animate:false});else currentMap.dmFitProject();if(previousPermitView?.nature)currentMap.dmNature?.enable();},80);
 }
 function stopPicking() { picking = false; $('#overview-map').classList.remove('picking'); $('#add-point span').textContent = 'Planungspunkt'; }
 
@@ -418,7 +422,7 @@ async function openMission(id) {
       <label class="field"><span>Projektordner</span><select id="mission-folder">${folderOptions(m.folder)}</select></label>
       <label class="field"><span>Punkt für Projektkarte <em>Kunden &amp; Navigation</em></span><select id="mission-overview" ${kmz ? '' : 'disabled'}><option value="">Nicht in der Projektkarte anzeigen</option>${kmz ? m.details.points.map((p, i) => `<option value="${i}" ${m.overviewPoint && Number(m.overview_waypoint) === i ? 'selected' : ''}>Wegpunkt ${i + 1} · ${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}</option>`).join('') : ''}</select></label>
       <p class="hint">${kmz ? 'Nur dieser Punkt wird für Kunden und Navigation freigegeben. Wegpunkt auch direkt auf der Karte anklicken. Nach einer neuen Dateiversion erneut auswählen.' : 'Nur DJI-KMZ-Missionen können einen Punkt für die Projektkarte freigeben.'}</p>
-      <button id="mission-set-start" type="button" class="btn btn-outline"><span class="start-h-icon" aria-hidden="true">H</span>Startplatz auf Karte setzen</button><label class="field"><span>Litchi-Hub-Link <em>optional</em></span><input id="mission-litchi" value="${esc(m.litchi_url || '')}" inputmode="url" placeholder="https://hub.flylitchi.com/?m=…"></label>
+      <button id="mission-single-map" type="button" class="btn btn-outline">Missionskarte &amp; PDF</button><button id="mission-set-start" type="button" class="btn btn-outline"><span class="start-h-icon" aria-hidden="true">H</span>Startplatz auf Karte setzen</button><label class="field"><span>Litchi-Hub-Link <em>optional</em></span><input id="mission-litchi" value="${esc(m.litchi_url || '')}" inputmode="url" placeholder="https://hub.flylitchi.com/?m=…"></label>
       ${m.takeoffPoint?'<p class="hint">Freigabekarte: separater Startplatz und fest Wegpunkt 2 als Aufnahmepunkt.</p>':''}<label class="field"><span>Notizen</span><textarea id="mission-notes" rows="3" maxlength="20000" placeholder="Startpunkt, Besonderheiten, Freigaben …">${esc(m.notes)}</textarea></label>
       <button id="save-mission" class="btn btn-primary btn-block" type="button" data-busy="Wird gespeichert …">${icon('i-check')}<span>Änderungen speichern</span></button>
      </div>
@@ -456,6 +460,7 @@ async function openMission(id) {
  $('#new-version').onclick = () => openUpload(m);
  const editKmz=$('#edit-kmz');if(editKmz)editKmz.onclick=()=>run(()=>window.dmKmzEditor.open(m.id));
  $('#archive-mission').onclick = e => run(async () => { await api('mission', { id: m.id, revision: m.revision, archived: !m.archived }); dlg.close(); await refresh(); toast(m.archived ? 'Mission wiederhergestellt.' : 'Mission archiviert. Originaldateien bleiben erhalten.'); }, e.currentTarget);
+ const singleMapButton=$('#mission-single-map');if(singleMapButton)singleMapButton.onclick=()=>dmOpenMissionMap(m);
  const startButton=$('#mission-set-start');if(startButton)startButton.onclick=()=>{const id=m.id;$('#detail-dialog').close();folder=m.folder;view=folder?'folder':'all';setMode(true);dmBeginStartPick(id);};
  const attach = $('#attach-source'); if (attach) attach.onclick = e => run(async () => { const source = data.missions.find(x => x.id === $('#source-attachment').value); if (!source) throw Error('Bitte eine Projektdatei auswählen.'); await api('attach-source', { target: m.id, targetRevision: m.revision, source: source.id, sourceRevision: source.revision }); await refresh(); await openMission(m.id); toast('Projektdatei und KMZ gehören jetzt zu einem Missionseintrag. Originale unverändert.'); }, e.currentTarget);
  await renderVersions(m.id);
@@ -533,16 +538,17 @@ $('#empty-clear').onclick = () => { $('#search').value = ''; filter = 'all'; ren
 $('#upload').onclick = () => openUpload(); $('#upload-compact').onclick = () => openUpload(); $('#empty-upload').onclick = () => openUpload();
 $('#new-project').onclick = () => openFolder(null, true); $('#add-folder').onclick = () => openFolder(); $('#folder-options').onclick = () => openFolder(folderById(folder));
 $('#cards').onclick = e => {
- if (e.target.closest('.card-select')) return;
+ const open=e.target.closest('[data-open-list]');if(open){run(()=>openMission(open.dataset.openList));return;}
+ if (e.target.closest('.card-select,.list-check')) return;
  const chip = e.target.closest('[data-project]'); if (chip) { if (chip.dataset.project) navigate('folder', chip.dataset.project); else { $('#search').value = ''; filter = 'all'; navigate('unfiled'); } return; }
  if (e.target.closest('a,button,input,select')) return;
  const m = e.target.closest('[data-mission]'), p = e.target.closest('[data-point]');
  if (m) run(() => openMission(m.dataset.mission));
  if (p) { const point = data.points.find(x => x.id === p.dataset.point); if (canEdit()) openPoint(point); else openCustomerMission({ ...point, overviewPoint: point, locationOnly: true }); }
 };
-$('#cards').onkeydown = e => { if (e.target.closest('input,button,a,select')) return; if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role=button]')) { e.preventDefault(); e.target.click(); } };
-function setMode(map) { showMap = map; if (!map) stopPicking(); $('#cards-toggle').classList.toggle('selected', !map); $('#map-toggle').classList.toggle('selected', map); $('#cards-toggle').setAttribute('aria-pressed', String(!map)); $('#map-toggle').setAttribute('aria-pressed', String(map)); render(); }
-$('#cards-toggle').onclick = () => setMode(false); $('#map-toggle').onclick = () => setMode(true);
+$('#cards').onkeydown = e => {const grip=e.target.closest('[data-order-grip]');if(grip&&['ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();const rows=visibleMissions(),i=rows.findIndex(m=>m.id===grip.dataset.orderGrip),target=rows[i+(e.key==='ArrowUp'?-1:1)];if(target)dmMoveMissionOrder(grip.dataset.orderGrip,target.id,rows);return;} if (e.target.closest('input,button,a,select')) return; if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role=button]')) { e.preventDefault(); e.target.click(); } };
+function setMode(map,list=false) { showMap = map;showList=!map&&list;document.body.classList.toggle('mission-list-active',showList);$('#list-toggle').classList.toggle('selected',showList);$('#list-toggle').setAttribute('aria-pressed',String(showList)); if (!map) stopPicking(); $('#cards-toggle').classList.toggle('selected', !map&&!showList); $('#map-toggle').classList.toggle('selected', map); $('#cards-toggle').setAttribute('aria-pressed', String(!map&&!showList)); $('#map-toggle').setAttribute('aria-pressed', String(map)); render(); }
+$('#list-toggle').onclick=()=>setMode(false,true);$('#cards-toggle').onclick = () => setMode(false); $('#map-toggle').onclick = () => setMode(true);
 $('#add-point').onclick = () => { if (picking) { stopPicking(); return; } showMap = true; picking = true; setMode(true); $('#overview-map').classList.add('picking'); $('#add-point span').textContent = 'Auf die Karte klicken …'; toast('Klicke auf die Karte, um den Panorama-Standort zu setzen.'); };
 document.addEventListener('keydown', e => { if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !$('dialog[open]') && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) { e.preventDefault(); $('#search').focus(); } });
 

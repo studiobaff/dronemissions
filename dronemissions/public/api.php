@@ -103,6 +103,11 @@ try {
   foreach($items as $item)stmt('UPDATE missions SET folder=?,updated=?,revision=revision+1 WHERE id=?',[$folder,gmdate('c'),$item['id']]);
   $db->commit();respond(['ok'=>true,'moved'=>count($items)]);
  }
+ if($action==='mission-map-order'&&$method==='POST'){
+  $items=$input['items']??null;if(!is_array($items)||!array_is_list($items)||count($items)<1||count($items)>500)problem('1 bis 500 Missionen für die Reihenfolge wählen.');$seen=[];
+  foreach($items as $item){if(!is_array($item)||!is_string($item['id']??null)||isset($seen[$item['id']]))problem('Missionen für die Reihenfolge prüfen.');$m=mission($item['id'],true);$seen[$m['id']]=true;if((int)($item['revision']??0)!==(int)$m['revision'])problem('Eine Mission wurde inzwischen geändert. Bitte neu laden.',409);}
+  $db->beginTransaction();foreach($items as $index=>$item){$rank=($input['reset']??false)===true?null:$index;$q=stmt('UPDATE missions SET map_sort=?,revision=revision+1 WHERE id=? AND revision=?',[$rank,$item['id'],(int)$item['revision']]);if(!$q->rowCount()){$db->rollBack();problem('Eine Mission wurde inzwischen geändert. Bitte neu laden.',409);}}$db->commit();respond(['ok'=>true]);
+ }
  if($action==='mission-map-type'&&$method==='POST'){
   $m=mission((string)($input['id']??''),true);$type=$input['captureType']??'';if(!in_array($type,['photo','video','panorama','sphere'],true))problem('Unbekannte Aufnahmeart.');$q=stmt('UPDATE missions SET map_capture_type=?,updated=?,revision=revision+1 WHERE id=? AND revision=?',[$type,gmdate('c'),$m['id'],(int)($input['revision']??0)]);if(!$q->rowCount())problem('Mission wurde inzwischen geändert. Bitte neu laden.',409);respond(['ok'=>true]);
  }
