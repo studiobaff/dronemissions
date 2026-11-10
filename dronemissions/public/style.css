@@ -750,3 +750,8 @@ button.list-chip-project:focus-visible{outline-offset:1px}
 .permit-selection-list label{display:flex;gap:9px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:7px;min-width:0}
 .permit-selection-list input,.permit-selection-actions input{width:18px;height:18px;flex-shrink:0;accent-color:var(--select)}
 .permit-selection-list span{overflow-wrap:anywhere}.permit-selection-status{font-size:12px;color:var(--ink-3);margin:7px 0}
+
+.location-nature{margin:1.2rem 0;padding-top:1rem;border-top:1px solid var(--line)}
+.location-nature-area{padding:12px 14px;margin:10px 0;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface-2)}
+.location-nature-area h4{margin:0 0 8px}.nature-area-badge{font-size:12px;color:var(--ink-2);border:1px solid var(--line-2);border-radius:5px;padding:3px 6px}
+.nature-relevance{margin-top:10px;font-size:13px}.nature-relevance summary{font-weight:600;cursor:pointer}.nature-relevance li{margin:8px 0}.nature-relevance ul{padding-left:20px}

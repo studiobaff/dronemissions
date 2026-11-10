@@ -254,3 +254,38 @@ Browser: 007 Foto + 008 Video, Alle/Keine, Leerzustand, DE/EN/UK, Naturschutz,
 Orbit Grid mit beiden Aufnahmemodi und reduzierter Kreisüberlappung. Drei echte
 PDF-Downloads (gemischt/Fotomission/Videomission) auf exakte Missionsmenge und
 Quellen geprüft; alle sechs Seiten gerendert und visuell geprüft.
+
+## Schutzgebietstreffer und Einschränkungen · 10. November 2026
+
+Standortdetails trennen luftfahrtrechtliche UAS-Geozonen (Austro Control ED-269)
+von geometrischen Schutzgebietstreffern (UBA/INSPIRE). Ein Schutzgebiet führt
+nicht automatisch zu einem Verbot oder einer Bewilligungspflicht. Konkrete
+naturschutzrechtliche Gebietsregeln sind durch die Schutzgebietsquelle nicht
+abgedeckt und werden ausdrücklich als nicht automatisch geprüft bezeichnet.
+
+„Wann relevant?“ nennt ausdrückliche Gebietsregeln, Artenschutz/Störungen und
+mögliche Auswirkungen auf Natura-2000-Erhaltungsziele. Start, Route, Höhe, Termin
+und Dauer sind zu prüfen; eine Punktabfrage ist keine Missionsprüfung. RIS-
+Landesrecht und EASA sind als weiterführende Quellen verlinkt. Die zugrunde
+gelegte NÖ-Rechtsgrundlage für die Erläuterung ist NÖ NSchG 2000 §§ 10 und 18:
+https://www.ris.bka.gv.at/GeltendeFassung.wxe?Abfrage=LrNO&Gesetzesnummer=20000814
+
+Geozonen: bekannte Restriktionen erscheinen mit Quelle, Höhenbereich und Zeiten.
+NATURE als Geozonen-Grund entfernt keine gemeldete Restriktion. Eine
+NO_RESTRICTION-Ausnahme wird nicht zur allgemeinen Flugfreigabe. Veraltete,
+fehlende oder nicht auswertbare Daten bleiben ungeklärt. Auch ausgeblendete
+Geozonen werden bei der Standortbewertung berücksichtigt. Keine vollständige
+NOTAM-/Aktivierungs- oder Flughöhenprüfung.
+
+Schutzgebietstreffer werden unabhängig von den sichtbaren Schutzkategorien für
+alle zehn Kategorien am Punkt abgefragt. Unterschiedliche gleichnamige
+Datensätze (etwa FFH und Vogelschutz) bleiben erhalten. Löcher in Polygonen
+werden berücksichtigt; Quelle, Jahr, Kategorie und vorhandene Gebietsbezeichnung
+bleiben sichtbar. Ausfall/Teilbestand erzeugt keine falsche Entwarnung.
+
+Aufruf: Rechtsklick auf einen Kartenpunkt oder Klick auf ein Schutzgebiet in der
+Projekt-/Einzelkarte. Zeichenwerkzeuge und Startpunktwahl werden nicht durch
+zusätzliche Klick-Dialoge im Flugplaner unterbrochen. Neue Hinweise DE/EN/UK.
+Tests: nature-status.cjs mit fehlenden/veralteten/fehlerhaften Daten, Restriktionen,
+Ausnahmen, FFH/SPA, Polygonloch, Escaping und allen drei Sprachen; bestehende
+Geozonen-, Missionsauswahl-, PDF-, Scheduler- und Pakettests.
