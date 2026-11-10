@@ -15,8 +15,8 @@
 <link rel="stylesheet" href="kmz-editor.css">
 <script defer src="vendor/leaflet.js"></script>
 <script defer src="vendor/geoman/leaflet-geoman.js"></script>
-<script defer src="nature.js"></script><script defer src="zones.js"></script>
-<script defer src="permit-pdf.js"></script><script defer src="permit-map.js"></script><script defer src="app.js"></script>
+<script defer src="i18n.js"></script><script defer src="nature.js"></script><script defer src="zones.js"></script>
+<script defer src="permit-font.js"></script><script defer src="permit-pdf.js"></script><script defer src="permit-map.js"></script><script defer src="app.js"></script>
 <script defer src="previews.js"></script>
 <script defer src="layers.js"></script>
 <script defer src="planner-live.js"></script>
@@ -26,7 +26,7 @@
 <body>
 <svg class="sprite" aria-hidden="true" focusable="false">
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="i-grip" viewBox="0 0 24 24"><g fill="currentColor" stroke="none"><circle cx="9" cy="5" r="1.6"/><circle cx="15" cy="5" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="19" r="1.6"/><circle cx="15" cy="19" r="1.6"/></g></symbol><symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol><symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
 <symbol id="i-archive" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9M10 13h4"/></symbol>
 <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4.6l2 2h8.4A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></symbol>
 <symbol id="i-folder-plus" viewBox="0 0 24 24"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4.6l2 2h8.4A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/><path d="M12 11v6M9 14h6"/></symbol>
@@ -92,27 +92,28 @@
 
 <div id="shell" class="shell hidden">
  <header class="topbar">
-  <button id="menu-toggle" class="btn btn-icon" type="button" aria-label="Navigation öffnen" aria-controls="sidebar" aria-expanded="false"><svg class="icon"><use href="#i-menu"/></svg></button>
+  <button id="menu-toggle" class="btn btn-icon" type="button" aria-label="Navigation öffnen" data-i18n-aria="nav.menu" aria-controls="sidebar" aria-expanded="false"><svg class="icon"><use href="#i-menu"/></svg></button>
   <a class="brand brand-compact" href="./"><span class="brand-mark" aria-hidden="true"><svg class="icon"><use href="#i-route"/></svg></span><span class="brand-name">drone<em>missions</em></span></a>
-  <button id="upload-compact" class="btn btn-primary btn-sm" type="button"><svg class="icon"><use href="#i-upload"/></svg><span>Hochladen</span></button>
+  <button id="upload-compact" class="btn btn-primary btn-sm" type="button"><svg class="icon"><use href="#i-upload"/></svg><span data-i18n="head.upload">Hochladen</span></button>
  </header>
  <div id="scrim" class="scrim" hidden></div>
 
  <aside id="sidebar" class="sidebar">
   <div class="sidebar-head"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true"><svg class="icon"><use href="#i-route"/></svg></span><span class="brand-name">drone<em>missions</em>{{AUTHOR_BADGE}}</span></a><button id="sidebar-toggle" class="btn btn-icon btn-xs" type="button" aria-controls="sidebar" aria-expanded="true" aria-label="Seitenleiste einklappen" title="Seitenleiste einklappen"><svg class="icon"><use href="#i-collapse"/></svg></button></div>
-  <button id="new-project" class="btn btn-outline btn-block sidebar-create" type="button"><svg class="icon"><use href="#i-plus"/></svg><span>Neues Projekt</span></button>
-  <div class="sidebar-label">Bibliothek</div>
+  <button id="new-project" class="btn btn-outline btn-block sidebar-create" type="button"><svg class="icon"><use href="#i-plus"/></svg><span data-i18n="nav.newProject">Neues Projekt</span></button>
+  <div class="sidebar-label" data-i18n="nav.library">Bibliothek</div>
   <nav class="sidebar-nav" aria-label="Bibliothek">
-   <button data-view="all" class="nav-item active" type="button"><svg class="icon"><use href="#i-grid"/></svg><span>Alle Missionen</span><b id="count">0</b></button>
-   <button data-view="unfiled" class="nav-item" type="button"><svg class="icon"><use href="#i-file"/></svg><span>Ohne Projekt</span><b id="count-unfiled"></b></button>
-   <button data-view="archive" class="nav-item" type="button"><svg class="icon"><use href="#i-archive"/></svg><span>Archiv</span><b id="count-archive"></b></button>
+   <button data-view="all" class="nav-item active" type="button"><svg class="icon"><use href="#i-grid"/></svg><span data-i18n="nav.allMissions">Alle Missionen</span><b id="count">0</b></button>
+   <button data-view="unfiled" class="nav-item" type="button"><svg class="icon"><use href="#i-file"/></svg><span data-i18n="nav.unfiled">Ohne Projekt</span><b id="count-unfiled"></b></button>
+   <button data-view="archive" class="nav-item" type="button"><svg class="icon"><use href="#i-archive"/></svg><span data-i18n="nav.archive">Archiv</span><b id="count-archive"></b></button>
   </nav>
-  <div class="sidebar-label sidebar-label-row"><span>Projekte</span><button id="add-folder" class="btn btn-icon btn-xs" type="button" title="Unterordner anlegen" aria-label="Unterordner anlegen"><svg class="icon"><use href="#i-plus"/></svg></button></div>
+  <div class="sidebar-label sidebar-label-row"><span data-i18n="nav.projects">Projekte</span><button id="add-folder" class="btn btn-icon btn-xs" type="button" title="Unterordner anlegen" aria-label="Unterordner anlegen" data-i18n-title="nav.addFolder" data-i18n-aria="nav.addFolder"><svg class="icon"><use href="#i-plus"/></svg></button></div>
   <nav id="folders" class="folder-tree" aria-label="Projekte"></nav>
   <div class="sidebar-bottom">
-   <div class="connection"><i></i><span>Privates Serverarchiv</span></div>
+   <div class="connection"><i></i><span data-i18n="nav.connection">Privates Serverarchiv</span></div>
    <small id="role-label">Zugriff wird geprüft</small>
-   <button id="logout" class="btn btn-ghost btn-sm" type="button"><svg class="icon"><use href="#i-logout"/></svg><span>Abmelden</span></button>
+   <button id="logout" class="btn btn-ghost btn-sm" type="button"><svg class="icon"><use href="#i-logout"/></svg><span data-i18n="nav.logout">Abmelden</span></button>
+   <div id="language-switch" class="sidebar-language"></div>
   </div>
  </aside>
 
@@ -124,70 +125,70 @@
     <p id="page-subtitle" class="page-subtitle">Geplant in Litchi oder Map Creator. Hier bereit für den nächsten Einsatz.</p>
    </div>
    <div class="page-actions">
-    <button id="share-project" class="btn btn-outline hidden" type="button"><svg class="icon"><use href="#i-share"/></svg><span>Projekt teilen</span></button>
-    <button id="folder-options" class="btn btn-outline hidden" type="button"><svg class="icon"><use href="#i-pencil"/></svg><span>Ordner bearbeiten</span></button>
+    <button id="share-project" class="btn btn-outline hidden" type="button"><svg class="icon"><use href="#i-share"/></svg><span data-i18n="head.shareProject">Projekt teilen</span></button>
+    <button id="folder-options" class="btn btn-outline hidden" type="button"><svg class="icon"><use href="#i-pencil"/></svg><span data-i18n="head.folderOptions">Ordner bearbeiten</span></button>
     <button id="bridge" class="btn btn-outline" type="button"><svg class="icon"><use href="#i-download"/></svg><span>Bridge</span></button>
-    <button id="manage-shares" class="btn btn-outline" type="button"><svg class="icon"><use href="#i-link"/></svg><span>Freigaben</span></button>
-    <button id="settings" class="btn btn-outline" type="button"><svg class="icon"><use href="#i-settings"/></svg><span>Einstellungen</span></button>
-    <button id="planner-open" class="btn btn-outline hidden" type="button">Mission planen</button>
-    <button id="upload" class="btn btn-primary" type="button"><svg class="icon"><use href="#i-upload"/></svg><span>Mission hochladen</span></button>
+    <button id="manage-shares" class="btn btn-outline" type="button"><svg class="icon"><use href="#i-link"/></svg><span data-i18n="head.shares">Freigaben</span></button>
+    <button id="settings" class="btn btn-outline" type="button"><svg class="icon"><use href="#i-settings"/></svg><span data-i18n="head.settings">Einstellungen</span></button>
+    <button id="planner-open" class="btn btn-outline hidden" type="button" data-i18n="head.plan">Mission planen</button>
+    <button id="upload" class="btn btn-primary" type="button"><svg class="icon"><use href="#i-upload"/></svg><span data-i18n="head.upload">Mission hochladen</span></button>
    </div>
   </header>
 
   <section class="stats" aria-label="Übersicht">
    <div class="stat"><span id="total-missions" class="stat-value">0</span><span id="total-missions-label" class="stat-label">Missionen</span></div>
-   <div class="stat"><span id="total-projects" class="stat-value">0</span><span id="total-projects-label" class="stat-label">Projektordner</span></div>
-   <div class="stat"><span id="total-distance" class="stat-value">0 km</span><span class="stat-label">Geplante Routen</span></div>
+   <div class="stat"><span id="total-projects" class="stat-value">0</span><span id="total-projects-label" class="stat-label" data-i18n="stats.projects">Projektordner</span></div>
+   <div class="stat"><span id="total-distance" class="stat-value">0 km</span><span class="stat-label" data-i18n="stats.routes">Geplante Routen</span></div>
    <div class="stat"><span id="total-points" class="stat-value">0</span><span id="total-points-label" class="stat-label">Planungspunkte</span></div>
-   <p class="stat-note"><svg class="icon"><use href="#i-shield"/></svg><span>Original bleibt Original. Jeder Upload mit geprüfter SHA-256-Prüfsumme.</span></p>
+   <p class="stat-note"><svg class="icon"><use href="#i-shield"/></svg><span data-i18n="stats.note">Original bleibt Original. Jeder Upload mit geprüfter SHA-256-Prüfsumme.</span></p>
   </section>
 
   <div class="toolbar">
    <div class="search">
     <svg class="icon"><use href="#i-search"/></svg>
-    <input id="search" type="search" aria-label="Missionen suchen" placeholder="Name, Projekt oder Datei suchen …" autocomplete="off" enterkeyhint="search">
+    <input id="search" type="search" aria-label="Missionen suchen" placeholder="Name, Projekt oder Datei suchen …" data-i18n-placeholder="toolbar.search" autocomplete="off" enterkeyhint="search">
     <kbd class="search-kbd" aria-hidden="true">/</kbd>
    </div>
    <div class="toolbar-group">
     <div id="filters" class="chips" role="group" aria-label="Nach Typ filtern">
-     <button class="chip selected" type="button" data-filter="all">Alle</button>
+     <button class="chip selected" type="button" data-filter="all" data-i18n="toolbar.filterAll">Alle</button>
      <button class="chip" type="button" data-filter="kmz">KMZ</button>
      <button class="chip" type="button" data-filter="csv">CSV</button>
      <button class="chip" type="button" data-filter="native">Litchi</button>
      <button class="chip" type="button" data-filter="mproj">MPROJ</button>
-     <button class="chip" type="button" data-filter="points">Punkte</button>
+     <button class="chip" type="button" data-filter="points" data-i18n="toolbar.filterPoints">Punkte</button>
     </div>
-    <label class="sort"><span class="visually-hidden">Sortierung</span><select id="sort" aria-label="Sortierung"><option value="map">Eigene Reihenfolge / Name</option><option value="updated">Zuletzt geändert</option><option value="name">Name A–Z</option><option value="distance">Längste Route</option></select></label>
+    <label class="sort"><span class="visually-hidden">Sortierung</span><select id="sort" aria-label="Sortierung" data-i18n-aria="toolbar.sort"><option value="map" data-i18n="toolbar.sortMap">Eigene Reihenfolge / Name</option><option value="updated" data-i18n="toolbar.sortUpdated">Zuletzt geändert</option><option value="name" data-i18n="toolbar.sortName">Name A–Z</option><option value="distance" data-i18n="toolbar.sortDistance">Längste Route</option></select></label>
     <div class="segmented" role="group" aria-label="Ansicht">
-     <button id="cards-toggle" class="selected" type="button" aria-pressed="true" title="Kartenansicht"><svg class="icon"><use href="#i-grid"/></svg><span>Karten</span></button>
-     <button id="list-toggle" type="button" aria-pressed="false" title="Zeilen ohne Vorschau"><span aria-hidden="true">☰</span><span>Liste</span></button><button id="map-toggle" type="button" aria-pressed="false" title="Alle Missionen auf der Karte"><svg class="icon"><use href="#i-map"/></svg><span>Karte</span></button>
+     <button id="cards-toggle" class="selected" type="button" aria-pressed="true" title="Kachelansicht mit Vorschau" data-i18n-title="toolbar.viewCardsTitle"><svg class="icon"><use href="#i-grid"/></svg><span data-i18n="toolbar.viewCards">Kacheln</span></button>
+     <button id="list-toggle" type="button" aria-pressed="false" title="Kompakte Zeilen ohne Vorschau" data-i18n-title="toolbar.viewListTitle"><svg class="icon"><use href="#i-list"/></svg><span data-i18n="toolbar.viewList">Liste</span></button><button id="map-toggle" type="button" aria-pressed="false" title="Alle Missionen auf der Karte" data-i18n-title="toolbar.viewMapTitle"><svg class="icon"><use href="#i-map"/></svg><span data-i18n="toolbar.viewMap">Karte</span></button>
     </div>
-    <label id="subfolders-control" class="check hidden"><input id="include-subfolders" type="checkbox" checked><span>Unterordner einbeziehen</span></label>
-    <button id="project-reference" class="btn btn-outline hidden" type="button">Projektkarte …</button>
-    <button id="add-point" class="btn btn-outline hidden" type="button"><svg class="icon"><use href="#i-crosshair"/></svg><span>Planungspunkt</span></button>
+    <label id="subfolders-control" class="check hidden"><input id="include-subfolders" type="checkbox" checked><span data-i18n="toolbar.subfolders">Unterordner einbeziehen</span></label>
+    <button id="project-reference" class="btn btn-outline hidden" type="button" data-i18n="toolbar.projectReference">Projektkarte …</button>
+    <button id="add-point" class="btn btn-outline hidden" type="button"><svg class="icon"><use href="#i-crosshair"/></svg><span data-i18n="toolbar.addPoint">Planungspunkt</span></button>
    </div>
   </div>
   <div id="selection-tools" class="selection-tools hidden" role="region" aria-label="Auswahl">
-   <label class="check"><input id="select-visible" type="checkbox"><span>Alle sichtbaren</span></label>
+   <label class="check"><input id="select-visible" type="checkbox"><span data-i18n="selection.visible">Alle sichtbaren</span></label>
    <strong id="selection-count" aria-live="polite">0 ausgewählt</strong>
-   <button id="move-selected" class="btn btn-primary btn-sm" type="button" disabled><svg class="icon"><use href="#i-move"/></svg><span>In Ordner verschieben</span></button>
-   <button id="clear-selection" class="btn btn-outline btn-sm" type="button" disabled>Auswahl aufheben</button>
+   <button id="move-selected" class="btn btn-primary btn-sm" type="button" disabled><svg class="icon"><use href="#i-move"/></svg><span data-i18n="selection.move">In Ordner verschieben</span></button>
+   <button id="clear-selection" class="btn btn-outline btn-sm" type="button" disabled data-i18n="selection.clear">Auswahl aufheben</button>
   </div>
 
   <p id="result-line" class="result-line" aria-live="polite"></p>
-  <section id="permit-tools" class="permit-tools hidden" aria-label="Karte für Naturschutz-Freigabe"><div><strong>Freigabekarte</strong><span> H = Startplatz · Kamera = Aufnahmepunkt / WP2 · gestrichelt = Zuordnung, keine Flugroute</span></div><div class="permit-actions"><label id="permit-mission-label">Mission<select id="permit-mission" aria-label="Mission für Startplatz"></select></label><label id="permit-type-label">Aufnahmeart<select id="permit-type" aria-label="Aufnahmeart"><option value="photo">Foto</option><option value="video">Video</option><option value="panorama">Panorama</option><option value="sphere">Kugelpanorama</option></select></label><button id="permit-set-start" type="button" class="btn btn-primary">Startplatz auf Karte setzen</button><button id="permit-clear-start" type="button" class="btn btn-outline">Startplatz entfernen</button><button id="permit-share" type="button" class="btn btn-outline">Kartenlink erstellen</button><button id="permit-print" type="button" class="btn btn-outline">PDF herunterladen</button><button id="permit-fit" type="button" class="btn btn-outline">Alle Punkte zeigen</button><button id="permit-auth" type="button" class="btn btn-outline hidden">Archiv anmelden</button></div><p id="permit-hint" class="hint" role="status"></p></section>
+  <section id="permit-tools" class="permit-tools hidden" aria-label="Karte für Naturschutz-Freigabe"><div class="permit-head"><strong data-i18n="permit.title">Freigabekarte</strong><span class="permit-legend"><i class="lg lg-start">H</i><span data-i18n="permit.legend">H = Startplatz am Boden · Kamera = Aufnahmepunkt / Wegpunkt 2 · gestrichelt = Zuordnung, keine Flugroute</span></span></div><div class="permit-actions"><label id="permit-mission-label"><span data-i18n="permit.mission">Mission</span><select id="permit-mission" aria-label="Mission für Startplatz" data-i18n-aria="permit.missionAria"></select></label><label id="permit-type-label"><span data-i18n="permit.captureType">Aufnahmeart</span><select id="permit-type" aria-label="Aufnahmeart" data-i18n-aria="permit.captureType"><option value="photo" data-i18n="capture.photo">Foto</option><option value="video" data-i18n="capture.video">Video</option><option value="panorama" data-i18n="capture.panorama">Panorama</option><option value="sphere" data-i18n="capture.sphere">Kugelpanorama</option></select></label><button id="permit-set-start" type="button" class="btn btn-primary" data-i18n="permit.setStart">Startplatz auf Karte setzen</button><button id="permit-clear-start" type="button" class="btn btn-outline" data-i18n="permit.clearStart">Startplatz entfernen</button><button id="permit-share" type="button" class="btn btn-outline" data-i18n="permit.share">Kartenlink erstellen</button><button id="permit-print" type="button" class="btn btn-outline" data-i18n="permit.pdf">PDF herunterladen</button><button id="permit-fit" type="button" class="btn btn-outline" data-i18n="permit.fit">Alle Punkte zeigen</button><button id="permit-auth" type="button" class="btn btn-outline hidden" data-i18n="permit.auth">Archiv anmelden</button></div><p id="permit-hint" class="hint" role="status"></p></section>
   <div id="overview-map" class="overview-map hidden" role="region" aria-label="Übersichtskarte"></div>
   <section id="permit-print-list" class="permit-print-list"></section>
   <section id="cards" class="cards" aria-live="polite"></section>
   <div id="empty" class="empty hidden">
    <div class="empty-icon"><svg class="icon"><use href="#i-route"/></svg></div>
-   <h2 id="empty-title">Raum für deinen nächsten Flug.</h2>
+   <h2 id="empty-title" data-i18n="empty.title">Raum für deinen nächsten Flug.</h2>
    <p id="empty-text">Lade KMZ, CSV oder native Litchi-Missionen hoch. Route und Höhenprofil für KMZ/CSV; native Litchi-Dateien werden unverändert archiviert.</p>
-   <button id="empty-upload" class="btn btn-primary" type="button"><svg class="icon"><use href="#i-upload"/></svg><span>Erste Mission hochladen</span></button>
-   <button id="empty-clear" class="btn btn-outline hidden" type="button">Suche zurücksetzen</button>
+   <button id="empty-upload" class="btn btn-primary" type="button"><svg class="icon"><use href="#i-upload"/></svg><span data-i18n="empty.upload">Erste Mission hochladen</span></button>
+   <button id="empty-clear" class="btn btn-outline hidden" type="button" data-i18n="empty.clear">Suche zurücksetzen</button>
   </div>
 
-  <footer class="page-foot"><span>Drone Missions <b>1.0</b></span><span>Archiv &amp; Vorschau · Keine Flugfreigabe · USB-Bridge folgt separat</span></footer>
+  <footer class="page-foot"><span>Drone Missions <b>1.0</b></span><span data-i18n="foot.note">Archiv &amp; Vorschau · Keine Flugfreigabe · USB-Bridge folgt separat</span></footer>
  </main>
 </div>
 
@@ -196,7 +197,9 @@
   <div class="dialog-head"><div><div class="eyebrow">Deine Installation</div><h2>Autor / Betreiber</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Schließen"><svg class="icon"><use href="#i-close"/></svg></button></div>
   <div class="dialog-body">
    <label class="field"><span>Name</span><input name="authorName" maxlength="100" placeholder="Dein Name oder Firmenname" autocomplete="organization"></label>
-   <p class="hint">Erscheint auf dieser Installation und als Autor in neuen Archivpaketen. Leer lassen für eine neutrale Ansicht.</p>
+   <p class="hint">Erscheint auf dieser Installation, als Autor in neuen Archivpaketen und als Betreiber im Kopf der Freigabe-PDFs. Leer lassen für eine neutrale Ansicht.</p>
+   <label class="field"><span data-i18n="settings.language">Sprache der Oberfläche</span><select id="settings-language" data-language-select><option value="de">Deutsch</option><option value="en">English</option><option value="uk">Українська</option></select></label>
+   <p class="hint" data-i18n="settings.languageHint">Gilt für diesen Browser; Missions- und Projektnamen bleiben unverändert.</p>
    <section class="layer-settings" id="layer-settings">
     <h3>Kartenebenen</h3>
     <p class="hint">Eigene Hintergrundkarten und Overlays für alle Karten dieser Installation: Kachel-Dienste (XYZ oder WMTS, auch mit eigenem API-Schlüssel) und Vektor-Ebenen aus GeoJSON, KML/KMZ oder Shapefile-ZIP, etwa Schutzgebiete oder ein Export aus Google My Maps. Änderungen gelten sofort; Karten werden beim nächsten Öffnen neu aufgebaut.</p>

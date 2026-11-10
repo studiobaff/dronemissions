@@ -36,7 +36,7 @@ function receive(array $config,string $command,string $input): array {
    $stat=$zip->statIndex($i);$name=$stat['name'];
    if(isset($seen[$name]))fail('Duplicate release entry');$seen[$name]=true;
    if(!preg_match('~^[A-Za-z0-9_-]+(?:[./][A-Za-z0-9_-]+)*$~D',$name)||str_contains($name,'..')||str_contains($name,'/.'))fail('Invalid release path');
-   if($name!=='release.json'&&$name!=='vendor/leaflet-LICENSE'&&!in_array(strtolower(pathinfo($name,PATHINFO_EXTENSION)),['php','js','css','html','png','jpg','jpeg','svg','webp','ico','woff','woff2'],true))fail('Unexpected release file');
+   if($name!=='release.json'&&!in_array($name,['vendor/leaflet-LICENSE','vendor/fonts/DejaVu-LICENSE'],true)&&!in_array(strtolower(pathinfo($name,PATHINFO_EXTENSION)),['php','js','css','html','png','jpg','jpeg','svg','webp','ico','woff','woff2'],true))fail('Unexpected release file');
    $total+=$stat['size'];if($total>67108864)fail('Unpacked release too large');
    $data=$zip->getFromIndex($i);if($data===false)fail('Cannot read entry');
    if($name!=='release.json'&&(!isset($manifest['files'][$name])||!hash_equals($manifest['files'][$name],hash('sha256',$data))))fail('Release checksum mismatch');
