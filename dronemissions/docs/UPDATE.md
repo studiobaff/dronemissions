@@ -125,3 +125,8 @@ Mit den Kartenebenen kommt die Tabelle `map_layers` hinzu; `dm_migrate()` legt s
 10.11.2026: Orbit Grid mit Foto/Video, variabler Kreisüberlappung und verbundenem
 oder separatem Pfad. Missionen für Karte/PDF einzeln oder alle auswählbar;
 Naturschutz bleibt sichtbar.
+
+10.11.2026: Standortprüfung trennt Schutzgebietstreffer von gemeldeten UAS-
+Einschränkungen. Keine pauschale Verbotsbewertung aus Schutzgebietsflächen;
+„Wann relevant?“ erläutert Gebietsregeln, Artenschutz und Natura 2000. Fehlende
+oder veraltete Daten bleiben als ungeklärt sichtbar. Hinweise in DE/EN/UK.
