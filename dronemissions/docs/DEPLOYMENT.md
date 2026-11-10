@@ -106,3 +106,8 @@ waypoints and optional ground start as PNG or PDF, with nature polygons and cred
 Validation: `tests/planner.php`, `tests/planner-api.py`, `tests/panorama_api.py`,
 plus browser checks for grip drag, checkboxes, start-marker drag, unchanged tile
 URLs/placement after saving, and a rendered two-page single-mission PDF.
+
+
+## Zonenüberlagerung · 10. November 2026
+
+[Produktive Browserprüfung, Änderung und Rollback](ZONE-OVERLAP-2026-11-10.md) dokumentieren den gemeinsamen Standortdialog für LOAN, MATZ LOXN1/2, Sicherheitszone LOXN, LOAT und Natura 2000 Steinfeld.

@@ -13,3 +13,10 @@ const overnight={applicability:[{schedule:[{day:['FRI'],startTime:'22:00:00Z',en
 console.log('PASS: scheduled hours, weekend/next opening in Vienna time, overnight range, missing MCTR hours remain unknown.');
 
 assert.equal(context.dmZoneCategory({restriction:'REQ_AUTHORISATION',reason:[]}), 'REQ_AUTHORISATION');assert.equal(context.dmZoneCategory({restriction:'CONDITIONAL',reason:['NATURE']}), 'NATURE');assert.equal(context.dmZoneCategory({restriction:'UNKNOWN',reason:[]}), 'OTHER');console.log('PASS: geozone categories do not recurse; air-traffic/nature/unknown cases.');
+
+// Nested zones must be painted after broad zones; holes must not inflate area.
+assert.equal(context.dmZoneArea(shape),96);
+assert.equal(context.dmZoneArea({type:'MultiPolygon',coordinates:[[ring],[hole]]}),104);
+const small={type:'Polygon',coordinates:[hole]},large={type:'Polygon',coordinates:[ring]};
+assert.deepEqual([small,large].sort((a,b)=>context.dmZoneArea(b)-context.dmZoneArea(a)),[large,small]);
+console.log('PASS: polygon holes, multipolygon areas and broad-to-small drawing order.');
