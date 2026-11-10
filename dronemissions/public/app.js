@@ -142,16 +142,19 @@ function applyHash() {
  if (mission && data.missions.some(m => m.id === mission)) openMission(mission); else syncHash();
 }
 window.addEventListener('hashchange', () => { if (!hashSyncing && loaded) applyHash(); });
+/* Sprachwahl: Auswahl in der Seitenleiste; nach dem Umschalten wird die Bibliothek mit den neuen Texten neu gezeichnet. */
+$('#language-switch').innerHTML = dmLanguageSelect('language');
+document.addEventListener('dm-language', () => { if (loaded) { dmPermitKeepView=showMap; render(); } });
 
 function renderSidebar() {
  const active = data.missions.filter(m => !m.archived && !isArchived(m.folder));
  $('#count').textContent = active.length; $('#count-archive').textContent = data.missions.length - active.length || ''; $('#count-unfiled').textContent = active.filter(m => !m.folder).length || '';
  $('[data-view=unfiled]').classList.toggle('hidden', !!data.scope);
- $('#role-label').textContent = { owner: 'Eigentümer · privater Zugang', editor: 'Projektfreigabe · bearbeiten', viewer: 'Kundenansicht · Orte & Navigation' }[data.role];
+ $('#role-label').textContent = t('role.'+data.role);
  $$('.nav-item').forEach(e => e.classList.toggle('active', e.dataset.view === view));
- const renderFolder = (f, depth = 0) => `<button type="button" class="folder-item ${folder === f.id ? 'active' : ''}" data-folder="${f.id}" style="padding-left:${10 + Math.min(depth, 6) * 14}px" title="${esc(pathFor(f.id))}" aria-label="Projekt ${esc(pathFor(f.id))}">${icon('i-folder')}<span>${esc(f.name)}</span>${Number(f.archived) ? '<i class="badge badge-muted">Archiv</i>' : ''}</button>${data.folders.filter(c => c.parent === f.id).map(c => renderFolder(c, depth + 1)).join('')}`;
+ const renderFolder = (f, depth = 0) => `<button type="button" class="folder-item ${folder === f.id ? 'active' : ''}" data-folder="${f.id}" style="padding-left:${10 + Math.min(depth, 6) * 14}px" title="${esc(pathFor(f.id))}" aria-label="Projekt ${esc(pathFor(f.id))}">${icon('i-folder')}<span>${esc(f.name)}</span>${Number(f.archived) ? `<i class="badge badge-muted">${t('list.archive')}</i>` : ''}</button>${data.folders.filter(c => c.parent === f.id).map(c => renderFolder(c, depth + 1)).join('')}`;
  const roots = data.folders.filter(f => !f.parent || !folderById(f.parent));
- $('#folders').innerHTML = roots.map(f => renderFolder(f)).join('') || '<p class="sidebar-hint">Projekte bringen Ordnung in deine Missionen. Lege oben ein neues Projekt an.</p>';
+ $('#folders').innerHTML = roots.map(f => renderFolder(f)).join('') || `<p class="sidebar-hint">${t('nav.hint')}</p>`;
 }
 function renderHeader() {
  $('#new-project').classList.toggle('hidden', !canEdit()); $('#add-folder').classList.toggle('hidden', !canEdit());
@@ -162,22 +165,22 @@ function renderHeader() {
  $('#sort').closest('.sort').classList.toggle('hidden', !canEdit());
  const crumbs = [];
  const link = (label, v, f = null, current = false) => `<button type="button" data-nav="${v}" ${f ? `data-nav-folder="${f}"` : ''} class="${current ? 'current' : ''}">${esc(label)}</button>`;
- if (folder) { crumbs.push(link('Projekte', 'all')); const list = pathList(folder); list.forEach((f, i) => crumbs.push(link(f.name, 'folder', f.id, i === list.length - 1))); }
- else crumbs.push(link('Bibliothek', 'all', null, view === 'all'), ...(view === 'archive' ? [link('Archiv', 'archive', null, true)] : view === 'unfiled' ? [link('Ohne Projekt', 'unfiled', null, true)] : []));
+ if (folder) { crumbs.push(link(t('nav.projects'), 'all')); const list = pathList(folder); list.forEach((f, i) => crumbs.push(link(f.name, 'folder', f.id, i === list.length - 1))); }
+ else crumbs.push(link(t('nav.library'), 'all', null, view === 'all'), ...(view === 'archive' ? [link(t('head.titleArchive'), 'archive', null, true)] : view === 'unfiled' ? [link(t('head.titleUnfiled'), 'unfiled', null, true)] : []));
  $('#breadcrumb').innerHTML = crumbs.join(icon('i-chevron'));
  const current = folder ? folderById(folder) : null;
- const archivedBadge = current && isArchived(folder) ? '<span class="badge badge-muted">Archiviert</span>' : '';
- $('#page-title').innerHTML = `<span>${esc(current ? current.name : view === 'archive' ? 'Archiv' : view === 'unfiled' ? 'Ohne Projekt' : canEdit() ? 'Alle Missionen' : 'Freigegebene Orte')}</span>${archivedBadge}`;
- $('#page-subtitle').textContent = !canEdit() ? 'Standorte dieses Projekts mit Navigation. Flugrouten und Missionsdateien sind nicht Teil dieser Freigabe.' : folder ? 'Flugmissionen und wiederverwendbare Panorama-Standorte an einem Ort.' : view === 'archive' ? 'Gesichert für später. Originaldateien und Versionen bleiben erhalten.' : view === 'unfiled' ? 'Missionen ohne Projektordner. Per Auswahl oder Ziehen in ein Projekt verschieben.' : 'Geplant in Litchi oder Map Creator. Hier bereit für den nächsten Einsatz.';
+ const archivedBadge = current && isArchived(folder) ? `<span class="badge badge-muted">${t('head.archived')}</span>` : '';
+ $('#page-title').innerHTML = `<span>${esc(current ? current.name : view === 'archive' ? t('head.titleArchive') : view === 'unfiled' ? t('head.titleUnfiled') : canEdit() ? t('head.titleAll') : t('head.titleShared'))}</span>${archivedBadge}`;
+ $('#page-subtitle').textContent = !canEdit() ? t('head.subtitleViewer') : folder ? t('head.subtitleFolder') : view === 'archive' ? t('head.subtitleArchive') : view === 'unfiled' ? t('head.subtitleUnfiled') : t('head.subtitleAll');
  if (folder && canEdit() && !isArchived(folder)) { const ids = scopeIds(); const archived = data.missions.filter(m => ids.has(m.folder) && m.archived).length; if (archived) $('#page-subtitle').textContent += ` ${plural(archived, 'archivierte Mission ist', 'archivierte Missionen sind')} unter „Archiv“ im selben Projektordner zu finden.`; }
 }
 function renderStats(missions, points) {
- $('#total-missions').textContent = missions.length; $('#total-missions-label').textContent = canEdit() ? (missions.length === 1 ? 'Mission' : 'Missionen') : (missions.length === 1 ? 'Standort' : 'Standorte');
+ $('#total-missions').textContent = missions.length; $('#total-missions-label').textContent = t.n(canEdit() ? 'stats.missions' : 'stats.locations', missions.length);
  const projects = folder ? scopeIds().size : data.folders.length;
  $('#total-projects').textContent = projects;
  const measurable = missions.filter(m => !isNative(m));
  $('#total-distance').textContent = measurable.length && canEdit() ? km(measurable.reduce((s, m) => s + m.details.distance, 0)) : '—';
- $('#total-points').textContent = points.length; $('#total-points-label').textContent = points.length === 1 ? 'Planungspunkt' : 'Planungspunkte';
+ $('#total-points').textContent = points.length; $('#total-points-label').textContent = t.n('stats.points', points.length);
 }
 function navigation(m) {
  const p = m.overviewPoint; if (!p) return '';
@@ -188,14 +191,17 @@ function missionCard(m,position=0) {
  if(showList)return missionListRow(m,position);
  const archived = m.archived || isArchived(m.folder), native = isNative(m), type = sourceType(m), checked = checkedMissions.has(m.id);
  if (!canEdit()) return `<article class="card card-location" data-mission="${m.id}" tabindex="0" role="button" aria-label="Standort ${esc(m.name)} öffnen"><div class="card-media">${icon('i-pin')}<small>Freigegebener Standort</small></div><div class="card-body"><div class="card-path">${icon('i-folder')}<span>${esc(pathFor(m.folder))}</span></div><h2 title="${esc(m.name)}">${esc(m.name)}</h2><p class="card-notes num">${Number(m.overviewPoint.lat).toFixed(5)}, ${Number(m.overviewPoint.lng).toFixed(5)}</p>${navigation(m)}</div></article>`;
- return `<article class="card ${archived ? 'is-archived' : ''} ${checked ? 'is-selected' : ''}" data-mission="${m.id}" draggable="true" tabindex="0" role="button" aria-label="Mission ${esc(m.name)} öffnen">
-  <label class="card-select"><input type="checkbox" data-select="${m.id}" ${checked ? 'checked' : ''} aria-label="${esc(m.name)} auswählen"></label>
-  <div class="card-media"><span class="card-position" title="Listenposition in der aktuellen Sortierung">${position+1}</span><img src="api.php?action=preview&id=${m.id}&version=${m.versionId}" alt="" loading="lazy" decoding="async"><div class="card-badges"><span class="badge badge-dark">V${m.version} · ${type}</span>${archived ? '<span class="badge badge-muted">Archiv</span>' : ''}${m.overviewPoint ? `<span class="badge badge-dark" title="In der Projektkarte">${icon('i-pin')}</span>` : ''}</div><span class="card-arrow">${icon('i-arrow')}</span></div>
-  <div class="card-body"><button type="button" class="card-path card-path-link" data-project="${m.folder || ''}" title="${esc(pathFor(m.folder) || 'Ohne Projekt')} · nach Projekt filtern">${icon('i-folder')}<span>${esc(pathFor(m.folder) || 'Ohne Projekt')}</span></button><h2 title="${esc(m.name)}">${esc(m.name)}</h2>
+ return `<article class="card ${archived ? 'is-archived' : ''} ${checked ? 'is-selected' : ''}" data-mission="${m.id}" draggable="true" tabindex="0" role="button" aria-label="${esc(t('list.openAria', { name: m.name }))}">
+  <label class="card-select"><input type="checkbox" data-select="${m.id}" ${checked ? 'checked' : ''} aria-label="${esc(t('list.select', { name: m.name }))}"></label>
+  <div class="card-media"><span class="card-position" title="${t('list.position')}">${position+1}</span><img src="api.php?action=preview&id=${m.id}&version=${m.versionId}" alt="" loading="lazy" decoding="async"><div class="card-badges"><span class="badge badge-dark">V${m.version} · ${type}</span>${archived ? `<span class="badge badge-muted">${t('list.archive')}</span>` : ''}${m.overviewPoint ? `<span class="badge badge-dark" title="In der Projektkarte">${icon('i-pin')}</span>` : ''}</div><span class="card-arrow">${icon('i-arrow')}</span></div>
+  <div class="card-body"><button type="button" class="card-path card-path-link" data-project="${m.folder || ''}" title="${esc(pathFor(m.folder) || t('list.unfiled'))} · ${t('list.filterByProject')}">${icon('i-folder')}<span>${esc(pathFor(m.folder) || t('list.unfiled'))}</span></button><h2 title="${esc(m.name)}">${esc(m.name)}</h2>
   <div class="card-meta">${native ? `<span>${icon('i-file')}${type === 'MPROJ' ? 'Map-Creator-Projekt' : 'Litchi-Original'}</span><span>${icon('i-route')}Route offen</span>` : `<span>${icon('i-route')}${plural(m.details.count, 'Wegpunkt', 'Wegpunkte')}</span><span>${icon('i-ruler')}${km(m.details.distance, 2)}</span>`}${m.attachments?.length ? `<span>${icon('i-link')}${plural(m.attachments.length, 'Projektdatei', 'Projektdateien')}</span>` : ''}</div>
   <div class="card-foot"><span class="verified">${icon('i-shield')}Original geprüft</span>${timeEl(m.updated)}</div></div></article>`;
 }
-function missionListRow(m,position){return `<article class="card mission-list-row ${checkedMissions.has(m.id)?'is-selected':''}" data-mission="${m.id}" tabindex="0" role="button" aria-label="Mission ${esc(m.name)} öffnen">${canEdit()?`<label class="list-check"><input type="checkbox" data-select="${m.id}" ${checkedMissions.has(m.id)?'checked':''} aria-label="${esc(m.name)} auswählen"></label><button type="button" class="permit-row-grip" draggable="true" data-order-grip="${m.id}" aria-label="${esc(m.name)} in Liste verschieben" title="Reihenfolge ändern · ziehen oder Pfeiltaste hoch/runter">⠿</button>`:''}<span class="list-position">${position+1}</span><strong class="list-title">${esc(m.name)}</strong><button type="button" class="card-path-link list-chip" data-project="${m.folder||''}">${esc(pathFor(m.folder)||'Ohne Projekt')}</button><span class="list-chip">${esc(sourceType(m))}</span><button type="button" class="btn btn-outline btn-sm" data-open-list="${m.id}">Öffnen</button></article>`;}
+function missionListRow(m,position){
+ const editable=canEdit(),checked=checkedMissions.has(m.id),archived=m.archived||isArchived(m.folder),project=pathFor(m.folder)||t('list.unfiled');
+ return `<article class="card mission-list-row ${checked?'is-selected':''} ${archived?'is-archived':''}" data-mission="${m.id}" tabindex="0" role="button" aria-label="${esc(t('list.openAria',{name:m.name}))}">${editable?`<span class="list-grip-wrap"><button type="button" class="list-grip" draggable="true" data-order-grip="${m.id}" aria-label="${esc(t('list.move',{name:m.name}))}" title="${esc(t('list.moveTitle'))}">${icon('i-grip')}</button><span class="list-grip-touch"><button type="button" data-order-up="${m.id}" aria-label="${esc(t('list.moveUp'))}" title="${esc(t('list.moveUp'))}">▲</button><button type="button" data-order-down="${m.id}" aria-label="${esc(t('list.moveDown'))}" title="${esc(t('list.moveDown'))}">▼</button></span></span>`:''}<span class="list-position" title="${esc(t('list.position'))}">${position+1}</span><span class="list-main"><strong class="list-title">${esc(m.name)}</strong><span class="list-chips"><button type="button" class="card-path-link list-chip list-chip-project" data-project="${m.folder||''}" title="${esc(project)} · ${esc(t('list.filterByProject'))}">${icon('i-folder')}<span>${esc(project)}</span></button><span class="list-chip list-chip-type">${esc(sourceType(m))}</span>${archived?`<span class="list-chip list-chip-muted">${t('list.archive')}</span>`:''}</span></span><button type="button" class="btn btn-outline btn-sm list-open" data-open-list="${m.id}">${t('list.open')}</button>${editable?`<label class="list-check"><input type="checkbox" data-select="${m.id}" ${checked?'checked':''} aria-label="${esc(t('list.select',{name:m.name}))}"></label>`:''}</article>`;
+}
 function pointCard(p) {
  const body = canEdit() ? `<p class="card-notes">${esc(p.notes || 'Wiederverwendbarer Aufnahmeort')}</p><div class="card-foot"><span class="num">${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}</span><span>${plural(Number(p.settings?.height ?? 0), 'm', 'm')} · ${esc({ sphere: 'Kugel', wideAngle: 'Weitwinkel', photo: 'Foto' }[p.settings?.capture] || 'Panorama')}</span></div>` : `<p class="card-notes num">${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}</p>${navigation({ overviewPoint: p })}`;
  return `<article class="card card-point" data-point="${p.id}" tabindex="0" role="button" aria-label="Planungspunkt ${esc(p.name)} öffnen"><div class="card-media">${icon('i-crosshair')}<small>Panorama-Standort</small></div><div class="card-body"><div class="card-path" title="${esc(pathFor(p.folder))}">${icon('i-folder')}<span>${esc(pathFor(p.folder))}</span></div><h2 title="${esc(p.name)}">${esc(p.name)}</h2>${body}</div></article>`;
@@ -229,17 +235,16 @@ function render() {
  $('#filters').classList.toggle('hidden', !canEdit());
  $('#cards').innerHTML = view === 'archive' ? archiveCards(missions, points) : missions.map(missionCard).join('') + points.map(pointCard).join('');
  const total = missions.length + points.length, q = query(), filtered = q || filter !== 'all';
- const unit = canEdit() ? ['Mission', 'Missionen'] : ['Standort', 'Standorte'];
- $('#result-line').textContent = total ? `${plural(missions.length, ...unit)}${points.length ? ` · ${plural(points.length, 'Planungspunkt', 'Planungspunkte')}` : ''}${filtered ? ' gefunden' : ''}` : '';
+ $('#result-line').textContent = total ? `${missions.length} ${t.n(canEdit() ? 'stats.missions' : 'stats.locations', missions.length)}${points.length ? ` · ${points.length} ${t.n('result.points', points.length)}` : ''}${filtered ? ' ' + t('result.found') : ''}` : '';
  const empty = $('#empty');
  empty.classList.toggle('hidden', total > 0 || showMap || (view === 'archive' && $('#cards').children.length > 0));
  if (!total) {
   $('#empty-upload').classList.add('hidden'); $('#empty-clear').classList.add('hidden');
-  if (filtered) { $('#empty-title').textContent = 'Nichts gefunden.'; $('#empty-text').textContent = q ? `Kein Eintrag passt zu „${$('#search').value.trim()}“. Prüfe die Schreibweise oder setze den Filter zurück.` : 'Kein Eintrag passt zum gewählten Filter.'; $('#empty-clear').classList.remove('hidden'); }
+  if (filtered) { $('#empty-title').textContent = t('empty.nothing'); $('#empty-text').textContent = q ? t('empty.noMatch', { q: $('#search').value.trim() }) : t('empty.noFilterMatch'); $('#empty-clear').classList.remove('hidden'); }
   else if (!canEdit()) { $('#empty-title').textContent = 'Noch kein freigegebener Standort.'; $('#empty-text').textContent = 'Der Eigentümer hat in diesem Projekt noch keinen Punkt für die Projektkarte ausgewählt.'; }
   else if (view === 'archive') { $('#empty-title').textContent = 'Das Archiv ist leer.'; $('#empty-text').textContent = 'Archivierte Missionen und Projekte erscheinen hier. Originaldateien bleiben dabei immer erhalten.'; }
   else if (view === 'unfiled') { $('#empty-title').textContent = 'Alles zugeordnet.'; $('#empty-text').textContent = 'Jede Mission liegt in einem Projektordner.'; }
-  else { $('#empty-title').textContent = folder ? 'Noch keine Mission in diesem Projekt.' : 'Raum für deinen nächsten Flug.'; $('#empty-text').textContent = 'Lade KMZ, CSV, native Litchi-Missionen oder Map-Creator-Projekte hoch. Route und Höhenprofil für KMZ/CSV; Projektdateien werden unverändert archiviert.'; $('#empty-upload').classList.toggle('hidden', !canEdit()); }
+  else { $('#empty-title').textContent = folder ? 'Noch keine Mission in diesem Projekt.' : t('empty.title'); $('#empty-text').textContent = t('empty.text'); $('#empty-upload').classList.toggle('hidden', !canEdit()); }
  }
  updateSelection();
  document.body.classList.toggle('permit-map-active',showMap);$('#permit-tools').classList.toggle('hidden',!showMap);$('#cards').classList.toggle('hidden', showMap); $('#overview-map').classList.toggle('hidden', !showMap);
@@ -252,7 +257,7 @@ function renderSkeleton() { $('#cards').innerHTML = Array.from({ length: 6 }, ()
 /* ---------- Auswahl, Verschieben, Ziehen ---------- */
 function updateSelection() {
  if (!canEdit()) return;
- const visible = visibleMissions(); $('#selection-count').textContent = `${checkedMissions.size} ausgewählt`;
+ const visible = visibleMissions(); $('#selection-count').textContent = t.n('selection.count', checkedMissions.size);
  $('#move-selected').disabled = $('#clear-selection').disabled = !checkedMissions.size;
  const all = $('#select-visible'); all.checked = visible.length > 0 && visible.every(m => checkedMissions.has(m.id)); all.indeterminate = checkedMissions.size > 0 && !all.checked;
  $$('.card[data-mission]').forEach(el => el.classList.toggle('is-selected', checkedMissions.has(el.dataset.mission)));
@@ -314,10 +319,11 @@ function tiles(map,projectFolder=folder) {
 }
 function drawRoute(map, mission, group = null, numbered = true) {
  const target = group || map, points = mission.details.points;
- mission.details.routes.forEach((route, i) => { const coords = points.slice(route.start, route.start + route.count).map(p => [p.lat, p.lng]); L.polyline(coords, { color: '#1b2f27', weight: 6, opacity: numbered ? .35 : .2 }).addTo(target); L.polyline(coords, { color: numbered ? ROUTE_COLORS[i % ROUTE_COLORS.length] : '#b5e34c', weight: 3, opacity: numbered ? .95 : .7 }).addTo(target); });
+ /* Flugroute: helle Kontur plus Farblinie, lesbar über Orthofoto, Wald und Wiese; deutlich dünner als die gestrichelte Zuordnung dick ist. */
+ mission.details.routes.forEach((route, i) => { const coords = points.slice(route.start, route.start + route.count).map(p => [p.lat, p.lng]); L.polyline(coords, { color: '#fff', weight: numbered ? 5 : 4, opacity: numbered ? .85 : .5, lineJoin: 'round', lineCap: 'round', interactive: false }).addTo(target); L.polyline(coords, { color: numbered ? ROUTE_COLORS[i % ROUTE_COLORS.length] : '#b5e34c', weight: numbered ? 2.5 : 2, opacity: numbered ? 1 : .8, lineJoin: 'round', lineCap: 'round' }).addTo(target); });
  if (numbered) {
   const stride = Math.max(1, Math.ceil(points.length / (window.innerWidth < 900 ? 60 : 150)));
-  points.forEach((p, i) => { if (i % stride && i !== points.length - 1) return; const marker = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'waypoint-marker', html: `<span>${i + 1}</span>`, iconSize: [24, 24], iconAnchor: [12, 12] }), keyboard: false }).addTo(target); marker.bindTooltip(`Wegpunkt ${i + 1} · ${p.height === null ? 'Höhe unbekannt' : p.height + ' m'}`); marker.on('click', () => { const select = $('#mission-overview'); if (canEdit() && select && !select.disabled) { select.value = String(i); toast(`Wegpunkt ${i + 1} als Projektkarten-Punkt gewählt. Zum Übernehmen Änderungen speichern.`); } }); });
+  points.forEach((p, i) => { if (i % stride && i !== points.length - 1) return; const marker = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'waypoint-marker', html: `<span>${i + 1}</span>`, iconSize: [24, 24], iconAnchor: [12, 12] }), keyboard: false }).addTo(target); marker.bindTooltip(`${t('map.waypoint', { n: i + 1 })} · ${p.height === null ? t('map.heightUnknown') : p.height + ' m'}`); marker.on('click', () => { const select = $('#mission-overview'); if (canEdit() && select && !select.disabled) { select.value = String(i); toast(`Wegpunkt ${i + 1} als Projektkarten-Punkt gewählt. Zum Übernehmen Änderungen speichern.`); } }); });
  }
  (mission.details.pois || []).forEach(p => L.marker([p.lat,p.lng], {icon:L.divIcon({className:'poi-marker',html:`<span>◆ ${esc(p.label)}</span>`,iconSize:[80,28],iconAnchor:[12,14]})}).addTo(target).bindTooltip(esc(p.label)+' · Blickziel (Lage)'));
  return points.concat(mission.details.pois||[]).map(p => [p.lat,p.lng]);
@@ -539,6 +545,7 @@ $('#upload').onclick = () => openUpload(); $('#upload-compact').onclick = () => 
 $('#new-project').onclick = () => openFolder(null, true); $('#add-folder').onclick = () => openFolder(); $('#folder-options').onclick = () => openFolder(folderById(folder));
 $('#cards').onclick = e => {
  const open=e.target.closest('[data-open-list]');if(open){run(()=>openMission(open.dataset.openList));return;}
+ const step=e.target.closest('[data-order-up],[data-order-down]');if(step){const id=step.dataset.orderUp||step.dataset.orderDown,rows=visibleMissions(),i=rows.findIndex(m=>m.id===id),target=rows[i+(step.dataset.orderUp?-1:1)];if(target)dmMoveMissionOrder(id,target.id,rows);return;}
  if (e.target.closest('.card-select,.list-check')) return;
  const chip = e.target.closest('[data-project]'); if (chip) { if (chip.dataset.project) navigate('folder', chip.dataset.project); else { $('#search').value = ''; filter = 'all'; navigate('unfiled'); } return; }
  if (e.target.closest('a,button,input,select')) return;

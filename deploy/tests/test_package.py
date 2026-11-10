@@ -10,6 +10,11 @@ class PackageTests(unittest.TestCase):
   manifest=mod.package(self.public,self.root/'release.zip','a'*40)
   with zipfile.ZipFile(self.root/'release.zip') as z:
    self.assertEqual(set(z.namelist()),set(manifest['files'])|{'release.json'});self.assertEqual(json.loads(z.read('release.json'))['commit'],'a'*40)
+ def test_font_license_allowed(self):
+  (self.public/'vendor'/'fonts').mkdir(parents=True);(self.public/'vendor'/'fonts'/'DejaVu-LICENSE').write_text('license');(self.public/'vendor'/'fonts'/'DejaVuSans.woff').write_bytes(b'wOFF')
+  self.assertIn('vendor/fonts/DejaVu-LICENSE',mod.package(self.public,self.root/'release.zip','a'*40)['files'])
+  (self.public/'vendor'/'fonts'/'notes.txt').write_text('x')
+  with self.assertRaises(ValueError):mod.package(self.public,self.root/'release.zip','a'*40)
  def test_private_config_rejected(self):
   (self.public/'config.json').write_text('{}')
   with self.assertRaises(ValueError):mod.package(self.public,self.root/'release.zip','a'*40)

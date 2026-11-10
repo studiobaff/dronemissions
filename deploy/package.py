@@ -9,7 +9,7 @@ def package(source, destination, commit):
         if p.is_symlink(): raise ValueError('Symlinks are not allowed')
         if not p.is_file(): continue
         name=p.relative_to(source).as_posix()
-        if any(part.startswith('.') for part in p.relative_to(source).parts) or p.suffix.lower() not in {'.php','.js','.css','.html','.png','.jpg','.jpeg','.svg','.webp','.ico','.woff','.woff2'} and name!='vendor/leaflet-LICENSE':
+        if any(part.startswith('.') for part in p.relative_to(source).parts) or p.suffix.lower() not in {'.php','.js','.css','.html','.png','.jpg','.jpeg','.svg','.webp','.ico','.woff','.woff2'} and name not in {'vendor/leaflet-LICENSE','vendor/fonts/DejaVu-LICENSE'}:
             raise ValueError('Unexpected public file: '+name)
         if p.name.lower()=='config.json': raise ValueError('Private configuration in public directory')
         files[name]=p.read_bytes()
