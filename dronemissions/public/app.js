@@ -337,15 +337,19 @@ function renderOverview() {
   overview = L.map('overview-map').setView([47.8968, 16.3674], 13); tiles(overview); overviewLayers = L.layerGroup().addTo(overview);
   overview.on('click', e => { if (mapPointPick) { dmPickStart(e.latlng);return; } if (picking) { stopPicking(); openPoint(null, e.latlng); } });
  }
- overviewLayers.clearLayers(); const coords = [];
+ dmPaintOverviewMissions();
+ const currentMap=overview;currentMap.dmKeepPermitView=keepPermitView;currentMap.dmFitProject=()=>{if(currentMap.dmDisposed||currentMap.dmKeepPermitView||picking||mapPointPick)return;const bounds=L.latLngBounds(currentMap.dmPermitCoordinates||[]);if(currentMap.dmReferenceBounds)bounds.extend(currentMap.dmReferenceBounds);if(bounds.isValid())currentMap.fitBounds(bounds,{padding:[45,45],maxZoom:17});};
+ setTimeout(()=>{if(currentMap.dmDisposed)return;currentMap.invalidateSize();if(keepPermitView&&previousPermitView)currentMap.setView(previousPermitView.center,previousPermitView.zoom,{animate:false});else currentMap.dmFitProject();if(previousPermitView?.nature)currentMap.dmNature?.enable();},80);
+}
+function dmPaintOverviewMissions(){
+ overviewLayers.clearLayers();dmPermitMarkers.clear(); const coords = [];
  for (const m of dmPermitMissions()) {
   if (dmDrawPermitMission(overview,m,overviewLayers,coords)) continue;
   const p = m.overviewPoint; if (!p) continue; coords.push([p.lat, p.lng]);
   L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'mission-marker-wrap', html: '<span class="mission-marker"></span>', iconSize: [16, 16], iconAnchor: [8, 8] }), keyboard: false }).addTo(overviewLayers).bindTooltip(esc(m.name)).on('click', () => run(() => openMission(m.id)));
  }
- for (const p of visiblePoints()) { coords.push([p.lat, p.lng]); L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'pano-marker', html: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>', iconSize: [30, 30], iconAnchor: [15, 15] }), keyboard: false }).addTo(overviewLayers).bindTooltip(esc(p.name)).on('click', () => canEdit() ? openPoint(p) : openCustomerMission({ ...p, overviewPoint: p, locationOnly: true })); }
- const currentMap=overview;currentMap.dmKeepPermitView=keepPermitView;currentMap.dmFitProject=()=>{if(currentMap.dmDisposed||currentMap.dmKeepPermitView||picking||mapPointPick)return;const bounds=L.latLngBounds(coords);if(currentMap.dmReferenceBounds)bounds.extend(currentMap.dmReferenceBounds);if(bounds.isValid())currentMap.fitBounds(bounds,{padding:[45,45],maxZoom:17});};
- setTimeout(()=>{if(currentMap.dmDisposed)return;currentMap.invalidateSize();if(keepPermitView&&previousPermitView)currentMap.setView(previousPermitView.center,previousPermitView.zoom,{animate:false});else currentMap.dmFitProject();if(previousPermitView?.nature)currentMap.dmNature?.enable();},80);
+ for (const p of (dmMapSelection.explicit(dmMapSelectionScope())?[]:visiblePoints())) { coords.push([p.lat, p.lng]); L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'pano-marker', html: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>', iconSize: [30, 30], iconAnchor: [15, 15] }), keyboard: false }).addTo(overviewLayers).bindTooltip(esc(p.name)).on('click', () => canEdit() ? openPoint(p) : openCustomerMission({ ...p, overviewPoint: p, locationOnly: true })); }
+ overview.dmPermitCoordinates=coords;
 }
 function stopPicking() { picking = false; $('#overview-map').classList.remove('picking'); $('#add-point span').textContent = 'Planungspunkt'; }
 

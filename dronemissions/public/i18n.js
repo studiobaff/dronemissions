@@ -6,6 +6,7 @@
 const DM_LANGUAGES={de:'Deutsch',en:'English',uk:'Українська'};
 const DM_TEXTS={
  de:{
+  'mapSelection.title':'Missionen für Karte & PDF','mapSelection.all':'Alle Missionen','mapSelection.none':'Keine auswählen','mapSelection.count':'{n} von {total} Missionen enthalten','mapSelection.help':'Auswahl gilt für Karte und PDF. Naturschutz bleibt sichtbar.','mapSelection.empty':'Mindestens eine Mission für das PDF auswählen.',
   'pdf.heightRelative':'relativ zum Startpunkt','pdf.heightEGM96':'über EGM96','pdf.heightWGS84':'WGS84-Ellipsoid','pdf.heightAGL':'über Gelände','pdf.heightUnknownRef':'Bezug unbekannt',
   'lang.label':'Sprache',
   'nav.newProject':'Neues Projekt','nav.library':'Bibliothek','nav.allMissions':'Alle Missionen','nav.unfiled':'Ohne Projekt','nav.archive':'Archiv','nav.projects':'Projekte','nav.addFolder':'Unterordner anlegen','nav.connection':'Privates Serverarchiv','nav.logout':'Abmelden','nav.collapse':'Seitenleiste einklappen','nav.menu':'Menü',
@@ -38,6 +39,7 @@ const DM_TEXTS={
   'settings.language':'Sprache der Oberfläche','settings.languageHint':'Gilt für diesen Browser; Missions- und Projektnamen bleiben unverändert.'
  },
  en:{
+  'mapSelection.title':'Missions for map & PDF','mapSelection.all':'All missions','mapSelection.none':'Select none','mapSelection.count':'{n} of {total} missions included','mapSelection.help':'Selection applies to the map and PDF. Protected areas remain visible.','mapSelection.empty':'Select at least one mission for the PDF.',
   'pdf.heightRelative':'relative to take-off','pdf.heightEGM96':'above EGM96','pdf.heightWGS84':'WGS84 ellipsoid','pdf.heightAGL':'above terrain','pdf.heightUnknownRef':'reference unknown',
   'lang.label':'Language',
   'nav.newProject':'New project','nav.library':'Library','nav.allMissions':'All missions','nav.unfiled':'No project','nav.archive':'Archive','nav.projects':'Projects','nav.addFolder':'Add subfolder','nav.connection':'Private server archive','nav.logout':'Sign out','nav.collapse':'Collapse sidebar','nav.menu':'Menu',
@@ -70,6 +72,7 @@ const DM_TEXTS={
   'settings.language':'Interface language','settings.languageHint':'Applies to this browser; mission and project names stay unchanged.'
  },
  uk:{
+  'mapSelection.title':'Місії для карти та PDF','mapSelection.all':'Усі місії','mapSelection.none':'Скасувати вибір усіх','mapSelection.count':'Включено {n} із {total} місій','mapSelection.help':'Вибір застосовується до карти та PDF. Природоохоронні території залишаються видимими.','mapSelection.empty':'Виберіть принаймні одну місію для PDF.',
   'pdf.heightRelative':'відносно точки зльоту','pdf.heightEGM96':'над EGM96','pdf.heightWGS84':'еліпсоїд WGS84','pdf.heightAGL':'над рельєфом','pdf.heightUnknownRef':'відлік невідомий',
   'lang.label':'Мова',
   'nav.newProject':'Новий проєкт','nav.library':'Бібліотека','nav.allMissions':'Усі місії','nav.unfiled':'Без проєкту','nav.archive':'Архів','nav.projects':'Проєкти','nav.addFolder':'Створити підпапку','nav.connection':'Приватний серверний архів','nav.logout':'Вийти','nav.collapse':'Згорнути бічну панель','nav.menu':'Меню',

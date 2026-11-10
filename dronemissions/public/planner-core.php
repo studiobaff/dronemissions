@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__.'/planner-heights.php';
 require_once __DIR__.'/planner-panorama.php';
+require_once __DIR__.'/planner-circle-grid.php';
 /* Pure planning geometry and WPML export. No network, device writes or implicit camera/model IDs. */
 function dm_plan_catalog(): array {
  $row=fn($id,$name,$fov,$w,$h,$url)=>compact('id','name','fov','w','h','url');
@@ -55,6 +56,7 @@ function dm_plan_cap(array $g,array $p,callable $to,float $bottom,float $top,boo
  return ['top'=>$top,'sphereRadius'=>$sphere,'centerHeight'=>$z,'baseRadius'=>$radius,'angle'=>$angle,'arcLength'=>$sphere*$angle];
 }
 function dm_plan_build(array $in, ?callable $elevations=null): array {
+ if(($in['type']??'')==='circleGrid')return dm_plan_circle_grid($in);
  if(in_array($in['type']??'', ['panorama','sphere'],true))return dm_plan_panorama($in,$elevations);
  $heightReference=dm_plan_height_reference($in['heightReference']??null);$heightFloor=dm_plan_height_floor($heightReference);$type=(string)($in['type']??'');if(!in_array($type,['grid','corridor','line','circle','helix','doubleHelix','poiPolygon','facade'],true))throw new InvalidArgumentException('Missionsart wählen.');
  $rawGeometry=$in['geometry']??[];if(!is_array($rawGeometry))throw new InvalidArgumentException('Umriss als GeoJSON-Geometrie übergeben.');$geo=dm_plan_geometry($rawGeometry);$g=$geo['geometry'];$to=$geo['project'];$from=$geo['unproject'];
@@ -161,7 +163,10 @@ function dm_plan_kmz(array $plan,array $part,array $device,int $number=1): strin
   if(isset($device['payloadEnumValue'])){$pi=$w($mc,'payloadInfo');foreach(['payloadEnumValue','payloadSubEnumValue','payloadPositionIndex'] as $k)$w($pi,$k,$device[$k]??0);}
   $f=$plain($doc,'Folder');$w($f,'templateId',0);if($template){$w($f,'templateType','waypoint');$cs=$w($f,'waylineCoordinateSysParam');$w($cs,'coordinateMode','WGS84');$w($cs,'heightMode','relativeToStartPoint');$w($f,'globalHeight',$part[0]['height']);$w($f,'caliFlightEnable',0);$w($f,'gimbalPitchMode','usePointSetting');}else{$w($f,'executeHeightMode','relativeToStartPoint');$w($f,'waylineId',0);$distance=0;$flightTime=0;for($j=1;$j<count($part);$j++){$dseg=hypot(dm_distance($part[$j-1],$part[$j]),$part[$j]['height']-$part[$j-1]['height']);$distance+=$dseg;$flightTime+=$dseg/min($part[$j-1]['speed']??$plan['params']['speed'],$part[$j]['speed']??$plan['params']['speed']);}$w($f,'distance',sprintf('%.3f',$distance));$w($f,'duration',sprintf('%.1f',$flightTime+(isset($plan['panorama'])?$plan['summary']['seconds']-$plan['summary']['distance']/$plan['params']['speed']:($video?0:count(array_filter($part,fn($v)=>$v['capture']??true))*($plan['params']['photoPause']+2)))));}$w($f,'autoFlightSpeed',$plan['params']['speed']);
   $poiIds=[];foreach($part as $i=>$pt){$mark=$plain($f,'Placemark');$position=$plain($mark,'Point');$plain($position,'coordinates',sprintf('%.9f,%.9f',$pt['lng'],$pt['lat']));$w($mark,'index',$i);$w($mark,$template?'height':'executeHeight',sprintf('%.3f',$pt['height']));if($template){$w($mark,'useGlobalHeight',0);$w($mark,'useGlobalSpeed',0);$w($mark,'useGlobalHeadingParam',0);$w($mark,'useGlobalTurnParam',0);$w($mark,'gimbalPitchAngle',sprintf('%.3f',$pt['pitch']));}$w($mark,'waypointSpeed',$pt['speed']??$plan['params']['speed']);
-   $head=$w($mark,'waypointHeadingParam');$w($head,'waypointHeadingMode',$pt['poi']?'towardPOI':'smoothTransition');if($pt['poi']){$w($head,'waypointPoiPoint',implode(',',array_map(fn($v)=>sprintf('%.9f',$v),$pt['poi'])));$key=json_encode($pt['poi']);if(!isset($poiIds[$key]))$poiIds[$key]=count($poiIds);$w($head,'waypointHeadingPoiIndex',$poiIds[$key]);}$w($head,'waypointHeadingAngle',sprintf('%.3f',$pt['yaw']));$w($head,'waypointHeadingPathMode','followBadArc');$w($head,'waypointHeadingAngleEnable',1);$turn=$w($mark,'waypointTurnParam');$w($turn,'waypointTurnMode','toPointAndStopWithDiscontinuityCurvature');$w($turn,'waypointTurnDampingDist',0);$w($mark,'useStraightLine',1);
+   $head=$w($mark,'waypointHeadingParam');$w($head,'waypointHeadingMode',$pt['poi']?'towardPOI':'smoothTransition');if($pt['poi']){$w($head,'waypointPoiPoint',implode(',',array_map(fn($v)=>sprintf('%.9f',$v),$pt['poi'])));$key=json_encode($pt['poi']);if(!isset($poiIds[$key]))$poiIds[$key]=count($poiIds);$w($head,'waypointHeadingPoiIndex',$poiIds[$key]);}$w($head,'waypointHeadingAngle',sprintf('%.3f',$pt['yaw']));$w($head,'waypointHeadingPathMode','followBadArc');$w($head,'waypointHeadingAngleEnable',1);$turn=$w($mark,'waypointTurnParam');$smooth=$video&&$plan['type']==='circleGrid'&&($plan['params']['orbitMotion']??'stop')==='smooth'&&$i>0&&$i<count($part)-1;
+   $damping=$smooth?min(2,dm_distance($part[$i-1],$pt)*.2,dm_distance($pt,$part[$i+1])*.2):0;
+   $smooth=$smooth&&$damping>.001;
+   $w($turn,'waypointTurnMode',$smooth?'toPointAndPassWithContinuityCurvature':'toPointAndStopWithDiscontinuityCurvature');$w($turn,'waypointTurnDampingDist',sprintf('%.3f',$damping));$w($mark,'useStraightLine',1);
    if($video){
     // Each independently flown section owns its recording lifecycle. No photo/hover actions.
     $groupId=$i*2;$payload=['payloadPositionIndex'=>$device['payloadPositionIndex']??0];
