@@ -6,6 +6,12 @@ function dmZoneContains(geometry,lng,lat){
  const polygonContains=rings=>rings.length&&ringContains(rings[0])&&!rings.slice(1).some(ringContains);
  return geometry.type==='Polygon'?polygonContains(geometry.coordinates):geometry.coordinates.some(polygonContains);
 }
+// Relative polygon area for drawing broad zones first and small zones last.
+function dmZoneArea(geometry){
+ const ringArea=ring=>Math.abs(ring.reduce((sum,p,i)=>{const q=ring[(i+1)%ring.length];return sum+p[0]*q[1]-q[0]*p[1];},0)/2);
+ const polygonArea=rings=>Math.max(0,ringArea(rings[0]||[])-rings.slice(1).reduce((sum,ring)=>sum+ringArea(ring),0));
+ return geometry.type==='Polygon'?polygonArea(geometry.coordinates):geometry.coordinates.reduce((sum,rings)=>sum+polygonArea(rings),0);
+}
 function dmZonePeriod(zone){
  const periods=zone.applicability||[];if(!periods.length)return 'Zeitangaben nicht vorhanden.';
  const days={MON:'Mo',TUE:'Di',WED:'Mi',THU:'Do',FRI:'Fr',SAT:'Sa',SUN:'So',ANY:'Täglich'};
@@ -29,13 +35,14 @@ function dmMapControls(map,base,roads,overlays={}){
  const status=()=>root.querySelector('.zone-status');
  const syncInputs=()=>{root.querySelectorAll('[data-map-base]').forEach(input=>input.checked=map.hasLayer(base[input.value]));root.querySelector('[data-roads]').checked=map.hasLayer(roads);root.querySelectorAll('[data-overlay]').forEach(input=>{const o=overlays[input.dataset.overlay];if(o?.layer)input.checked=map.hasLayer(o.layer);});};
  function showZonesAt(latlng,force=false,label=''){
-  if((!enabled||!dataset)&&!force||picking||mapPointPick||map.pm?.globalDrawModeEnabled?.())return;
+  if((!enabled||!dataset)&&!map.dmNature?.enabled()&&!force||picking||mapPointPick||map.pm?.globalDrawModeEnabled?.())return;
   const found=enabled&&dataset?dataset.zones.filter(z=>(showOutsideDates||dmZoneInDate(z))&&(z.geometry||[]).some(g=>dmZoneContains(g.horizontalProjection,latlng.lng,latlng.lat))):[];
   dmOpenLocation(latlng,found,dataset,label,enabled&&Boolean(dataset));
  }
  function drawZones(){
   if(zoneLayer){map.removeLayer(zoneLayer);zoneLayer=null;}if(!enabled||!dataset)return;
   const features=[];for(const zone of dataset.zones){const category=dmZoneCategory(zone);if(!filters.has(category)||(!showOutsideDates&&!dmZoneInDate(zone)))continue;for(const g of zone.geometry||[])features.push({type:'Feature',geometry:g.horizontalProjection,properties:{category,inDate:dmZoneInDate(zone)}});}
+  features.sort((a,b)=>dmZoneArea(b.geometry)-dmZoneArea(a.geometry));
   if(!map.getPane('uasZones')){map.createPane('uasZones');map.getPane('uasZones').style.zIndex='380';}
   zoneLayer=L.geoJSON({type:'FeatureCollection',features},{pane:'uasZones',attribution:'Geozonen: <a href="https://www.austrocontrol.at/luftfahrtbehoerde/lizenzen__bewilligungen/drohnen/geografische_zonen" target="_blank" rel="noreferrer">Austro Control</a>',style:f=>({color:f.properties.inDate?dmZoneKinds[f.properties.category].color:'#7d8589',dashArray:f.properties.inDate?null:'5 5',weight:1.5,fillOpacity:f.properties.inDate?.12:.04}),onEachFeature:(_,layer)=>layer.on('click',e=>{L.DomEvent.stopPropagation(e);showZonesAt(e.latlng);})}).addTo(map);
   root.querySelectorAll('[data-kind]').forEach(input=>{const n=dataset.zones.filter(z=>dmZoneCategory(z)===input.dataset.kind&&(showOutsideDates||dmZoneInDate(z))).length;input.closest('label').querySelector('b').textContent=n;input.closest('label').hidden=n===0;});

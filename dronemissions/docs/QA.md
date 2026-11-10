@@ -41,3 +41,8 @@ Zusätzlich ein Härtetest mit Worst-Case-Daten: 150 Zeichen langer Missionsname
 Kartenkacheln von basemap.at, OpenStreetMap und Esri wurden in der Cloud-Prüfumgebung durch neutrale Platzhalter ersetzt, weil die Kachelserver dort nicht erreichbar sind. Kachelladung und Quellenangabe müssen vor einem Release auf einer Installation mit Internetzugang und auf echten Telefonen geprüft werden (Hover-Zustände, Tastatur, sichere Bildschirmränder lassen sich nicht emulieren).
 
 Diese Prüfungen ersetzen keinen Test in DJI Fly, an einem Controller oder im Flug. Es wurde keine USB-Übertragung oder Flugausführung geprüft.
+
+
+## Zonenüberlagerung · 10. November 2026
+
+[Produktive Browserprüfung, Änderung und Rollback](ZONE-OVERLAP-2026-11-10.md) dokumentieren den gemeinsamen Standortdialog für LOAN, MATZ LOXN1/2, Sicherheitszone LOXN, LOAT und Natura 2000 Steinfeld.
