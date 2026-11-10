@@ -6,6 +6,7 @@
 const DM_LANGUAGES={de:'Deutsch',en:'English',uk:'Українська'};
 const DM_TEXTS={
  de:{
+  'pdf.heightRelative':'relativ zum Startpunkt','pdf.heightEGM96':'über EGM96','pdf.heightWGS84':'WGS84-Ellipsoid','pdf.heightAGL':'über Gelände','pdf.heightUnknownRef':'Bezug unbekannt',
   'lang.label':'Sprache',
   'nav.newProject':'Neues Projekt','nav.library':'Bibliothek','nav.allMissions':'Alle Missionen','nav.unfiled':'Ohne Projekt','nav.archive':'Archiv','nav.projects':'Projekte','nav.addFolder':'Unterordner anlegen','nav.connection':'Privates Serverarchiv','nav.logout':'Abmelden','nav.collapse':'Seitenleiste einklappen','nav.menu':'Menü',
   'nav.hint':'Projekte bringen Ordnung in deine Missionen. Lege oben ein neues Projekt an.','role.owner':'Eigentümer · privater Zugang','role.editor':'Projektfreigabe · bearbeiten','role.viewer':'Kundenansicht · Orte & Navigation',
@@ -37,6 +38,7 @@ const DM_TEXTS={
   'settings.language':'Sprache der Oberfläche','settings.languageHint':'Gilt für diesen Browser; Missions- und Projektnamen bleiben unverändert.'
  },
  en:{
+  'pdf.heightRelative':'relative to take-off','pdf.heightEGM96':'above EGM96','pdf.heightWGS84':'WGS84 ellipsoid','pdf.heightAGL':'above terrain','pdf.heightUnknownRef':'reference unknown',
   'lang.label':'Language',
   'nav.newProject':'New project','nav.library':'Library','nav.allMissions':'All missions','nav.unfiled':'No project','nav.archive':'Archive','nav.projects':'Projects','nav.addFolder':'Add subfolder','nav.connection':'Private server archive','nav.logout':'Sign out','nav.collapse':'Collapse sidebar','nav.menu':'Menu',
   'nav.hint':'Projects keep your missions organised. Create a new project above.','role.owner':'Owner · private access','role.editor':'Project share · edit','role.viewer':'Client view · locations & navigation',
@@ -68,6 +70,7 @@ const DM_TEXTS={
   'settings.language':'Interface language','settings.languageHint':'Applies to this browser; mission and project names stay unchanged.'
  },
  uk:{
+  'pdf.heightRelative':'відносно точки зльоту','pdf.heightEGM96':'над EGM96','pdf.heightWGS84':'еліпсоїд WGS84','pdf.heightAGL':'над рельєфом','pdf.heightUnknownRef':'відлік невідомий',
   'lang.label':'Мова',
   'nav.newProject':'Новий проєкт','nav.library':'Бібліотека','nav.allMissions':'Усі місії','nav.unfiled':'Без проєкту','nav.archive':'Архів','nav.projects':'Проєкти','nav.addFolder':'Створити підпапку','nav.connection':'Приватний серверний архів','nav.logout':'Вийти','nav.collapse':'Згорнути бічну панель','nav.menu':'Меню',
   'nav.hint':'Проєкти впорядковують ваші місії. Створіть новий проєкт вище.','role.owner':'Власник · приватний доступ','role.editor':'Спільний проєкт · редагування','role.viewer':'Перегляд для клієнта · місця та навігація',

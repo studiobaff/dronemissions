@@ -144,7 +144,7 @@ function applyHash() {
 window.addEventListener('hashchange', () => { if (!hashSyncing && loaded) applyHash(); });
 /* Sprachwahl: Auswahl in der Seitenleiste; nach dem Umschalten wird die Bibliothek mit den neuen Texten neu gezeichnet. */
 $('#language-switch').innerHTML = dmLanguageSelect('language');
-document.addEventListener('dm-language', () => { if (loaded) render(); });
+document.addEventListener('dm-language', () => { if (loaded) { dmPermitKeepView=showMap; render(); } });
 
 function renderSidebar() {
  const active = data.missions.filter(m => !m.archived && !isArchived(m.folder));

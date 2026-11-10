@@ -62,3 +62,36 @@ Alle Prüfungen auf diesem Branch, Stand des Commits:
 - Betreiber im PDF-Kopf kommt aus Einstellungen → Name (bereits vorhandenes Feld, serverseitig im Markenkopf). Ohne Eintrag bleibt der Kopf neutral (nur Logo und Wortmarke). Eigenes Logo je Installation wäre ein neues Feld in `settings` und `config.json`; nicht umgesetzt, da API-Änderung.
 - Kennungen bei Namensdubletten (z. B. „Demo.Pano.010“ und „Pano010 Ostseite“) sind beide „010“, wie in den Beispieldaten sichtbar. Das ist gewollt (Kennung aus dem Namen), sollte aber beim Benennen beachtet werden.
 - Die übrigen Dialoge sind nicht übersetzt (siehe Sprachen). Benutzerverwaltung und RC-Tests unverändert offen bei Codex.
+
+## Codex-Abnahme · 10. November 2026
+
+PR #39 (`8d5e062`) wurde auf separatem Review-Branch geprüft. GitHub-Check auf
+Claudes Commit erfolgreich. Nachkorrekturen:
+
+- PDF-Höhen erhalten den Bezug der jeweiligen Flugroute (relativ Start, EGM96,
+  WGS84 oder Gelände); unbekannter Bezug wird ausdrücklich als unbekannt angezeigt.
+- Lange zusammenhängende Namen werden in Tabellen vollständig umgebrochen,
+  statt mit einer Ellipse gekürzt.
+- Sprachwechsel setzt bei geöffneter Projektkarte den bestehenden Ausschnitt fort.
+- Neuer `tests/permit-pdf.cjs` prüft Referenzen je Route, DE/EN/UK, fehlende Höhen,
+  vollständige Unicode-Namen und vorhandene Schriftglyphen; separat ausgeführt.
+  Der bestehende CI-Workflow bleibt unverändert, da die verfügbare GitHub-
+  Berechtigung keine Workflow-Änderungen zulässt.
+
+Erneut geprüft: JS-Syntax, PDF-, Preview-Scheduler- und Geozonen-Tests,
+Deployment-Pakettests (5), PHP-Syntax und vollständige Planer-Regression.
+Alle sieben API-Suiten auf isolierter Loopback-Installation bestanden; vor der
+letzten Suite wurden nur in der wegwerfbaren Testdatenbank die Login-Testzähler
+zurückgesetzt (nach zusätzlichen Browseranmeldungen griff das Rate-Limit).
+
+PDF-QA: die drei gelieferten PDFs mit insgesamt sechs Seiten gerendert und visuell
+geprüft; korrigierte synthetische Tests zusätzlich mit gemischten Höhenbezügen,
+ukrainischen Namen und 42 Missionszeilen über fünf Seiten. Kein Überlauf in den
+Prüfseiten. Browser: kompakte Liste auf Ukrainisch; natürliche Kennungen; echter
+basemap.at-Orthofotoabruf; Schutzgebietsabruf; durchgezogene Route und gestrichelte
+Zuordnung über Wald und Wiese; Zoom und Markerpositionen über Sprachwechsel
+identisch. Weitere Dialoge bleiben wie dokumentiert teilweise deutsch.
+
+Kein Merge und kein Deployment durch diese Abnahme. Der 3DGS-Kreisraster-Branch
+bleibt separat; beim Zusammenführen ist ein CSS-Konflikt am Dateiende zu lösen,
+indem beide voneinander unabhängigen Regelblöcke erhalten bleiben.

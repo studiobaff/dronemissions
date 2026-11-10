@@ -27,6 +27,28 @@ async function dmPermitCanvas(map,missions){
 async function dmPdfLogo(){try{const img=await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src='favicon.png?v=1';});const c=document.createElement('canvas');c.width=c.height=128;const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,128,128);ctx.drawImage(img,0,0,128,128);return c;}catch{return null;}}
 function dmPdfColor(hex){const n=parseInt(hex.slice(1),16);return [(n>>16)&255,(n>>8)&255,n&255].map(v=>(v/255).toFixed(3)).join(' ');}
 /* Baut das PDF. options: {title, kind:'project'|'mission', subtitle, credits, author, logo, natureShown, zonesShown} */
+/* Keep mission names intact, including long identifiers without whitespace. */
+function dmPdfWrap(text,maxWidth,size,measure){
+ const lines=[];
+ for(const paragraph of String(text??'').split('\n')){
+  let line='';
+  for(const word of paragraph.split(/\s+/).filter(Boolean)){
+   const candidate=line?line+' '+word:word;
+   if(measure(candidate,size)<=maxWidth){line=candidate;continue;}
+   if(line){lines.push(line);line='';}
+   for(const char of word){if(line&&measure(line+char,size)>maxWidth){lines.push(line);line='';}line+=char;}
+  }
+  lines.push(line);
+ }
+ return lines.length?lines:[''];
+}
+function dmPdfHeight(m,index){
+ const p=m.details?.points?.[index];if(p?.height==null)return '—';
+ const route=m.details?.routes?.find(r=>index>=r.start&&index<r.start+r.count);
+ const mode=route?.heightMode??m.details?.heightMode;
+ const key={relativeToStartPoint:'pdf.heightRelative',EGM96:'pdf.heightEGM96',WGS84:'pdf.heightWGS84',realTimeFollowSurface:'pdf.heightAGL',aboveGroundLevel:'pdf.heightAGL'}[mode]||'pdf.heightUnknownRef';
+ return `${Number(p.height).toFixed(1)} m\n${t(key)}`;
+}
 async function dmBuildPermitPDF(canvas,options,missions){
  const font=await dmPdfFont().catch(()=>{throw Error(t('pdf.fontFailed'));}),used=new Set([0]);
  const binary=s=>Uint8Array.from(s,c=>c.charCodeAt(0)&255),objects=[null],add=body=>(objects.push(body),objects.length-1),pages=add(''),kids=[];
@@ -36,7 +58,7 @@ async function dmBuildPermitPDF(canvas,options,missions){
  const fill=color=>`${dmPdfColor(color)} rg\n`,stroke=color=>`${dmPdfColor(color)} RG\n`;
  const text=(s,x,y,size=9,color=DM_PDF.ink,bold=false,align='left')=>{s=String(s??'');if(!s)return '';const w=width(s,size),dx=align==='right'?-w:align==='center'?-w/2:0;return `BT ${fill(color)}${bold?`${stroke(color)}2 Tr ${(size*.03).toFixed(2)} w `:''}/F1 ${size} Tf ${(x+dx).toFixed(2)} ${y.toFixed(2)} Td <${hex(s)}> Tj${bold?' 0 Tr':''} ET\n`;};
  const fit=(s,maxWidth,size)=>{s=String(s??'');if(width(s,size)<=maxWidth)return s;let cut=s;while(cut.length&&width(cut+'…',size)>maxWidth)cut=cut.slice(0,-1);return cut+'…';};
- const wrap=(s,maxWidth,size)=>{const lines=[];for(const paragraph of String(s??'').split('\n')){let line='';for(const word of paragraph.split(/\s+/).filter(Boolean)){const candidate=line?line+' '+word:word;if(width(candidate,size)<=maxWidth)line=candidate;else{if(line)lines.push(line);line=width(word,size)<=maxWidth?word:fit(word,maxWidth,size);}}lines.push(line);}return lines.length?lines:[''];};
+ const wrap=(s,maxWidth,size)=>dmPdfWrap(s,maxWidth,size,width);
  const rule=(x1,y1,x2,y2,color=DM_PDF.line,w=.6,dash='')=>`q ${stroke(color)}${w} w ${dash?`[${dash}] 0 d `:''}${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S Q\n`;
  const box=(x,y,w,h,color)=>`q ${fill(color)}${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f Q\n`;
  const circle=(cx,cy,r,fillColor,strokeColor,w=1.2)=>{const k=.5523*r;return `q ${fillColor?fill(fillColor):''}${stroke(strokeColor)}${w} w ${(cx+r).toFixed(2)} ${cy.toFixed(2)} m ${(cx+r).toFixed(2)} ${(cy+k).toFixed(2)} ${(cx+k).toFixed(2)} ${(cy+r).toFixed(2)} ${cx.toFixed(2)} ${(cy+r).toFixed(2)} c ${(cx-k).toFixed(2)} ${(cy+r).toFixed(2)} ${(cx-r).toFixed(2)} ${(cy+k).toFixed(2)} ${(cx-r).toFixed(2)} ${cy.toFixed(2)} c ${(cx-r).toFixed(2)} ${(cy-k).toFixed(2)} ${(cx-k).toFixed(2)} ${(cy-r).toFixed(2)} ${cx.toFixed(2)} ${(cy-r).toFixed(2)} c ${(cx+k).toFixed(2)} ${(cy-r).toFixed(2)} ${(cx+r).toFixed(2)} ${(cy-k).toFixed(2)} ${(cx+r).toFixed(2)} ${cy.toFixed(2)} c ${fillColor?'B':'S'} Q\n`;};
@@ -73,12 +95,11 @@ async function dmBuildPermitPDF(canvas,options,missions){
   for(const row of rows){const cells=row.cells.map((cell,i)=>wrap(cell,widths[i]-padX*2,size));const lines=Math.max(...cells.map(c=>c.length)),rh=lines*lineH+padY*2;if(y-rh<MARGIN+24){page(stream);({stream,y}=head('',true));headerRow();}let cx=MARGIN;cells.forEach((lines,i)=>{lines.forEach((line,li)=>{stream+=text(line,cx+(columns[i].align==='right'?widths[i]-padX:padX),y-padY-lineH*(li+1)+3,size,row.muted?DM_PDF.muted:DM_PDF.ink,false,columns[i].align||'left');});cx+=widths[i];});y-=rh;stream+=rule(MARGIN,y,PAGE_W-MARGIN,y,DM_PDF.line,.4);}
   page(stream);};
  const coords=p=>p?`${Number(p.lat).toFixed(6)}, ${Number(p.lng).toFixed(6)}`:'—';
- const heightOf=p=>p&&p.height!=null?`${Number(p.height).toFixed(1)} m · ${t('pdf.heightMission')}`:'—';
  if(options.kind==='mission'&&missions.length===1){const m=missions[0],points=m.details?.points||[],rows=[];
   if(m.takeoffPoint)rows.push({cells:['H',t('pdf.fnStartGround')+' '+dmPermitLabel(m),Number(m.takeoffPoint.lat).toFixed(6),Number(m.takeoffPoint.lng).toFixed(6),'—']});
-  points.forEach((p,i)=>rows.push({cells:[String(i+1),m.panoPoint&&i===0?t('pdf.fnStart'):m.panoPoint&&i===1?t('pdf.fnCapture')+' · '+dmCaptureName(m.captureType):t('pdf.fnWaypoint'),Number(p.lat).toFixed(6),Number(p.lng).toFixed(6),heightOf(p)]}));
+  points.forEach((p,i)=>rows.push({cells:[String(i+1),m.panoPoint&&i===0?t('pdf.fnStart'):m.panoPoint&&i===1?t('pdf.fnCapture')+' · '+dmCaptureName(m.captureType):t('pdf.fnWaypoint'),Number(p.lat).toFixed(6),Number(p.lng).toFixed(6),dmPdfHeight(m,i)]}));
   table([{label:t('pdf.colNo'),width:40,align:'right'},{label:t('pdf.colFunction'),width:190},{label:t('pdf.colLat'),width:120},{label:t('pdf.colLng'),width:120},{label:t('pdf.colHeightRef'),width:200}],rows,`${m.name} · ${t('pdf.tableWaypoints')}`);}
- else{const rows=missions.map(m=>({cells:[dmPermitLabel(m),m.name,dmCaptureName(m.captureType),coords(m.takeoffPoint),coords(m.panoPoint),heightOf(m.details?.points?.[1])],muted:!m.takeoffPoint&&!m.panoPoint}));
+ else{const rows=missions.map(m=>({cells:[dmPermitLabel(m),m.name,dmCaptureName(m.captureType),coords(m.takeoffPoint),coords(m.panoPoint),dmPdfHeight(m,1)],muted:!m.takeoffPoint&&!m.panoPoint}));
   table([{label:t('pdf.colId'),width:60},{label:t('pdf.colMission'),width:210},{label:t('pdf.colCapture'),width:95},{label:t('pdf.colStart'),width:140},{label:t('pdf.colCapturePoint'),width:140},{label:t('pdf.colHeight'),width:125}],rows,t('pdf.tableMissions'));}
  /* Schrift erst jetzt einbetten: alle benutzten Glyphen sind bekannt. Fußzeilen danach, da sie keine neuen Zeichen außer Ziffern brauchen. */
  for(const s of [t('pdf.page',{n:0,total:0}),'0123456789',t('pdf.mission'),t('pdf.project'),t('pdf.created',{date:created})])hex(s);
