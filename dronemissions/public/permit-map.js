@@ -1,7 +1,22 @@
 'use strict';
 let mapPointPick=null,dmPermitKeepView=false;
 const dmPermitNameKey=m=>String(m.name).normalize('NFKC').replace(/[\s._-]+/g,'');
-const dmPermitMissions=()=>visibleMissions().slice().sort((a,b)=>(a.mapOrder??Number.MAX_SAFE_INTEGER)-(b.mapOrder??Number.MAX_SAFE_INTEGER)||dmPermitNameKey(a).localeCompare(dmPermitNameKey(b),'de',{numeric:true,sensitivity:'base'})||a.id.localeCompare(b.id));
+const dmPermitCandidates=()=>visibleMissions().slice().sort((a,b)=>(a.mapOrder??Number.MAX_SAFE_INTEGER)-(b.mapOrder??Number.MAX_SAFE_INTEGER)||dmPermitNameKey(a).localeCompare(dmPermitNameKey(b),'de',{numeric:true,sensitivity:'base'})||a.id.localeCompare(b.id));
+const dmMapSelection=new DmMissionSelection();
+const dmMapSelectionScope=()=>String(data.scope||'owner')+':'+String(folder||view);
+const dmPermitMissions=()=>dmMapSelection.rows(dmMapSelectionScope(),dmPermitCandidates());
+function dmRenderMapSelection(){
+ const panel=$('#permit-selection'),rows=dmPermitCandidates(),selected=dmPermitMissions(),ids=new Set(selected.map(m=>m.id));
+ const open=panel.open;panel.innerHTML=`<summary>${t('mapSelection.title')} · ${selected.length}/${rows.length}</summary><div class="permit-selection-actions"><label class="check"><input type="checkbox" data-map-all ${rows.length&&selected.length===rows.length?'checked':''}>${t('mapSelection.all')}</label><button type="button" class="btn btn-outline btn-sm" data-map-none>${t('mapSelection.none')}</button></div><div class="permit-selection-list">${rows.map(m=>`<label><input type="checkbox" data-map-mission="${esc(m.id)}" ${ids.has(m.id)?'checked':''}><span>${esc(m.name)} · ${esc(dmCaptureName(m.captureType))}</span></label>`).join('')}</div><p class="permit-selection-status" role="status">${t('mapSelection.count',{n:selected.length,total:rows.length})}. ${t('mapSelection.help')}</p>`;panel.open=open;
+ panel.querySelector('[data-map-all]').indeterminate=selected.length>0&&selected.length<rows.length;
+ $('#permit-print').disabled=selected.length===0;
+}
+function dmChangeMapSelection(change){
+ change();
+ if(mapPointPick&&!dmPermitMissions().some(m=>m.id===mapPointPick)){mapPointPick=null;$('#overview-map').classList.remove('picking');}
+ // Update mission layers only: keep map, zoom, tiles and nature requests intact.
+ dmRenderPermitTools();if(overview)dmPaintOverviewMissions();
+}
 /* Missionskennung für Karte und PDF: Ziffern nach „Pano“ (Pano.008, Pano010 Ostseite → 008 / 010), sonst eine Ziffernfolge am Namensende, sonst der Name. Unabhängig von der Listenposition. */
 function dmPermitLabel(m){const name=String(m.name),match=name.match(/pano[. _-]*(\d+)/i)||name.match(/(\d+)$/);return match?match[1]:name;}
 const dmCaptureKinds=['photo','video','panorama','sphere'];
@@ -22,7 +37,7 @@ function dmDrawPermitMission(map,m,group,coords){
 }
 function dmRenderPermitTools(){
  document.body.classList.toggle('permit-map-active',showMap);const rows=dmPermitMissions(),select=$('#permit-mission'),old=select.value;select.innerHTML=`<option value="">${t('permit.choose')}</option>`+rows.map(m=>`<option value="${m.id}">${esc(m.name)}${m.panoPoint?'':' · '+t('permit.noWp2')}</option>`).join('');if(rows.some(m=>m.id===old))select.value=old;$('#permit-type').value=rows.find(m=>m.id===select.value)?.captureType||'photo';dmPermitActive=select.value||null;
- $('#permit-tools').classList.toggle('hidden',!showMap);dmRenderMissionRows(rows);
+ $('#permit-tools').classList.toggle('hidden',!showMap);dmRenderMissionRows(dmPermitCandidates());dmRenderMapSelection();
  for(const id of ['permit-mission-label','permit-type-label','permit-set-start','permit-clear-start'])$('#'+id).classList.toggle('hidden',!canEdit()||dmIsMapOnly());
  $('#permit-single')?.classList.toggle('hidden',dmIsMapOnly()||!canEdit());
  $('#permit-auth').classList.toggle('hidden',!dmIsMapOnly());$('#permit-share').classList.toggle('hidden',!isOwner()||dmIsMapOnly());
@@ -35,12 +50,14 @@ async function dmPickStart(latlng,id=mapPointPick){
 }
 function dmApplyPermitView(){
  const only=dmIsMapOnly();document.body.classList.toggle('map-only',only);if(!only)return;
- if(data.scope){folder=data.scope;view='folder';}filter='all';$('#search').value='';showMap=true;render();
+ if(data.scope){folder=data.scope;view='folder';}const included=new URLSearchParams(location.search).get('missions');if(included!==null)dmMapSelection.only(dmMapSelectionScope(),included.split(',').filter(Boolean));filter='all';$('#search').value='';showMap=true;render();
  const center=new URLSearchParams(location.search).get('center')?.split(',').map(Number);if(center?.length===3&&center.every(Number.isFinite)&&Math.abs(center[0])<=90&&Math.abs(center[1])<=180&&center[2]>=3&&center[2]<=19)setTimeout(()=>overview.setView([center[0],center[1]],center[2]),150);
  setTimeout(()=>overview?.dmNature?.enable(),200);
 }
 function dmBeginStartPick(id){if(!id){toast(t('permit.chooseFirst'),true);return;}if(picking)stopPicking();mapPointPick=mapPointPick===id?null:id;$('#permit-mission').value=id;dmHighlightMission(id);$('#overview-map').classList.toggle('picking',Boolean(mapPointPick));$('#permit-hint').textContent=mapPointPick?t('permit.pickHint'):t('permit.pickDone');}
 function dmInitPermitMap(){
+ $('#permit-selection').onchange=e=>{if(e.target.matches('[data-map-all]'))dmChangeMapSelection(()=>e.target.checked?dmMapSelection.all(dmMapSelectionScope()):dmMapSelection.only(dmMapSelectionScope(),[]));else if(e.target.matches('[data-map-mission]'))dmChangeMapSelection(()=>dmMapSelection.toggle(dmMapSelectionScope(),e.target.dataset.mapMission,e.target.checked,dmPermitCandidates()));};
+ $('#permit-selection').onclick=e=>{if(e.target.closest('[data-map-none]'))dmChangeMapSelection(()=>dmMapSelection.only(dmMapSelectionScope(),[]));};
  const singleButton=document.createElement('button');singleButton.type='button';singleButton.id='permit-single';singleButton.className='btn btn-outline';singleButton.textContent=t('permit.single');singleButton.dataset.i18n='permit.single';singleButton.onclick=()=>{const m=data.missions.find(x=>x.id===$('#permit-mission').value);if(m)dmOpenMissionMap(m);else toast(t('permit.chooseFirst'),true);};$('#permit-fit').after(singleButton);
  $('#permit-mission').onchange=()=>{$('#permit-type').value=data.missions.find(m=>m.id===$('#permit-mission').value)?.captureType||'photo';dmHighlightMission($('#permit-mission').value);};
  $('#permit-type').onchange=()=>run(async()=>{const m=data.missions.find(m=>m.id===$('#permit-mission').value);if(!m)throw Error(t('permit.chooseFirst'));const id=m.id;await api('mission-map-type',{id,revision:m.revision,captureType:$('#permit-type').value});dmPermitKeepView=true;await refresh();$('#permit-mission').value=id;dmHighlightMission(id);toast(t('permit.typeSaved'));});
@@ -49,8 +66,8 @@ function dmInitPermitMap(){
  $('#permit-set-start').onclick=()=>dmBeginStartPick($('#permit-mission').value);
  $('#permit-clear-start').onclick=()=>run(async()=>{const id=$('#permit-mission').value,m=data.missions.find(x=>x.id===id);if(!m)throw Error(t('permit.chooseFirst'));await api('mission-start',{id,revision:m.revision,lat:null,lng:null});dmPermitKeepView=true;await refresh();$('#permit-hint').textContent=t('permit.cleared');});
  $('#permit-fit').onclick=()=>{dmPermitKeepView=false;renderOverview();};
- $('#permit-print').onclick=()=>run(async()=>{if(overview?.dmNature&&!overview.dmNature.enabled()){overview.dmNature.enable();throw Error(t('permit.natureLoading'));}if(overview?.dmNature&&!overview.dmNature.ready())throw Error(t('permit.natureIncomplete'));dmRenderPermitTools();const button=$('#permit-print');button.disabled=true;try{await dmDownloadPermitPDF(overview,{title:folder?pathFor(folder):t('permit.title'),kind:'project',subtitle:t('pdf.subtitleProject'),file:t('pdf.file')},dmPermitMissions());toast(t('permit.pdfDone'));}finally{button.disabled=false;}});
- $('#permit-share').onclick=e=>run(async()=>{if(!folder)throw Error(t('permit.shareNeedsProject'));const d=await api('share',{folder,role:'view',presentation:'map'}),u=new URL('./',location.href),c=overview.getCenter();u.searchParams.set('map','1');u.searchParams.set('nature','1');u.searchParams.set('lang',dmLang);u.searchParams.set('center',`${c.lat.toFixed(6)},${c.lng.toFixed(6)},${overview.getZoom()}`);u.hash=`share=${d.token}`;await openShares();$('#share-link').value=u.href;$('#share-link-wrap').classList.remove('hidden');$('#share-link').focus();$('#share-link').select();toast(t('permit.shareDone'));},e.currentTarget);
+ $('#permit-print').onclick=()=>run(async()=>{if(!dmPermitMissions().length)throw Error(t('mapSelection.empty'));if(overview?.dmNature&&!overview.dmNature.enabled()){overview.dmNature.enable();throw Error(t('permit.natureLoading'));}if(overview?.dmNature&&!overview.dmNature.ready())throw Error(t('permit.natureIncomplete'));dmRenderPermitTools();const button=$('#permit-print');button.disabled=true;try{await dmDownloadPermitPDF(overview,{title:folder?pathFor(folder):t('permit.title'),kind:'project',subtitle:t('pdf.subtitleProject'),file:t('pdf.file')},dmPermitMissions());toast(t('permit.pdfDone'));}finally{button.disabled=false;}});
+ $('#permit-share').onclick=e=>run(async()=>{if(!folder)throw Error(t('permit.shareNeedsProject'));const d=await api('share',{folder,role:'view',presentation:'map'}),u=new URL('./',location.href),c=overview.getCenter();if(dmMapSelection.explicit(dmMapSelectionScope()))u.searchParams.set('missions',dmPermitMissions().map(m=>m.id).join(','));u.searchParams.set('map','1');u.searchParams.set('nature','1');u.searchParams.set('lang',dmLang);u.searchParams.set('center',`${c.lat.toFixed(6)},${c.lng.toFixed(6)},${overview.getZoom()}`);u.hash=`share=${d.token}`;await openShares();$('#share-link').value=u.href;$('#share-link-wrap').classList.remove('hidden');$('#share-link').focus();$('#share-link').select();toast(t('permit.shareDone'));},e.currentTarget);
  let printView=null;window.addEventListener('beforeprint',()=>{if(overview){printView={center:overview.getCenter(),zoom:overview.getZoom()};overview.invalidateSize({pan:false});overview.setView(printView.center,printView.zoom,{animate:false});}});window.addEventListener('afterprint',()=>{if(overview){overview.invalidateSize({pan:false});if(printView)overview.setView(printView.center,printView.zoom,{animate:false});}});
 }
 
@@ -73,20 +90,20 @@ function dmRenderMissionRows(rows){
  const coord=p=>p?Number(p.lat).toFixed(6)+', '+Number(p.lng).toFixed(6):t('permit.notSet');
  list.querySelector('tbody').innerHTML=rows.map((m,position)=>`<tr data-mission-row="${m.id}"><td><span class="permit-row-position">${position+1}</span><button type="button" class="list-grip permit-row-grip" draggable="true" data-drag-mission="${m.id}" aria-label="${esc(t('rows.move',{name:m.name}))}" title="${esc(t('rows.moveTitle'))}">${icon('i-grip')}</button></td><td><strong>${esc(m.name)}</strong><br><small class="num">${esc(dmPermitLabel(m))}</small></td><td>${esc(dmCaptureName(m.captureType))}</td><td><div class="permit-coordinate-inputs"><input aria-label="${esc(t('rows.startLat',{name:m.name}))}" type="number" step="0.000001" min="-90" max="90" data-start-lat value="${m.takeoffPoint?Number(m.takeoffPoint.lat).toFixed(6):''}"><input aria-label="${esc(t('rows.startLng',{name:m.name}))}" type="number" step="0.000001" min="-180" max="180" data-start-lng value="${m.takeoffPoint?Number(m.takeoffPoint.lng).toFixed(6):''}"></div><button type="button" class="btn btn-outline btn-sm" data-save-start="${m.id}">${t('rows.apply')}</button><button type="button" class="btn btn-outline btn-sm" data-pick-start="${m.id}">${t('rows.pick')}</button></td><td>${coord(m.panoPoint)}<br><button type="button" class="btn btn-outline btn-sm" data-edit-mission="${m.id}">${t('rows.openMission')}</button></td><td><button type="button" class="btn btn-outline btn-sm" data-single-mission="${m.id}">${t('rows.single')}</button></td></tr>`).join('');
  const saveOrder=(ordered,reset=false)=>run(async()=>{await api('mission-map-order',{items:ordered.map(m=>({id:m.id,revision:m.revision})),reset});sort=reset?'name':'map';$('#sort').value=sort;dmPermitKeepView=true;await refresh();toast(reset?t('permit.sortedByName'):t('permit.orderSaved'));});
- const move=(id,target)=>{const ordered=dmPermitMissions(),from=ordered.findIndex(m=>m.id===id),to=ordered.findIndex(m=>m.id===target);if(from<0||to<0||from===to)return;const [row]=ordered.splice(from,1);ordered.splice(to,0,row);return saveOrder(ordered);};
- list.querySelector('.permit-sort-name').onclick=()=>saveOrder(dmPermitMissions(),true);
+ const move=(id,target)=>{const ordered=dmPermitCandidates(),from=ordered.findIndex(m=>m.id===id),to=ordered.findIndex(m=>m.id===target);if(from<0||to<0||from===to)return;const [row]=ordered.splice(from,1);ordered.splice(to,0,row);return saveOrder(ordered);};
+ list.querySelector('.permit-sort-name').onclick=()=>saveOrder(dmPermitCandidates(),true);
  let dragging=null;list.ondragstart=e=>{const grip=e.target.closest('[data-drag-mission]');if(!grip)return;dragging=grip.dataset.dragMission;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',dragging);grip.closest('tr').classList.add('dragging');};
  list.ondragover=e=>{if(!dragging)return;const row=e.target.closest('[data-mission-row]');if(row){e.preventDefault();list.querySelectorAll('.drop-target').forEach(x=>x.classList.remove('drop-target'));row.classList.add('drop-target');}};
  list.ondragend=()=>{dragging=null;list.querySelectorAll('.dragging,.drop-target').forEach(x=>x.classList.remove('dragging','drop-target'));};
  list.ondrop=e=>{const row=e.target.closest('[data-mission-row]');if(!row||!dragging)return;e.preventDefault();const from=dragging;dragging=null;move(from,row.dataset.missionRow);};
- list.querySelectorAll('[data-drag-mission]').forEach(grip=>grip.onkeydown=e=>{if(!['ArrowUp','ArrowDown'].includes(e.key))return;e.preventDefault();const ordered=dmPermitMissions(),i=ordered.findIndex(m=>m.id===grip.dataset.dragMission),next=i+(e.key==='ArrowUp'?-1:1);if(ordered[next])move(grip.dataset.dragMission,ordered[next].id);});
+ list.querySelectorAll('[data-drag-mission]').forEach(grip=>grip.onkeydown=e=>{if(!['ArrowUp','ArrowDown'].includes(e.key))return;e.preventDefault();const ordered=dmPermitCandidates(),i=ordered.findIndex(m=>m.id===grip.dataset.dragMission),next=i+(e.key==='ArrowUp'?-1:1);if(ordered[next])move(grip.dataset.dragMission,ordered[next].id);});
  list.querySelectorAll('[data-single-mission]').forEach(b=>b.onclick=()=>dmOpenMissionMap(data.missions.find(m=>m.id===b.dataset.singleMission)));
  list.querySelectorAll('[data-edit-mission]').forEach(b=>b.onclick=()=>run(()=>openMission(b.dataset.editMission)));
  list.querySelectorAll('[data-pick-start]').forEach(b=>b.onclick=()=>{dmBeginStartPick(b.dataset.pickStart);$('#overview-map').scrollIntoView({block:'center',behavior:'smooth'});});
  list.querySelectorAll('[data-save-start]').forEach(b=>b.onclick=()=>{const row=b.closest('tr'),lat=row.querySelector('[data-start-lat]'),lng=row.querySelector('[data-start-lng]');if(!lat.value||!lng.value||!lat.checkValidity()||!lng.checkValidity())return toast(t('rows.invalid'),true);dmPickStart({lat:Number(lat.value),lng:Number(lng.value)},b.dataset.saveStart);});
 }
 
-function dmMoveMissionOrder(id,target,rows=dmPermitMissions()){
+function dmMoveMissionOrder(id,target,rows=dmPermitCandidates()){
  const from=rows.findIndex(m=>m.id===id),to=rows.findIndex(m=>m.id===target);if(from<0||to<0||from===to)return;const ordered=rows.slice(),[m]=ordered.splice(from,1);ordered.splice(to,0,m);
  return run(async()=>{await api('mission-map-order',{items:ordered.map(m=>({id:m.id,revision:m.revision}))});sort='map';$('#sort').value=sort;dmPermitKeepView=showMap;await refresh();toast(t('permit.orderSavedShort'));});
 }

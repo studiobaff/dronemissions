@@ -739,3 +739,14 @@ button.list-chip-project:focus-visible{outline-offset:1px}
 .card.mission-list-row.is-dragging{opacity:.45}
 @media(hover:hover) and (pointer:fine){.card.mission-list-row:hover{border-color:var(--line-2);box-shadow:var(--shadow)}.card.mission-list-row:hover .card-arrow{opacity:0}.list-grip:hover{color:var(--ink);background:var(--surface)}}
 @media(max-width:700px){.card.mission-list-row{grid-template-columns:auto auto minmax(0,1fr) auto;gap:6px 8px;padding:8px}.card.mission-list-row .list-open{grid-column:3;justify-self:start}.card.mission-list-row .list-check{grid-column:4;grid-row:1}.list-chip{max-width:180px}}
+
+.mission-planner .pl-circle-grid-summary dl{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.mission-planner .pl-circle-grid-summary dd{white-space:normal;overflow-wrap:anywhere}
+
+
+.permit-selection{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
+.permit-selection summary{font-weight:600;cursor:pointer}.permit-selection-actions{display:flex;gap:16px;align-items:center;margin:10px 0}
+.permit-selection-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px;max-height:220px;overflow:auto}
+.permit-selection-list label{display:flex;gap:9px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:7px;min-width:0}
+.permit-selection-list input,.permit-selection-actions input{width:18px;height:18px;flex-shrink:0;accent-color:var(--select)}
+.permit-selection-list span{overflow-wrap:anywhere}.permit-selection-status{font-size:12px;color:var(--ink-3);margin:7px 0}

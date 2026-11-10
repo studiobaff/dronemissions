@@ -121,3 +121,7 @@ Erlaubte Endungen: zip, dmg, pkg, exe, msi, txt, md. Dateinamen mit „mac“ od
 ## Nachtrag Kartenebenen
 
 Mit den Kartenebenen kommt die Tabelle `map_layers` hinzu; `dm_migrate()` legt sie beim ersten Aufruf an. Vektor-Ebenen liegen als `.geojson` im Blob-Ordner des privaten Verzeichnisses. Für den WMTS-Import muss der Server ausgehende https-Verbindungen zu dem Dienst aufbauen dürfen. Die Integrationstests nehmen optional `--wmts-fixture <URL>`; mit `DRONEMISSIONS_DEV=1` darf der Dienst auf 127.0.0.1 liegen.
+
+10.11.2026: Orbit Grid mit Foto/Video, variabler Kreisüberlappung und verbundenem
+oder separatem Pfad. Missionen für Karte/PDF einzeln oder alle auswählbar;
+Naturschutz bleibt sichtbar.

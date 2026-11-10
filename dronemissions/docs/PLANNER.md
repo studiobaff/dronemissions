@@ -183,3 +183,74 @@ Umbau der Bedienung nach dem Vorbild Litchi Hub v2 (Branch `claude/planner-ui-li
 - **Schmale Fenster:** Karte oben, Seitenleiste darunter in der Höhe veränderbar; Werkzeuggruppen unten an der Karte. Geprüft bei 1280 × 720, 1440 × 900, iPad quer 1180 × 820 und 430 × 860.
 
 Geprüft im Browser mit synthetischen Daten: Polygon zeichnen, automatische Vorschau, Flugart Helix per Kreis, Foto→Video, 3D/Profil, ungültige Höhe sperrt Export und erholt sich, Entwurf speichern und erneut laden, Höhenreferenz aus Archivmission mit Tooltip auf Punkt und gestricheltem Segment, Geländemodus-Umschaltung. Keine Browser-Konsolenfehler außer erwarteten 400-Antworten auf absichtlich ungültige Eingaben. Weiterhin kein DJI-Fly-Geräte- oder Flugtest dieser Planergeneration.
+
+
+## 3DGS-Kreisraster · 10. November 2026
+
+Neue Flugart `circleGrid` für Video: Polygon ohne Löcher als Aufnahmegebiet,
+überlappende volle Kreise in schlangenförmiger Reihenfolge, je eine oder zwei
+Höhenebenen mit eigenem POI pro Kreis. Der Umriss ist keine Fluggrenze; auch
+Kreismittelpunkte an konkaven Rändern können außerhalb liegen. Die quadratischen
+Rasterzellen werden auf Polygonkontakt geprüft. Kreisüberlappung (30–80 %, Vorgabe
+50 %) ist geometrisch definiert und kein Nachweis sichtbarer Oberflächen.
+
+Jeder Orbit / jede Höhe beginnt einen eigenen Abschnitt. Keine Verbindung zwischen
+Kreisen wird exportiert oder in Zeit/Strecke eingerechnet. Das bestehende
+Wegpunktlimit kann einen Orbit weiter aufteilen. Höhen und POI gelten relativ Start;
+DEM und manuelle Neigung werden abgewiesen. Höhenreferenzen bleiben verbindlich.
+
+Geschwindigkeit: Minimum aus Eingabe, Radius × maximaler Drehrate in rad/s und
+sqrt(Radius × 1 m/s²). Dieser Wert wird an jedem Wegpunkt exportiert. 72 Segmente
+pro Vollkreis, nach innen gerichteter POI, konstante Höhe pro Orbit. Die externe
+Frame-Auswahl (Vorgabe 2 Bilder/s) zeigt nominale Winkeländerung und Basislinie;
+sie setzt weder Kamerabildrate noch Kameraauflösung. Video-Crop/FOV müssen separat
+zum tatsächlich eingestellten Kameramodus passen.
+
+`orbitMotion=smooth` verwendet für innere Wegpunkte
+`toPointAndPassWithContinuityCurvature`, `useStraightLine=1` und höchstens 20 %
+der kürzeren Nachbarstrecke als Dämpfungsdistanz (maximal 2 m). Anfang und Ende
+stoppen für die Aufnahmeaktionen. `stop` behält den bisherigen Stoppmodus.
+Grundlage: [DJI WPML](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/dji-wpml/common-element.html).
+Dies ist ein experimenteller Export; insbesondere DJI Fly und Consumer-Geräte
+sind durch diese Dokumentation nicht als kompatibel nachgewiesen. Gerätetest und
+Rekonstruktionstest mit realem Videomaterial stehen aus.
+
+Prüfungen: `tests/circle-grid.php` prüft Geometrie, Höhen, Geschwindigkeitsgrenzen,
+Frame-Metriken, Replay, Abschnittslimits, Eingabegrenzen und beide XML-Dateien
+beider Bewegungsmodi. `tests/circle-grid-api.py` prüft Vorschau, Speichern/Laden
+und KMZ-Bündel in einer isolierten Loopback-Installation. Bestehende Planer- und
+API-Regressionsprüfungen bestanden. Browser: gespeichertes Zwei-Höhen-Raster,
+Wechsel auf eine Höhe, Drehrate 3°/s → 1,57 m/s, 3D-Vorschau und Prüfseite.
+Der Parser-Test auf dem Testhost endet nach den Parser-Prüfungen beim dort
+serverseitig deaktivierten `passthru()`; dies ist kein vollständiger Parser-Testlauf.
+
+## Orbit Grid und Missionsauswahl · 10. November 2026
+
+Die Flugart heißt **Orbit Grid** (`circleGrid`), mit Foto/Video und 0–80 %
+Kreisüberlappung (Vorgabe 50 %). Das ist ein geometrischer Kreisabstand, kein
+Bildüberdeckungsnachweis. Fotoabstand in Metern, Video mit 72 Segmenten je Kreis.
+
+Pfadwahl: separate Kreise oder durchgehend. Durchgehend besucht zuerst alle
+Kreise einer Höhe, dann die nächste Höhe in umgekehrter Reihenfolge. Explizite
+Verbindungen (maximal 5 m Stützabstand) mit interpoliertem Kameraziel sind in
+Strecke/Zeit enthalten. Video zeichnet sie mit auf; Foto erhält dort nur
+Navigationspunkte. Steig-/Sinkrate und Kamera-Winkeländerung begrenzen die
+Geschwindigkeit. Keine Hindernisumfahrung oder Tangentengarantie. Die bestehende
+Abschnittsgrenze von höchstens 200 Punkten bleibt; ein durchgehender Planungspfad
+kann deshalb mehrere Videoaufnahmen benötigen. Senkrechte Übergänge und
+Abschnittsenden behalten Stopps. Kurvenexport: Geräte-/Flugprüfung weiterhin offen.
+
+**Missionen für Karte & PDF**: Checkbox je Mission sowie Alle/Keine. Auswahl je
+Projekt während der Sitzung, unabhängig von der Bibliotheksauswahl zum
+Verschieben. Nur enthaltene Missionen auf Karte und PDF-Tabelle; bei ausdrücklicher
+Auswahl keine unzugeordneten Planungspunkte. Leere Auswahl sperrt PDF. Nur die
+Missionsebene wird aktualisiert: Zoom, Hintergrund und Naturschutz bleiben
+bestehen. Kartenlinks können die Anzeigeauswahl als `missions`-Parameter tragen;
+dies ist kein Berechtigungsfilter. Originalmissionen bleiben unverändert.
+
+Geprüft: mission-selection.cjs, permit-pdf.cjs, circle-grid.php und circle-grid-api.py
+(Foto/Video × separat/durchgehend), bestehende Planer- und Permit-API-Regressionen.
+Browser: 007 Foto + 008 Video, Alle/Keine, Leerzustand, DE/EN/UK, Naturschutz,
+Orbit Grid mit beiden Aufnahmemodi und reduzierter Kreisüberlappung. Drei echte
+PDF-Downloads (gemischt/Fotomission/Videomission) auf exakte Missionsmenge und
+Quellen geprüft; alle sechs Seiten gerendert und visuell geprüft.
