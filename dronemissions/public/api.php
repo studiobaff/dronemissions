@@ -47,8 +47,9 @@ try {
  require __DIR__.'/planner.php';
  require __DIR__.'/kmz-editor.php';
  if($action==='settings'){
-  owner();if($method==='GET')respond(['authorName'=>$config['authorName']??'']);
-  $config['authorName']=dm_text($input['authorName']??'',100);$tmp=tempnam(dm_private(),'.config-');
+  owner();if($method==='GET')respond(['authorName'=>$config['authorName']??'','mapStart'=>dm_map_start()]);
+  $config['authorName']=dm_text($input['authorName']??'',100);
+  $start=$input['mapStart']??null;if($start===null)unset($config['mapStart']);else{if(!is_array($start)||!is_numeric($start['lat']??null)||!is_numeric($start['lng']??null)||abs((float)$start['lat'])>85||abs((float)$start['lng'])>180||!is_numeric($start['zoom']??null)||(int)$start['zoom']<3||(int)$start['zoom']>19)throw new InvalidArgumentException('Kartenstart: Breite ±85, Länge ±180, Zoom 3–19.');$config['mapStart']=['lat'=>round((float)$start['lat'],5),'lng'=>round((float)$start['lng'],5),'zoom'=>(int)$start['zoom']];}$tmp=tempnam(dm_private(),'.config-');
   try{if(file_put_contents($tmp,json_encode($config,JSON_THROW_ON_ERROR),LOCK_EX)===false)throw new RuntimeException('Konfiguration nicht gespeichert.');chmod($tmp,0600);if(!rename($tmp,dm_private().'/config.json'))throw new RuntimeException('Konfiguration nicht gespeichert.');}finally{if(is_file($tmp))unlink($tmp);}
   respond(['ok'=>true]);
  }

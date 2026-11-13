@@ -24,6 +24,8 @@ let checkedMissions = new Set(), draggedMissions = null;
 const archiveExpanded = new Set();
 
 const ROUTE_COLORS = ['#7f9c2a', '#2f7f9a', '#b0632e', '#6f5fa6'];
+/* Kartenstart aus den Einstellungen (config.json → mapStart), Vorgabe Österreich-Mitte; von Übersicht, Einzelkarte und Planer genutzt. */
+const dmMapStart = () => { const s = data?.mapStart; return s && Number.isFinite(s.lat) && Number.isFinite(s.lng) ? { lat: s.lat, lng: s.lng, zoom: s.zoom || 13 } : { lat: 47.6, lng: 14.1, zoom: 7 }; };
 const FORMAT = { 'litchi-csv': 'CSV', 'litchi-lchm': 'LCHM', 'litchi-lchz': 'LCHZ', 'mapcreator-project': 'MPROJ' };
 const sourceType = m => FORMAT[m.details.sourceFormat] || 'KMZ';
 const isNative = m => m.details.previewAvailable === false;
@@ -334,7 +336,7 @@ function renderOverview() {
  dmRenderPermitTools();
  if(overview){overview.remove();overview=null;}
  if (!overview) {
-  overview = L.map('overview-map').setView([47.8968, 16.3674], 13); tiles(overview); overviewLayers = L.layerGroup().addTo(overview);
+  overview = L.map('overview-map').setView([dmMapStart().lat, dmMapStart().lng], dmMapStart().zoom); tiles(overview); overviewLayers = L.layerGroup().addTo(overview);
   overview.on('click', e => { if (mapPointPick) { dmPickStart(e.latlng);return; } if (picking) { stopPicking(); openPoint(null, e.latlng); } });
  }
  dmPaintOverviewMissions();
@@ -534,8 +536,9 @@ function showLibrary() { $('#login').classList.add('hidden'); $('#shell').classL
 
 /* ---------- Ereignisse ---------- */
 $('#login-form').onsubmit = e => { e.preventDefault(); const b = $('button[type=submit]', e.target); run(async () => { try { const d = await api('login', { password: $('#password').value }); csrf = d.csrf; $('#password').value = ''; $('#login-error').textContent = ''; showLibrary(); await refresh(); applyHash(); dmApplyPermitView(); } catch (err) { $('#login-error').textContent = err.message; $('#password').focus(); } }, b); };
-$('#settings').onclick = () => run(async () => { const d = await api('settings'); $('#settings-form').elements.authorName.value = d.authorName; $('#settings-dialog').showModal(); });
-$('#settings-form').onsubmit = e => { e.preventDefault(); run(async () => { await api('settings', { authorName: e.target.elements.authorName.value }); location.reload(); }, $('button[type=submit]', e.target)); };
+$('#settings').onclick = () => run(async () => { const d = await api('settings'); const f = $('#settings-form').elements; f.authorName.value = d.authorName; f.mapLat.value = d.mapStart.lat; f.mapLng.value = d.mapStart.lng; f.mapZoom.value = d.mapStart.zoom; $('#settings-dialog').showModal(); });
+$('#settings-map-current').onclick = () => { const f = $('#settings-form').elements, map = overview || detailMap; if (!map) { toast('Zuerst eine Karte öffnen, deren Ausschnitt übernommen werden soll.', true); return; } const c = map.getCenter(); f.mapLat.value = c.lat.toFixed(5); f.mapLng.value = c.lng.toFixed(5); f.mapZoom.value = map.getZoom(); };
+$('#settings-form').onsubmit = e => { e.preventDefault(); run(async () => { const f = e.target.elements, mapStart = f.mapLat.value !== '' && f.mapLng.value !== '' ? { lat: Number(f.mapLat.value), lng: Number(f.mapLng.value), zoom: Number(f.mapZoom.value || 13) } : null; await api('settings', { authorName: f.authorName.value, mapStart }); location.reload(); }, $('button[type=submit]', e.target)); };
 $('#logout').onclick = () => run(async () => { await api('logout', {}); location.href = location.pathname; });
 $$('[data-view]').forEach(b => b.onclick = () => navigate(b.dataset.view));
 $('#folders').onclick = e => { const b = e.target.closest('[data-folder]'); if (b) navigate('folder', b.dataset.folder); };

@@ -88,7 +88,7 @@ def main():
     c.call('login',{'password':'incorrect'},expected=401); c.call('login',json.loads(a.access.read_text()))
     saved=c.csrf;c.csrf='invalid';c.call('folder',{'name':'CSRF blocked'},expected=403);c.csrf=saved
     assert not c.call('library')['missions'], 'Use a dedicated empty test installation'
-    author='Demo & Co <Test>';c.call('settings',{'authorName':author});assert c.call('settings')=={'authorName':author};html=c.opener.open(a.base.rstrip('/')+'/').read();assert b'Demo &amp; Co &lt;Test&gt;' in html and b'Demo & Co <Test>' not in html
+    author='Demo & Co <Test>';c.call('settings',{'authorName':author});assert c.call('settings')=={'authorName':author,'mapStart':{'lat':47.6,'lng':14.1,'zoom':7}};c.call('settings',{'authorName':author,'mapStart':{'lat':91,'lng':16,'zoom':12}},expected=400);c.call('settings',{'authorName':author,'mapStart':{'lat':48.2082,'lng':16.3738,'zoom':25}},expected=400);c.call('settings',{'authorName':author,'mapStart':{'lat':48.208212,'lng':16.373819,'zoom':12}});assert c.call('settings')['mapStart']=={'lat':48.20821,'lng':16.37382,'zoom':12} and c.call('library')['mapStart']=={'lat':48.20821,'lng':16.37382,'zoom':12};c.call('settings',{'authorName':author,'mapStart':None});assert c.call('settings')['mapStart']=={'lat':47.6,'lng':14.1,'zoom':7};html=c.opener.open(a.base.rstrip('/')+'/').read();assert b'Demo &amp; Co &lt;Test&gt;' in html and b'Demo & Co <Test>' not in html
     root=c.call('folder',{'name':'Demo · Küstenprojekt'})['id']; sub=c.call('folder',{'name':'Routen','parent':root})['id']; other=c.call('folder',{'name':'Privates Gegenprojekt'})['id']
     c.call('folder',{'id':root,'name':'Zyklus','parent':sub},expected=400)
     raw=synthetic_kmz(); raw2=synthetic_kmz(75)

@@ -45,9 +45,9 @@ Nicht selbst auf main mergen oder live deployen: main veröffentlicht automatisc
 - Keine abgeschnittenen langen Kopf-/Legendensätze. Papierformat und Umbruch testen.
 - H muss auch im PDF RUND sein, Kennung als separate kleine Beschriftung.
 - Markenlogos sauber proportionieren, konsistente Ränder; keine neuen Logos erfinden.
-  Branding muss konfigurierbar bleiben: eigene Installation Studio Baff, andere
+  Branding muss konfigurierbar bleiben: die eigene Installation des Betreibers, andere
   Betreiber können ihren eigenen Namen/Autor verwenden. Kein fest eingebautes
-  Studio-Baff-Branding in der allgemein herunterladbaren Projektversion.
+  Betreiber-Branding in der allgemein herunterladbaren Projektversion.
 - Quellen-/Lizenzangaben von basemap.at und Naturschutzdaten erhalten. Die bestehende
   technische Standardwarnung nicht als Absatzblock ins Antragspapier übernehmen.
 - PDF unterstützt bisher Helvetica/WinAnsi: das reicht NICHT für Ukrainisch.
@@ -130,7 +130,7 @@ Vereinbartes Ziel der globalen Verwaltung unter Einstellungen:
 - Eigene Missionen, mit mir geteilte Missionen und Projekte klar unterscheiden.
 - Personen können mehreren Gruppen angehören: z.B. Person A privat; Team 1 und
   Team 2 mit gemeinsamen Projekten. Private Inhalte sind nicht automatisch sichtbar.
-- Kilian ggf. separater Testbereich mit synthetischen Daten; kein Zugang erzeugt.
+- Externer Tester ggf. separater Testbereich mit synthetischen Daten; kein Zugang erzeugt.
 - Mailversand über vorhandenen Publisher-SMTP wurde privat getestet und vom Nutzer
   als empfangen bestätigt. Zugangsdaten/Config sind NICHT Teil dieses Pakets.
 - Keine reale Person außer dem beauftragten Administrator ohne nötige Angaben anlegen;
@@ -142,7 +142,7 @@ Abschließende RC-Gerätetests stehen aus:
 - Strukturtests des KMZ sind kein bestandener Gerätetest. Nicht als 'fluggeprüft' labeln.
 - Keine automatischen Flüge oder ungefragten Geräte-Schreibaktionen.
 
-Kilian wurde bereits kontaktiert, nicht doppelt posten:
+Der externe Entwickler wurde bereits kontaktiert, nicht doppelt posten:
 https://github.com/hdrpano/DJI-KMZ-Injector/issues/1#issuecomment-6753621369
 Kommentar enthält bisherigen Fehlerbericht, Einladung zum öffentlichen Planerprojekt,
 und den korrekten Hinweis, dass die RC-Tests noch ausstehen. Keine privaten Daten/Keys.
@@ -158,8 +158,7 @@ Quellcode in diesem Branch: dronemissions/public/
 - api.php / lib.php: bestehende Datenverträge/Berechtigungen. Nicht für Styling umbauen.
 - deploy/: Paketierung/Allowlisten. .github/workflows/: main deployt automatisch.
 
-Repo: https://github.com/studiobaff/dronemissions
-Live: https://service.studiobaff.com/dronemissions/
+Repo: dieses Repository. Live-Adresse: private Betriebsnotiz, nicht im Repository.
 Keine Zugangsschlüssel, Serverkonfigurationen oder echten Missionsdaten sind enthalten.
 Die Original-Screenshots aus dem privaten ZIP wurden NICHT veröffentlicht.
 Beigelegte Bilder und PDFs unter beispiele/ zeigen ausschließlich synthetische
