@@ -6,7 +6,7 @@ Auf ausdrücklichen Wunsch des Nutzers pausiert. Keine Veröffentlichung in dies
 
 ## Arbeitsstand
 
-- Repository: studiobaff/dronemissions.
+- Repository: dieses Repository.
 - Arbeitsverzeichnis: `work/roundtrip-device-proof` innerhalb des lokalen missionplaner-Ordners.
 - Branch: `codex/planner-live-preview`, Ausgangsbasis main `823af6fc22694edc413f86739c23c70b781ac15f`.
 - Änderungen sind als lokaler Zwischenstand gesichert. Noch nicht gepusht, kein PR, nicht live. Nicht mit Claudes Branch oder dem Hauptarbeitsverzeichnis überschreiben.

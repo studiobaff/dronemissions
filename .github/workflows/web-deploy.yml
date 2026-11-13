@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment:
       name: production
-      url: https://service.studiobaff.com/dronemissions/
+      url: ${{ vars.DRONEMISSIONS_SITE_URL }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -66,17 +66,23 @@ jobs:
         env:
           DEPLOY_KEY: ${{ secrets.DRONEMISSIONS_DEPLOY_KEY }}
           KNOWN_HOSTS: ${{ secrets.DRONEMISSIONS_KNOWN_HOSTS }}
+          DEPLOY_TARGET: ${{ vars.DRONEMISSIONS_DEPLOY_TARGET }}
+          SITE_URL: ${{ vars.DRONEMISSIONS_SITE_URL }}
         run: |
           test -n "$DEPLOY_KEY" && test -n "$KNOWN_HOSTS"
+          test -n "$DEPLOY_TARGET" && test -n "$SITE_URL" || { echo 'Repository-Variablen DRONEMISSIONS_DEPLOY_TARGET (user@host) und DRONEMISSIONS_SITE_URL fehlen.' >&2; exit 1; }
           install -m 700 -d ~/.ssh
           printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
       - name: Publish release and verify HTTPS
+        env:
+          DEPLOY_TARGET: ${{ vars.DRONEMISSIONS_DEPLOY_TARGET }}
+          SITE_URL: ${{ vars.DRONEMISSIONS_SITE_URL }}
         run: |
           checksum=$(sha256sum release.zip | cut -d ' ' -f1)
-          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 studiobaff@service.studiobaff.com "deploy $GITHUB_SHA $checksum" < release.zip
-          python3 deploy/health.py "https://service.studiobaff.com/dronemissions/" "$GITHUB_SHA"
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 "$DEPLOY_TARGET" "deploy $GITHUB_SHA $checksum" < release.zip
+          python3 deploy/health.py "$SITE_URL" "$GITHUB_SHA"
       - name: Clean SSH credentials
         if: always()
         run: rm -f ~/.ssh/deploy_key ~/.ssh/known_hosts

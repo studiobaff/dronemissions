@@ -1,7 +1,12 @@
 <?php
 declare(strict_types=1);
 const MAX_KMZ = 16777216;
-function dm_private(): string { return getenv('DRONEMISSIONS_PRIVATE') ?: '/usr/local/www/vhosts/studiobaff/dronemissions-private'; }
+/* Privater Ordner (SQLite, Blobs, config.json): über DRONEMISSIONS_PRIVATE setzen; die Vorgabe ist bewusst neutral und gehört nicht zum Betreiber. */
+/* User-Agent für externe Dienste (OSM, Höhendaten): nennt den Host der jeweiligen Installation, keinen festen Betreiber. */
+function dm_user_agent(string $component): string { return $component.' ('.preg_replace('/[^A-Za-z0-9.:-]/','',$_SERVER['HTTP_HOST']??'localhost').')'; }
+function dm_private(): string { return getenv('DRONEMISSIONS_PRIVATE') ?: dirname(__DIR__).'/private'; }
+/* Kartenstart aus config.json (Einstellungen → Kartenstart); ohne Eintrag Österreich-Mitte. Wird an alle Rollen geliefert, enthält keine Missionsdaten. */
+function dm_map_start(): array { $file=dm_private().'/config.json'; $config=is_file($file)?json_decode((string)file_get_contents($file),true):null; $m=is_array($config)?($config['mapStart']??null):null; if(is_array($m)&&is_numeric($m['lat']??null)&&is_numeric($m['lng']??null)&&abs((float)$m['lat'])<=85&&abs((float)$m['lng'])<=180){$zoom=(int)($m['zoom']??13);return ['lat'=>round((float)$m['lat'],5),'lng'=>round((float)$m['lng'],5),'zoom'=>max(3,min(19,$zoom))];} return ['lat'=>47.6,'lng'=>14.1,'zoom'=>7]; }
 function dm_db(): PDO {
  $dir=dm_private(); if(!is_dir($dir))throw new RuntimeException('Installation nicht eingerichtet.');
  $db=new PDO('sqlite:'.$dir.'/missions.sqlite',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);
@@ -106,7 +111,7 @@ function dm_payload(PDO $db,?array $scope): array {
   if(($scope['presentation']??'')==='map')$points=[];
   $folders=array_values(array_filter($folders,fn($f)=>!isset($hidden[$f['id']])));
  }
- return ['folders'=>$folders,'missions'=>$missions,'points'=>$points,'role'=>$scope?($scope['role']==='edit'?'editor':'viewer'):'owner','scope'=>$scope['folder']??null,'presentation'=>$scope['presentation']??'library','layers'=>dm_layers_public($db,$scope)];
+ return ['folders'=>$folders,'missions'=>$missions,'points'=>$points,'role'=>$scope?($scope['role']==='edit'?'editor':'viewer'):'owner','scope'=>$scope['folder']??null,'presentation'=>$scope['presentation']??'library','layers'=>dm_layers_public($db,$scope),'mapStart'=>dm_map_start()];
 }
 
 function dm_format(array $details): string { return match($details['sourceFormat']??'dji-kmz'){'litchi-csv'=>'csv','litchi-lchm'=>'lchm','litchi-lchz'=>'lchz','mapcreator-project'=>'mproj',default=>'kmz'}; }

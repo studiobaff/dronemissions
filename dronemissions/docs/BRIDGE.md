@@ -28,14 +28,14 @@ Die installierte App 0.6.2 wurde mit einer synthetischen KMZ geöffnet und die P
 
 ## Download und Zugang
 
-Im [Webarchiv](https://service.studiobaff.com/dronemissions/) anmelden und
+Im Webarchiv der eigenen Installation anmelden und
 **Bridge** öffnen. Mac-ZIP und bei Bedarf die Konfiguration herunterladen; die
 Prüfsumme steht beim Download. Die Konfiguration enthält die Archiv-Adresse,
 keinen Zugangsschlüssel. Die App ist lokal ad-hoc signiert, nicht von Apple
 notarisiert. Windows braucht einen separaten Build auf Windows; ein getestetes
 Windows-Paket ist nicht veröffentlicht.
 
-Archiv-Adresse: `https://service.studiobaff.com/dronemissions/`.
+Archiv-Adresse: die Adresse der eigenen Installation (siehe private Betriebsnotiz, nicht im Repository).
 
 In **0.4.4** stehen Adresse und Schlüssel im Webarchiv-Tab. In **0.5.0** wandern sie
 in ein separates natives Fenster **Einstellungen …** mit **⌘,**. Dort liegen auch
