@@ -40,7 +40,7 @@ function dm_plan_flights(array $points,array $p): array {
  if($mode==='time'&&($p['entryEnabled']??false)!==true)throw new InvalidArgumentException('Abflugpunkt H auf der Karte setzen und aktivieren.');
  $home=($p['entryEnabled']??false)?['lat'=>dm_pnum($p,'entryLat',-80,80),'lng'=>dm_pnum($p,'entryLng',-180,180)]:['lat'=>$points[0]['lat'],'lng'=>$points[0]['lng']];
  $opts=['flightSplit'=>$mode,'flightMinutes'=>$minutes,'flightCount'=>$count,'reserveMinutes'=>$reserve,'flightOverlap'=>$overlap,'transitSpeed'=>dm_pnum($p,'transitSpeed',.2,15,5),'verticalSpeed'=>dm_pnum($p,'verticalSpeed',.2,5,2)];
- $costParams=$opts+$p;$chains=[];$chain=[];foreach($points as $pt){if($chain&&$pt['breakBefore']){$chains[]=dm_flight_path($chain);$chain=[];}$chain[]=$pt;}if($chain)$chains[]=dm_flight_path($chain);
+ $costParams=$opts+$p;$costParams['entryEnabled']=($p['entryEnabled']??false)===true;$chains=[];$chain=[];foreach($points as $pt){if($chain&&$pt['breakBefore']){$chains[]=dm_flight_path($chain);$chain=[];}$chain[]=$pt;}if($chain)$chains[]=dm_flight_path($chain);
  if($mode==='count'&&$count<count($chains))throw new InvalidArgumentException('Der Umriss erfordert mindestens '.count($chains).' getrennte Flüge (Löcher/Kreuzraster).');
  $allocation=array_fill(0,count($chains),1);
  for($i=count($chains);$mode==='count'&&$i<$count;$i++){$scores=[];foreach($chains as $k=>$path)$scores[$k]=$path['length']/$allocation[$k];$allocation[array_search(max($scores),$scores)]++;}
