@@ -156,6 +156,9 @@ def main():
                 args=[sys.executable,str(ROOT/'tests'/script),'--base',base,'--access',str(private/'access.json')]
                 if script=='integration.py':args.append('--allow-test-writes')
                 run(*args)
+            if os.environ.get('DM_BROWSER_TESTS')=='1':
+                clear_rates()
+                run('node',str(ROOT/'tests/email-browser.cjs'),base,str(private/'access.json'))
         finally:
             server.terminate();server.wait();log.close();smtp.shutdown();smtp.server_close();users.close()
 
