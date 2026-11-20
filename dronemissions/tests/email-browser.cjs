@@ -98,6 +98,18 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#pl-profile').inputValue(),profile,'device reference retained');
     await page.locator('#planner-dialog').evaluate(dialog=>dialog.close());
    }
+   if(viewport.width>1000){
+    const h=await page.evaluate(async()=>{const p={name:'Manual helix browser',type:'doubleHelix',cameraId:'mavic3',geometry:{type:'Point',coordinates:[16,48]},params:{shape:'hemisphere',radius:30,bottom:20,top:50,standoff:20,spacingMode:'distance',photoDistance:5,trackDistance:10,flightSplit:'count',flightCount:1,flightMinutes:15,entryEnabled:false,photoLimit:200}};const h=await api('planner-save',{plan:p});await refresh();return h;});
+    let response=page.waitForResponse(r=>r.url().includes('action=planner-preview')&&r.status()===200);
+    await page.locator(`#saved-plans [data-planner-id="${h.id}"]`).click();
+    assert.equal((await (await response).json()).parts.length,1);
+    assert(await page.locator('#pl-flight-fields').isVisible());
+    assert.equal(await page.locator('#pl-flightCount').inputValue(),'1');
+    response=page.waitForResponse(r=>r.url().includes('action=planner-preview')&&r.status()===200);
+    await page.locator('#pl-flightCount').fill('2');await page.locator('#pl-flightCount').press('Tab');
+    assert.equal((await (await response).json()).parts.length,2);
+    await page.locator('#planner-dialog').evaluate(dialog=>dialog.close());
+   }
    // Mobile navigation may hide logout; open the drawer through the existing toggle.
    const logout=page.locator('#logout');
    if (!await logout.isVisible()) {
