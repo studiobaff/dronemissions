@@ -47,13 +47,16 @@ def main():
                     line = raw.decode().strip()
                     command = line.split(' ', 1)[0].upper()
                     if command == 'EHLO':
-                        send('250-localhost'); send('250-STARTTLS'); send('250 AUTH PLAIN LOGIN')
+                        send('250-localhost'); send('250-STARTTLS'); send('250 AUTH PLAIN')
                     elif command == 'STARTTLS':
                         send('220 Ready')
                         self.connection = tls.wrap_socket(self.connection, server_side=True)
                         self.rfile = self.connection.makefile('rb')
                         self.wfile = self.connection.makefile('wb')
-                    elif command == 'AUTH': send('235 Authenticated')
+                    elif command == 'AUTH':
+                        if len(line.split())<3:
+                            send('334 ');self.rfile.readline()
+                        send('235 Authenticated')
                     elif command == 'MAIL': send('250 OK')
                     elif command == 'RCPT':
                         recipient = re.search(r'<([^>]+)>', line).group(1)
