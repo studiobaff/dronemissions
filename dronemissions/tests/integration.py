@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Destructive only to a dedicated empty test installation. Stdlib, synthetic data."""
+import re, email, email.policy
 import argparse, hashlib, http.cookiejar, io, json, urllib.request, urllib.error, uuid, zipfile
 from pathlib import Path
 from urllib.parse import urlparse
@@ -9,6 +10,11 @@ class Client:
         self.base = base.rstrip('/') + '/api.php?action='
         self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
         self.csrf = self.call('session')['csrf']
+    def login(self, access):
+        self.call('login', {'email': access['email']})
+        message = email.message_from_bytes(Path(access['mailbox']).read_bytes(), policy=email.policy.default)
+        code = re.search(r'Anmeldecode für Drone Missions: (\d{6})', message.get_body(preferencelist=('plain',)).get_content()).group(1)
+        return self.call('login-verify', {'code': code})
     def call(self, action, body=None, expected=200, files=None):
         headers = {}; payload = None
         if body is not None:
@@ -85,7 +91,7 @@ def main():
     p=argparse.ArgumentParser(); p.add_argument('--base',required=True); p.add_argument('--access',type=Path,required=True);p.add_argument('--fixture-dir',type=Path);p.add_argument('--allow-test-writes',action='store_true',required=True);p.add_argument('--wmts-fixture',help='http(s) URL of a WMTS capabilities document reachable from the server (DRONEMISSIONS_DEV allows loopback)'); a=p.parse_args()
     assert urlparse(a.base).hostname in ('127.0.0.1','localhost','::1'), 'Integration tests require a loopback-only dedicated test installation'
     c=Client(a.base); c.call('library',expected=401)
-    c.call('login',{'password':'incorrect'},expected=401); c.call('login',json.loads(a.access.read_text()))
+    c.call('login',{'password':'incorrect'},expected=400); c.login(json.loads(a.access.read_text()))
     saved=c.csrf;c.csrf='invalid';c.call('folder',{'name':'CSRF blocked'},expected=403);c.csrf=saved
     assert not c.call('library')['missions'], 'Use a dedicated empty test installation'
     author='Demo & Co <Test>';c.call('settings',{'authorName':author});assert c.call('settings')=={'authorName':author};html=c.opener.open(a.base.rstrip('/')+'/').read();assert b'Demo &amp; Co &lt;Test&gt;' in html and b'Demo & Co <Test>' not in html

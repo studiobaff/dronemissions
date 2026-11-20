@@ -12,7 +12,7 @@ def png():
 def main():
     a=argparse.ArgumentParser();a.add_argument('--base',required=True);a.add_argument('--access',type=Path,required=True);o=a.parse_args()
     assert urlparse(o.base).hostname in ('127.0.0.1','localhost','::1')
-    c=Client(o.base);c.call('login',json.loads(o.access.read_text()));folder=c.call('folder',{'name':'Vorschaubilder · Test'})['id'];other=c.call('folder',{'name':'Anderes Projekt · Test'})['id']
+    c=Client(o.base);c.login(json.loads(o.access.read_text()));folder=c.call('folder',{'name':'Vorschaubilder · Test'})['id'];other=c.call('folder',{'name':'Anderes Projekt · Test'})['id']
     m=c.call('upload',{'folder':folder,'name':'Halbkugel'},files={'kmz':('demo.kmz',synthetic_kmz())})['id']
     def mission(): return next(x for x in c.call('library')['missions'] if x['id']==m)
     before=mission();versions=c.call('versions&id='+m)['versions'];original=c.call('original&id='+m)

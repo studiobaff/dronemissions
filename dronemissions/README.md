@@ -39,22 +39,21 @@ Archiv, Vorschau und die erste Planungsfassung erteilen keine Flugfreigabe. Date
 
 Siehe [Deployment und Betrieb](docs/DEPLOYMENT.md). Nur `public/` wird über HTTPS ausgeliefert. Konfiguration, SQLite-Datenbank, Originaldateien und Sitzungen müssen außerhalb des Webroots liegen. Der PHP-Prozess benötigt Schreibzugriff auf dieses private Verzeichnis.
 
-Voraussetzungen: PHP 8.3+ mit PDO SQLite, ZipArchive, SimpleXML und GD. Webserver-Limits: `upload_max_filesize=16M`, `post_max_size=20M` oder höher. Das Backend begrenzt KMZ auf 16 MiB und optionale Vorschauen auf 3 MiB/16 Megapixel.
+Voraussetzungen: PHP 8.3+ mit PDO SQLite, ZipArchive, SimpleXML, GD und cURL (SMTP/SMTPS). Webserver-Limits: `upload_max_filesize=16M`, `post_max_size=20M` oder höher. Das Backend begrenzt KMZ auf 16 MiB und optionale Vorschauen auf 3 MiB/16 Megapixel.
 
 ## Prüfung
 
 [Tests und Prüfbericht](docs/QA.md) beschreiben automatisierte API-Tests und Browser-QA. Der Integrationstest schreibt synthetische Daten und darf nur auf einer separaten, anfangs leeren Testinstallation laufen.
 
 ```sh
-python3 tests/integration.py --base http://127.0.0.1:8080/dronemissions \
-  --access /private/path/test-access.json --allow-test-writes
+python3 tests/run-email-suite.py
 ```
 
-Die Zugangsdatei enthält `{"password":"<langer Testzugangsschlüssel>"}` und gehört weder ins Repository noch in den Webroot.
+Die Suite erstellt eine temporäre Loopback-Installation mit synthetischer Publisher-Datenbank und lokalem STARTTLS-Mailserver. Es werden keine realen Empfänger angeschrieben.
 
 ## Sicherheit und Kartenquellen
 
-Zugangsschlüssel werden mit PHP `password_hash` gespeichert. Eigentümersitzungen laufen nach acht Stunden ab; Projektfreigaben werden bei jeder Anfrage erneut geprüft. Freigabelinks sind Zugangsdaten: Ihr Token wird im URL-Fragment übertragen, anschließend aus der Adresszeile entfernt und serverseitig nur als SHA-256-Hash gespeichert. Die Anwendung verwendet HttpOnly-/SameSite-Cookies, CSRF-Schutz und Begrenzung fehlgeschlagener Anmeldeversuche.
+Aktive Publisher-Administratoren (`admin` und `superadmin`) melden sich per sechsstelligen E-Mail-Einmalcode an. Der Code gilt acht Minuten, die Sitzung absolut zwölf Stunden. Rollen und Aktivstatus werden bei jedem geschützten API-Zugriff erneut geprüft; Projektfreigaben werden bei jeder Anfrage erneut geprüft. Freigabelinks sind Zugangsdaten: Ihr Token wird im URL-Fragment übertragen, anschließend aus der Adresszeile entfernt und serverseitig nur als SHA-256-Hash gespeichert. Die Anwendung verwendet HttpOnly-/SameSite-Cookies, CSRF-Schutz und Begrenzung fehlgeschlagener Anmeldeversuche.
 
 Kartenkacheln werden direkt von den jeweiligen Anbietern geladen; diese erhalten dabei IP-Adresse und angefragte Kartenausschnitte. Es werden keine kompletten KMZ-Dateien an Kartenanbieter gesendet. Quellen: [basemap.at](https://basemap.at/#lizenz), [OpenStreetMap](https://www.openstreetmap.org/copyright), [Esri](https://www.esri.com/). Leaflet 1.9.4 und Leaflet-Geoman 2.20.6 sind lokal eingebunden; Lizenzen siehe `public/vendor/leaflet-LICENSE` und `docs/third-party/leaflet-geoman-LICENSE.md`. Bei aktivierter DEM-Geländeanpassung werden Start-/Flug-/POI-Koordinaten an OpenTopoData gesendet und die Ergebnisse privat zwischengespeichert. [Planer und Genauigkeitsgrenzen](docs/PLANNER.md).
 

@@ -9,7 +9,7 @@ def plan():
  return {'name':'Planner API demo','type':'grid','cameraId':'mavic3','geometry':{'type':'Polygon','coordinates':[[[16,48],[16.001,48],[16.001,48.001],[16,48.001],[16,48]]]},'params':{'height':60,'bottom':15,'top':40,'standoff':10,'frontOverlap':80,'sideOverlap':70,'photoLimit':150,'sectionOverlap':2}}
 def main():
  p=argparse.ArgumentParser();p.add_argument('--base',required=True);p.add_argument('--access',type=Path,required=True);a=p.parse_args();assert urlparse(a.base).hostname in ('127.0.0.1','localhost','::1')
- c=Client(a.base);c.call('planner-catalog',expected=401);c.call('login',json.loads(a.access.read_text()));folder=c.call('folder',{'name':'Planner synthetic'})['id'];other=c.call('folder',{'name':'Planner foreign'})['id']
+ c=Client(a.base);c.call('planner-catalog',expected=401);c.login(json.loads(a.access.read_text()));folder=c.call('folder',{'name':'Planner synthetic'})['id'];other=c.call('folder',{'name':'Planner foreign'})['id']
  raw=synthetic_kmz();# The profile needs a real device ID, synthetic fixture has 99, not a claimed product enum.
  profile=c.call('upload',{'folder':folder,'name':'Synthetic device profile'},files={'kmz':('device.kmz',raw)})['id']
  body={'folder':folder,'profileMission':profile,'plan':plan()};cat=c.call('planner-catalog')['cameras'];assert len(cat)==6 and {v['id'] for v in cat}=={'mini4','mini5','air3','air3s','mavic3','mavic4'}

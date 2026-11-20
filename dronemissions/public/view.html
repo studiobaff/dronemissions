@@ -78,11 +78,14 @@
   <h1 class="login-title">Deine Mission.<br>Am richtigen Ort.</h1>
   <p class="login-lead">Projekte, Flugrouten und Originaldateien. Ein Archiv für dein ganzes Team.</p>
   <form id="login-form" novalidate>
-   <label class="field"><span>Zugangsschlüssel</span><input id="password" type="password" autocomplete="current-password" enterkeyhint="go" required></label>
+   <label class="field" id="login-email-field" for="login-email"><span>E-Mail-Adresse</span><input id="login-email" type="email" autocomplete="email" enterkeyhint="go" required></label>
+   <label class="field hidden" id="login-code-field" for="login-code"><span>Sechsstelliger Anmeldecode</span><input id="login-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" disabled required></label>
+   <p id="login-status" role="status"></p>
+   <button id="login-restart" type="button" class="btn hidden">Neuen Code anfordern / Adresse ändern</button>
    <p id="login-error" class="form-error" role="alert"></p>
-   <button class="btn btn-primary btn-lg btn-block" type="submit"><span>Archiv öffnen</span><svg class="icon"><use href="#i-arrow"/></svg></button>
+   <button class="btn btn-primary btn-lg btn-block" type="submit"><span id="login-submit-label">Code anfordern</span><svg class="icon"><use href="#i-arrow"/></svg></button>
   </form>
-  <p class="login-note">Private Installation · Drone Missions 1.0</p>
+  <p class="login-note">Anmeldung per E-Mail-Code · 12 Stunden angemeldet</p>
  </section>
  <aside class="login-art" aria-hidden="true">
   <svg viewBox="0 0 600 600"><g fill="none" stroke="currentColor"><circle cx="300" cy="300" r="230"/><circle cx="300" cy="300" r="170"/><circle cx="300" cy="300" r="110"/><path d="M70 300H530M300 70V530"/><path class="route-line" d="M150 380L180 190L280 220L340 150L440 310L350 430L150 380"/></g></svg>

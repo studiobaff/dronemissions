@@ -78,7 +78,14 @@ async function api(action, body, form = false) {
  try {
   const r = await fetch(`api.php?action=${action}`, options);
   let d; try { d = await r.json(); } catch { throw Error('Serverantwort konnte nicht gelesen werden.'); }
-  if (!r.ok) throw Error(d.error || 'Anfrage fehlgeschlagen.');
+  if (!r.ok) {
+   if (r.status === 401 && !['login', 'login-verify', 'share-login'].includes(action)) {
+    $$('dialog[open]').forEach(dialog => dialog.close());
+    $('#shell').classList.add('hidden'); $('#login').classList.remove('hidden');
+    loginStep(false); $('#login-status').textContent = 'Bitte erneut anmelden.';
+   }
+   throw Error(d.error || 'Anfrage fehlgeschlagen.');
+  }
   return d;
  } finally { progress(false); }
 }
@@ -533,7 +540,35 @@ $('#sidebar-toggle').onclick = () => { const collapsed = !document.body.classLis
 function showLibrary() { $('#login').classList.add('hidden'); $('#shell').classList.remove('hidden'); if (!loaded) renderSkeleton(); }
 
 /* ---------- Ereignisse ---------- */
-$('#login-form').onsubmit = e => { e.preventDefault(); const b = $('button[type=submit]', e.target); run(async () => { try { const d = await api('login', { password: $('#password').value }); csrf = d.csrf; $('#password').value = ''; $('#login-error').textContent = ''; showLibrary(); await refresh(); applyHash(); dmApplyPermitView(); } catch (err) { $('#login-error').textContent = err.message; $('#password').focus(); } }, b); };
+let loginCodeStep = false;
+function loginStep(codeStep) {
+ loginCodeStep = codeStep;
+ $('#login-email-field').classList.toggle('hidden', codeStep);
+ $('#login-code-field').classList.toggle('hidden', !codeStep);
+ $('#login-email').disabled = codeStep;
+ $('#login-code').disabled = !codeStep;
+ $('#login-code').value = '';
+ $('#login-submit-label').textContent = codeStep ? 'Archiv öffnen' : 'Code anfordern';
+ $('#login-restart').classList.toggle('hidden', !codeStep);
+ $('#login-error').textContent = '';
+ $(codeStep ? '#login-code' : '#login-email').focus();
+}
+$('#login-restart').onclick = () => { loginStep(false); $('#login-status').textContent = ''; };
+$('#login-form').onsubmit = async e => {
+ e.preventDefault(); if (!e.target.reportValidity()) return;
+ const b = $('button[type=submit]', e.target); b.disabled = true; $('#login-restart').disabled = true;
+ try {
+  if (!loginCodeStep) {
+   const d = await api('login', {email: $('#login-email').value.trim()});
+   loginStep(true); $('#login-status').textContent = d.message;
+  } else {
+   const d = await api('login-verify', {code: $('#login-code').value.trim()});
+   csrf = d.csrf; loginStep(false); $('#login-status').textContent = '';
+   showLibrary(); await refresh(); applyHash(); dmApplyPermitView();
+  }
+ } catch (err) { $('#login-error').textContent = err.message; $(loginCodeStep ? '#login-code' : '#login-email').focus(); }
+ finally { b.disabled = false; $('#login-restart').disabled = false; }
+};
 $('#settings').onclick = () => run(async () => { const d = await api('settings'); $('#settings-form').elements.authorName.value = d.authorName; $('#settings-dialog').showModal(); });
 $('#settings-form').onsubmit = e => { e.preventDefault(); run(async () => { await api('settings', { authorName: e.target.elements.authorName.value }); location.reload(); }, $('button[type=submit]', e.target)); };
 $('#logout').onclick = () => run(async () => { await api('logout', {}); location.href = location.pathname; });
@@ -610,7 +645,7 @@ run(async () => {
   catch (e) { $('#shell').classList.add('hidden'); $('#login').classList.remove('hidden'); $('#login-error').textContent = e.message; }
   return;
  }
- if (s.authenticated) { showLibrary(); await refresh(); applyHash(); dmApplyPermitView(); } else { $('#login').classList.remove('hidden'); $('#password').focus(); }
+ if (s.authenticated) { showLibrary(); await refresh(); applyHash(); dmApplyPermitView(); } else { $('#login').classList.remove('hidden'); $('#login-email').focus(); }
 });
 
 $('#project-reference').onclick=()=>{$('#settings').click();setTimeout(()=>{const f=$('#vector-folder');f.value=folder||'';f.closest('details').open=true;f.scrollIntoView({block:'center'});f.focus();},100);};

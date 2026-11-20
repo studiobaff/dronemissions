@@ -1,12 +1,13 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/lib.php';
+require __DIR__.'/auth.php';
 header('Cache-Control: no-store');header('X-Content-Type-Options: nosniff');header('Referrer-Policy: no-referrer');header('X-Frame-Options: DENY');
 function respond(array $data,int $status=200): never {http_response_code($status);header('Content-Type: application/json; charset=utf-8');echo json_encode($data,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);exit;}
 function problem(string $message,int $status=400): never {respond(['error'=>$message],$status);}
 function stmt(string $sql,array $args=[]): PDOStatement {global $db;$s=$db->prepare($sql);$s->execute($args);return $s;}
 function scope(): ?array {
- if(!empty($_SESSION['owner'])&&($_SESSION['expires']??0)>time())return null;
+ if(dm_owner_valid())return null;
  if(!empty($_SESSION['share'])){$s=stmt('SELECT * FROM shares WHERE id=? AND expires>?',[$_SESSION['share'],time()])->fetch();if($s)return $s;}
  problem('Bitte anmelden oder eine gültige Projektfreigabe öffnen.',401);
 }
@@ -23,7 +24,7 @@ function stream_file(string $path,string $mime,string $name,bool $inline=false):
 try {
  if(!is_file(dm_private().'/config.json'))problem('Serverinstallation noch nicht eingerichtet.',503);
  $config=json_decode(file_get_contents(dm_private().'/config.json'),true,512,JSON_THROW_ON_ERROR);
- ini_set('session.use_strict_mode','1');ini_set('session.use_only_cookies','1');ini_set('session.gc_maxlifetime','28800');session_name('dm_session');session_save_path(dm_private().'/sessions');
+ ini_set('session.use_strict_mode','1');ini_set('session.use_only_cookies','1');ini_set('session.gc_maxlifetime','43200');session_name('dm_session');session_save_path(dm_private().'/sessions');
  session_set_cookie_params(['lifetime'=>0,'path'=>'/dronemissions/','secure'=>!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off','httponly'=>true,'samesite'=>'Strict']);session_start();
  if(empty($_SESSION['csrf']))$_SESSION['csrf']=bin2hex(random_bytes(32));
  $db=dm_db();$action=$_GET['action']??'session';$method=$_SERVER['REQUEST_METHOD'];$input=[];
@@ -32,15 +33,10 @@ try {
   if(!empty($_SERVER['HTTP_ORIGIN'])){$expected=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off'?'https':'http').'://'.($_SERVER['HTTP_HOST']??'');if($_SERVER['HTTP_ORIGIN']!==$expected)problem('Fremde Anfrage abgelehnt.',403);}
   if(str_starts_with($_SERVER['CONTENT_TYPE']??'','application/json')){$input=json_decode(file_get_contents('php://input'),true,64,JSON_THROW_ON_ERROR);if(!is_array($input))problem('Ungültige Anfrage.');}else{$input=$_POST;}
  }elseif($method!=='GET')problem('Methode nicht unterstützt.',405);
- if($action==='session'&&$method==='GET'){$logged=(!empty($_SESSION['owner'])&&($_SESSION['expires']??0)>time())||(!empty($_SESSION['share'])&&stmt('SELECT id FROM shares WHERE id=? AND expires>?',[$_SESSION['share'],time()])->fetch());respond(['authenticated'=>(bool)$logged,'csrf'=>$_SESSION['csrf'],'version'=>'1.0.0']);}
- if($action==='login'&&$method==='POST'){
-  $ip=hash_hmac('sha256',$_SERVER['REMOTE_ADDR']??'unknown',$config['rateSecret']);stmt('DELETE FROM login_attempts WHERE happened<?',[time()-86400]);
-  if((int)stmt('SELECT COUNT(*) FROM login_attempts WHERE ip=? AND happened>?',[$ip,time()-900])->fetchColumn()>=10)problem('Zu viele Anmeldeversuche. Bitte in 15 Minuten erneut versuchen.',429);
-  stmt('INSERT INTO login_attempts VALUES(?,?)',[$ip,time()]);$p=$input['password']??'';if(!is_string($p)||strlen($p)>1024||!password_verify($p,$config['passwordHash']))problem('Zugangsschlüssel nicht korrekt.',401);
-  session_regenerate_id(true);$_SESSION=['owner'=>true,'expires'=>time()+28800,'csrf'=>bin2hex(random_bytes(32))];respond(['ok'=>true,'csrf'=>$_SESSION['csrf']]);
- }
+ if($action==='session'&&$method==='GET'){$logged=(dm_owner_valid())||(!empty($_SESSION['share'])&&stmt('SELECT id FROM shares WHERE id=? AND expires>?',[$_SESSION['share'],time()])->fetch());respond(['authenticated'=>(bool)$logged,'csrf'=>$_SESSION['csrf'],'version'=>'1.0.0']);}
+ dm_auth_route($action,$method,$input);
  if($action==='share-login'&&$method==='POST'){$token=$input['token']??'';if(!is_string($token)||strlen($token)>128)problem('Ungültige Freigabe.',403);$s=stmt('SELECT * FROM shares WHERE token_hash=? AND expires>?',[hash('sha256',$token),time()])->fetch();if(!$s)problem('Freigabe ist ungültig, abgelaufen oder widerrufen.',403);session_regenerate_id(true);$_SESSION=['share'=>$s['id'],'csrf'=>bin2hex(random_bytes(32))];respond(['ok'=>true,'csrf'=>$_SESSION['csrf']]);}
- if($action==='logout'&&$method==='POST'){$_SESSION=[];session_destroy();respond(['ok'=>true]);}
+ if($action==='logout'&&$method==='POST'){$_SESSION=[];dm_session_cookie(time()-3600);session_destroy();respond(['ok'=>true]);}
  $current=scope();
  require __DIR__.'/previews.php';
  require __DIR__.'/layers.php';
