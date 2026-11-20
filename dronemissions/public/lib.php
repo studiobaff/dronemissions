@@ -106,7 +106,12 @@ function dm_payload(PDO $db,?array $scope): array {
   if(($scope['presentation']??'')==='map')$points=[];
   $folders=array_values(array_filter($folders,fn($f)=>!isset($hidden[$f['id']])));
  }
- return ['folders'=>$folders,'missions'=>$missions,'points'=>$points,'role'=>$scope?($scope['role']==='edit'?'editor':'viewer'):'owner','scope'=>$scope['folder']??null,'presentation'=>$scope['presentation']??'library','layers'=>dm_layers_public($db,$scope)];
+ $plans=[];
+ if((!$scope||$scope['role']==='edit')&&$db->query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='mission_plans'")->fetchColumn()){
+  $plans=$db->query('SELECT id,folder,name,revision,updated FROM mission_plans ORDER BY updated DESC')->fetchAll();
+  if($allowed!==null)$plans=array_values(array_filter($plans,fn($plan)=>in_array($plan['folder'],$allowed,true)));
+ }
+ return ['folders'=>$folders,'missions'=>$missions,'points'=>$points,'plans'=>$plans,'role'=>$scope?($scope['role']==='edit'?'editor':'viewer'):'owner','scope'=>$scope['folder']??null,'presentation'=>$scope['presentation']??'library','layers'=>dm_layers_public($db,$scope)];
 }
 
 function dm_format(array $details): string { return match($details['sourceFormat']??'dji-kmz'){'litchi-csv'=>'csv','litchi-lchm'=>'lchm','litchi-lchz'=>'lchz','mapcreator-project'=>'mproj',default=>'kmz'}; }

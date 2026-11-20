@@ -306,3 +306,5 @@ Abschnittsanfang/-ende bleiben Stopps mit Aufnahmestart/-stopp. **Max. Wegpunkte
 ## Planung speichern und Mission erzeugen
 
 **Planung speichern** sichert die bearbeitbare Planung dauerhaft. Sie lässt sich oben unter **Gespeicherte Planung** wieder öffnen. **Prüfen & Exportieren → Geräteprofil wählen → Mission im Projekt speichern** erzeugt die DJI-KMZ-Abschnitte in der Missionsbibliothek des gewählten Projekts. Dafür ist eine passende DJI-Referenzmission für die Geräte-/Nutzlastkennung erforderlich. Ein Geräteprofil ersetzt keine Geräteprüfung. Wiederholtes Speichern desselben Planungsstands erzeugt keine doppelten Missionen.
+
+Gespeicherte Planungen werden außerdem direkt in der Projektübersicht unter **Gespeicherte Planungen** mit **Planung öffnen** angezeigt. Projekt-/Unterordnerfilter und Suche gelten auch hier. Planungen bleiben von erzeugten Missionsdateien unterscheidbar. Kunden mit reiner Standort-Lesefreigabe erhalten keine Planungsmetadaten; Bearbeitungsfreigaben sehen ausschließlich Planungen ihres freigegebenen Projektbereichs.

@@ -755,3 +755,6 @@ button.list-chip-project:focus-visible{outline-offset:1px}
 .location-nature-area{padding:12px 14px;margin:10px 0;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface-2)}
 .location-nature-area h4{margin:0 0 8px}.nature-area-badge{font-size:12px;color:var(--ink-2);border:1px solid var(--line-2);border-radius:5px;padding:3px 6px}
 .nature-relevance{margin-top:10px;font-size:13px}.nature-relevance summary{font-weight:600;cursor:pointer}.nature-relevance li{margin:8px 0}.nature-relevance ul{padding-left:20px}
+
+/* Saved planner records are discoverable before KMZ generation. */
+.saved-plans{margin:1rem 0 2rem}.saved-plans h2{font-size:1.1rem;margin-bottom:.35rem}.saved-plans h2 span{color:var(--muted);margin-left:.4rem}.saved-plan-list{display:grid;gap:.65rem;margin-top:.8rem}.saved-plan{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem;background:var(--surface,#fff);border:1px solid var(--line,#d4dccc);border-radius:14px}.saved-plan>div{min-width:0;flex:1 1 180px}.saved-plan strong,.saved-plan .hint{overflow-wrap:anywhere}.saved-plan .hint{margin:.3rem 0 0}.saved-plan .btn{flex-shrink:0}
