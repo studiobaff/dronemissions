@@ -636,6 +636,8 @@ $('#delete-folder').onclick = async () => {
 $('#point-form').onsubmit = e => { e.preventDefault(); run(async () => { const f = e.target.elements; const settings = { height: Number(f.height.value), heightMode: f.heightMode.value, heading: Number(f.heading.value), gimbal: Number(f.gimbal.value), capture: f.capture.value }; await api('point', { id: editPoint?.id, revision: editPoint?.revision, folder: editPoint?.folder || folder, name: f.name.value, notes: f.notes.value, lat: Number(f.lat.value), lng: Number(f.lng.value), settings }); $('#point-dialog').close(); await refresh(); toast('Panorama-Standort gespeichert. Noch keine ausführbare Flugmission.'); }, $('button[type=submit]', e.target)); };
 $('#delete-point').onclick = async () => { if (await confirmDialog('Planungspunkt löschen?', `„${editPoint.name}“ wird endgültig entfernt. Dieser Schritt lässt sich nicht rückgängig machen.`, 'Endgültig löschen', true)) run(async () => { await api('point-delete', { id: editPoint.id, revision: editPoint.revision }); $('#point-dialog').close(); await refresh(); toast('Planungspunkt gelöscht.'); }); };
 async function openBridge() {
+ $('#bridge-device-secret').value='';$('#bridge-device-secret-wrap').classList.add('hidden');
+ $('#bridge-device-access').classList.toggle('hidden',!isOwner());if(isOwner())await loadDeviceKeys();
  const dlg = $('#bridge-dialog'); if (!dlg.open) dlg.showModal();
  $('#bridge-files').innerHTML = '<p class="hint">Pakete werden geladen …</p>';
  const d = await api('bridge'); $('#bridge-url').textContent = `Archiv-Adresse: ${d.archiveURL}`;
@@ -672,3 +674,14 @@ run(async () => {
 });
 
 $('#project-reference').onclick=()=>{$('#settings').click();setTimeout(()=>{const f=$('#vector-folder');f.value=folder||'';f.closest('details').open=true;f.scrollIntoView({block:'center'});f.focus();},100);};
+
+async function loadDeviceKeys(){
+ const d=await api('device-keys');
+ $('#bridge-device-list').innerHTML=d.keys.map(k=>`<p><strong>${esc(k.name)}</strong> · ${k.revoked?'Widerrufen':Number(k.expires)*1000<=Date.now()?'Abgelaufen':'Gültig bis '+esc(new Date(Number(k.expires)*1000).toLocaleDateString())} ${!k.revoked?`<button class="btn btn-outline btn-sm" type="button" data-device-revoke="${esc(k.id)}">Widerrufen</button>`:''}</p>`).join('');
+}
+$('#bridge-device-create').onclick=()=>run(async()=>{
+ const d=await api('device-key-create',{name:$('#bridge-device-name').value});
+ $('#bridge-device-secret').value=d.token;$('#bridge-device-secret-wrap').classList.remove('hidden');await loadDeviceKeys();
+});
+$('#bridge-device-list').onclick=e=>{const b=e.target.closest('[data-device-revoke]');if(b)run(async()=>{await api('device-key-revoke',{id:b.dataset.deviceRevoke});$('#bridge-device-secret').value='';$('#bridge-device-secret-wrap').classList.add('hidden');await loadDeviceKeys();});};
+$('#bridge-dialog').addEventListener('close',()=>{$('#bridge-device-secret').value='';$('#bridge-device-secret-wrap').classList.add('hidden');});

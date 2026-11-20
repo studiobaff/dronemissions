@@ -11,16 +11,16 @@
 <link rel="apple-touch-icon" href="favicon.png?v=1">
 <link rel="stylesheet" href="vendor/leaflet.css">
 <link rel="stylesheet" href="vendor/geoman/leaflet-geoman.css">
-<link rel="stylesheet" href="style.css?v=helipad-icon-2">
+<link rel="stylesheet" href="style.css?v=bridge-device-1">
 <link rel="stylesheet" href="kmz-editor.css">
 <script defer src="vendor/leaflet.js"></script>
 <script defer src="vendor/geoman/leaflet-geoman.js"></script>
 <script defer src="i18n.js"></script><script defer src="nature.js"></script><script defer src="zones.js"></script>
-<script defer src="permit-font.js"></script><script defer src="permit-pdf.js"></script><script defer src="mission-selection.js"></script><script defer src="permit-map.js"></script><script defer src="app.js?v=helipad-icon-2"></script>
+<script defer src="permit-font.js"></script><script defer src="permit-pdf.js"></script><script defer src="mission-selection.js"></script><script defer src="permit-map.js"></script><script defer src="app.js?v=bridge-device-1"></script>
 <script defer src="previews.js"></script>
 <script defer src="layers.js"></script>
 <script defer src="planner-live.js"></script>
-<script defer src="planner.js?v=helipad-icon-2"></script>
+<script defer src="planner.js?v=bridge-device-1"></script>
 <script defer src="kmz-editor.js"></script>
 </head>
 <body>
@@ -323,13 +323,21 @@
 <dialog id="bridge-dialog" class="dialog">
  <div class="dialog-head"><div><div class="eyebrow">USB-Übertragung</div><h2>Drone Missions Bridge</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Schließen"><svg class="icon"><use href="#i-close"/></svg></button></div>
  <div class="dialog-body">
-  <p class="hint" style="max-width:none">Die Bridge-App überträgt DJI-KMZ-Missionen aus diesem Archiv per USB auf iPad, iPhone oder DJI-Fernsteuerung. Sie meldet sich mit deinem Zugangsschlüssel am Archiv an; der Schlüssel wird nicht in der Konfiguration gespeichert.</p>
+  <p class="hint" style="max-width:none">Die Bridge-App überträgt DJI-KMZ-Missionen aus diesem Archiv per USB auf iPad, iPhone oder DJI-Fernsteuerung. Sie verwendet einen eigenen Geräteschlüssel zum Übertragen und Sichern. Der Browser bleibt bei der E-Mail-Anmeldung. Der alte gemeinsame Zugangsschlüssel ist nicht mehr gültig.</p>
+  <section id="bridge-device-access" class="hidden">
+   <h3>Mac-Gerätezugang</h3>
+   <p class="hint">Erlaubt Missionen herunterzuladen, neue KMZs und Vorschaubilder zu sichern sowie vorhandene Missionen Projektordnern zuzuordnen. Keine Einstellungen, Freigaben, Planungsänderungen oder Löschrechte. Gültig für 180 Tage, jederzeit widerrufbar.</p>
+   <label class="field">Gerätename<input id="bridge-device-name" maxlength="80" value="Meine Mac-Bridge" autocomplete="off"></label>
+   <button id="bridge-device-create" class="btn btn-outline" type="button">Geräteschlüssel erstellen</button>
+   <label id="bridge-device-secret-wrap" class="field hidden">Einmalig angezeigter Geräteschlüssel – in der Mac-App unter Einstellungen → Zugangsschlüssel einfügen<input id="bridge-device-secret" readonly autocomplete="off" spellcheck="false"></label>
+   <div id="bridge-device-list"></div>
+  </section>
   <div id="bridge-files" class="bridge-files"></div>
   <div class="bridge-config">
    <div><strong>Konfiguration</strong><small id="bridge-url"></small></div>
    <a id="bridge-config-link" class="btn btn-outline btn-sm" href="api.php?action=bridge-config" download><svg class="icon"><use href="#i-download"/></svg><span>Konfiguration herunterladen</span></a>
   </div>
-  <p class="hint" style="max-width:none">Nach der Installation: Bridge öffnen, Tab „Webarchiv“, „Konfiguration laden …“ und die Datei wählen, dann mit dem Zugangsschlüssel anmelden.</p>
+  <p class="hint" style="max-width:none">Nach der Installation: Bridge öffnen, Tab „Webarchiv“, „Konfiguration laden …“ und die Datei wählen, dann in Einstellungen → Zugangsschlüssel den neuen Geräteschlüssel einfügen und verbinden. Das vorhandene Mac-App-Paket kann weiterverwendet werden.</p>
  </div>
  <div class="dialog-foot"><button type="button" class="btn btn-primary" data-close>Schließen</button></div>
 </dialog>
