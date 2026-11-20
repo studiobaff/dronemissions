@@ -59,6 +59,9 @@ def main():
  vs=c.call('planner-save',video);video.update(vs);vl=c.call('planner-load&id='+vs['id']);assert vl['body']['params']['captureMode']=='video'
  exported=c.call('planner-export',video);vz=zipfile.ZipFile(io.BytesIO(exported));vx=E.fromstring(vz.read('wpmz/waylines.wpml'));vf=[e.text for e in vx.iter() if e.tag.rsplit('}',1)[-1]=='actionActuatorFunc'];assert vf.count('startRecord')==vf.count('stopRecord')==1 and 'takePhoto' not in vf
  va=c.call('planner-archive',video);assert len(va['ids'])==1
+ vm=next(m for m in c.call('library')['missions'] if m['id']==va['ids'][0]);assert vm['captureType']=='video'
+ c.call('mission-map-type',{'id':vm['id'],'revision':vm['revision'],'captureType':'photo'})
+ assert next(m for m in c.call('library')['missions'] if m['id']==vm['id'])['captureType']=='photo'
  video['plan']['params']['captureMode']='photo';c.call('planner-archive',video,expected=409)
  print('PASS: video draft persistence, endpoint grid export and archive mode conflict')
  print('PASS: planner catalog, preview, draft CAS/reopen, device profile, KMZ/section ZIP, archive idempotency/linkage, customer/foreign-project denial, delete guard and OSM bounds')

@@ -762,3 +762,11 @@ button.list-chip-project:focus-visible{outline-offset:1px}
 .pl-home-marker span{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;border:3px solid #fff;background:#245da0;color:#fff;font-size:22px;font-weight:800;box-shadow:0 1px 6px #0008;cursor:grab}.pl-home-marker:active span{cursor:grabbing}
 
 .saved-plan-list .saved-plan{display:block}.saved-plan-heading{display:flex;align-items:center;justify-content:space-between;gap:1rem}.plan-flight-group{margin-top:1rem}.plan-flight-group li{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:.5rem 0}.plan-flight-group ol{padding-left:1rem}@media(max-width:600px){.saved-plan-heading,.plan-flight-group li{flex-wrap:wrap}}
+
+/* Reserve room for long camera names, select arrows and signed degree values. */
+.pl-main-controls .pl-top-field select{padding-right:2.6rem;max-width:none}
+.pl-main-controls #pl-cameraId{width:34ch;min-width:34ch}
+.pl-main-controls #pl-spacingMode{width:35ch;min-width:35ch}
+.pl-flight-controls .pl-bearing-control{grid-template-columns:24px minmax(40px,1fr) 6rem 24px}
+.pl-flight-controls input[type=number]{font-variant-numeric:tabular-nums}
+@media(max-width:850px){.pl-main-controls{grid-template-columns:minmax(0,1fr)}.pl-main-controls .pl-top-field{grid-template-columns:5.5rem minmax(0,1fr)}.pl-main-controls #pl-cameraId,.pl-main-controls #pl-spacingMode{width:100%;min-width:0}.pl-main-controls .pl-top-field select{width:100%;min-width:0}.pl-flight-controls{grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))}}
