@@ -105,7 +105,7 @@ try {
   $db->beginTransaction();foreach($items as $index=>$item){$rank=($input['reset']??false)===true?null:$index;$q=stmt('UPDATE missions SET map_sort=?,revision=revision+1 WHERE id=? AND revision=?',[$rank,$item['id'],(int)$item['revision']]);if(!$q->rowCount()){$db->rollBack();problem('Eine Mission wurde inzwischen geändert. Bitte neu laden.',409);}}$db->commit();respond(['ok'=>true]);
  }
  if($action==='mission-map-type'&&$method==='POST'){
-  $m=mission((string)($input['id']??''),true);$type=$input['captureType']??'';if(!in_array($type,['photo','video','panorama','sphere'],true))problem('Unbekannte Aufnahmeart.');$q=stmt('UPDATE missions SET map_capture_type=?,updated=?,revision=revision+1 WHERE id=? AND revision=?',[$type,gmdate('c'),$m['id'],(int)($input['revision']??0)]);if(!$q->rowCount())problem('Mission wurde inzwischen geändert. Bitte neu laden.',409);respond(['ok'=>true]);
+  $m=mission((string)($input['id']??''),true);$type=$input['captureType']??'';if(!in_array($type,['photo','video','panorama','sphere'],true))problem('Unbekannte Aufnahmeart.');$q=stmt('UPDATE missions SET map_capture_type=?,map_capture_override=1,updated=?,revision=revision+1 WHERE id=? AND revision=?',[$type,gmdate('c'),$m['id'],(int)($input['revision']??0)]);if(!$q->rowCount())problem('Mission wurde inzwischen geändert. Bitte neu laden.',409);respond(['ok'=>true]);
  }
  if($action==='mission-start'&&$method==='POST'){
   $m=mission((string)($input['id']??''),true);$lat=$input['lat']??null;$lng=$input['lng']??null;
