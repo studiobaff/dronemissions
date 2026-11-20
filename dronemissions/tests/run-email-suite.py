@@ -154,13 +154,13 @@ def main():
             for n in range(30): Client(base).call('login',{'email':f'missing{n}@example.test'})
             Client(base).call('login',{'email':'another@example.test'},expected=429)
             print('PASS: STARTTLS HTML/text delivery, active roles, rejection, revocation, CSRF/origin, replay, session rotation, absolute cookie/expiry, OTP expiry/attempts, cross-session rejection, SMTP failure, address/IP limits',flush=True)
-            clear_rates()
-            run(sys.executable,str(ROOT/'tests/device-access.py'),base,str(private/'access.json'),tmp)
             for script in ['integration.py','previews.py','project-maps-pois.py','planner-api.py','circle-grid-api.py','kmz-editor-api.py']:
                 clear_rates()
                 args=[sys.executable,str(ROOT/'tests'/script),'--base',base,'--access',str(private/'access.json')]
                 if script=='integration.py':args.append('--allow-test-writes')
                 run(*args)
+            clear_rates()
+            run(sys.executable,str(ROOT/'tests/device-access.py'),base,str(private/'access.json'),tmp)
             if os.environ.get('DM_BROWSER_TESTS')=='1':
                 clear_rates()
                 run('node',str(ROOT/'tests/email-browser.cjs'),base,str(private/'access.json'))
