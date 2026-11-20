@@ -234,28 +234,38 @@ $('#cards').addEventListener('toggle', e => {
  if (!group) return;
  if (group.open) archiveExpanded.add(group.dataset.archiveGroup); else archiveExpanded.delete(group.dataset.archiveGroup);
 }, true);
-function renderSavedPlans() {
- const ids=scopeIds(),q=query();
- const plans=canEdit()&&filter==='all'?(data.plans||[]).filter(p=>{
+function renderSavedPlans(missions) {
+ const ids=scopeIds(),q=query(),grouped=new Set();
+ const plans=canEdit()&&['all','kmz'].includes(filter)?(data.plans||[]).filter(p=>{
   const archived=isArchived(p.folder);
   if(view==='archive'?!archived:view==='folder'&&isArchived(folder)?false:archived)return false;
   if(view==='unfiled'&&p.folder)return false;
-  return (!ids||ids.has(p.folder))&&`${p.name} ${pathFor(p.folder)}`.toLocaleLowerCase().includes(q);
+  return (!ids||ids.has(p.folder))&&(`${p.name} ${pathFor(p.folder)}`.toLocaleLowerCase().includes(q)||missions.some(m=>m.details.plannerId===p.id));
  }):[];
- const section=$('#saved-plans');section.classList.toggle('hidden',!plans.length||showMap);
- section.innerHTML=plans.length?`<h2>Gespeicherte Planungen <span class="num">${plans.length}</span></h2><p class="hint">Im Missionsplaner weiterbearbeiten oder als KMZ-Mission im Projekt speichern.</p><div class="saved-plan-list">${plans.map(p=>`<article class="saved-plan"><div><strong>${esc(p.name)}</strong><p class="hint">${esc(pathFor(p.folder)||'Ohne Projekt')} · Planung · Revision ${Number(p.revision)}</p></div><button type="button" class="btn btn-outline" data-planner-id="${esc(p.id)}">Planung öffnen</button></article>`).join('')}</div>`:'';
- return plans.length;
+ const section=$('#saved-plans');section.classList.toggle('hidden',!plans.length);
+ section.innerHTML=plans.length?`<h2>Planungen im Projekt <span class="num">${plans.length}</span></h2><p class="hint">Raster gemeinsam bearbeiten. Fluganzahl und Akku-Aufteilung können jederzeit in der Planung geändert werden.</p><div class="saved-plan-list">${plans.map(p=>{
+  const flights=missions.filter(m=>m.details.plannerId===p.id).sort((a,b)=>Number(b.details.plannerRevision)-Number(a.details.plannerRevision)||Number(a.details.plannerPart)-Number(b.details.plannerPart));
+  flights.forEach(m=>grouped.add(m.id));
+  const revisions=[...new Set(flights.map(m=>Number(m.details.plannerRevision)))];
+  return `<article class="saved-plan"><div class="saved-plan-heading"><div><strong>${esc(p.name)}</strong><p class="hint">${esc(pathFor(p.folder)||'Ohne Projekt')} · Gemeinsame Planung · Revision ${Number(p.revision)}</p></div><button type="button" class="btn btn-outline" data-planner-id="${esc(p.id)}">Planung öffnen</button></div>${revisions.map((rev,i)=>`<details class="plan-flight-group" ${i===0?'open':''}><summary>${rev===Number(p.revision)?'Exportierte Flüge':'Früherer Export'} · Revision ${rev}${rev!==Number(p.revision)?' · Planung inzwischen geändert':''}</summary><ol>${flights.filter(m=>Number(m.details.plannerRevision)===rev).map(m=>`<li><span>Flug ${Number(m.details.plannerPart)} von ${Number(m.details.plannerParts)} · ${km(m.details.distance,2)}</span><button type="button" class="btn btn-outline btn-sm" data-flight-open="${esc(m.id)}">Flug öffnen</button></li>`).join('')}</ol></details>`).join('')}${!flights.length?'<p class="hint">Planung gespeichert. Flüge nach der Aufteilung unter „Prüfen & Exportieren“ erzeugen.</p>':''}</article>`;
+ }).join('')}</div>`:'';
+ return {count:plans.length,grouped};
 }
+$('#saved-plans').addEventListener('click',e=>{const b=e.target.closest('[data-flight-open]');if(b)run(()=>openMission(b.dataset.flightOpen));});
+
 function render() {
  const missions = visibleMissions(), points = visiblePoints();
  checkedMissions = new Set([...checkedMissions].filter(id => missions.some(m => m.id === id)));
  renderSidebar(); renderHeader(); renderStats(missions, points);
  $$('#filters .chip').forEach(c => c.classList.toggle('selected', c.dataset.filter === filter));
  $('#filters').classList.toggle('hidden', !canEdit());
- $('#cards').innerHTML = view === 'archive' ? archiveCards(missions, points) : missions.map(missionCard).join('') + points.map(pointCard).join('');
- const planCount=renderSavedPlans();
+ const planGroups=renderSavedPlans(missions),planCount=planGroups.count;
+ const standalone=missions.filter(m=>!planGroups.grouped.has(m.id));
+ $('#cards').innerHTML = view === 'archive' ? archiveCards(standalone, points) : standalone.map(missionCard).join('') + points.map(pointCard).join('');
+ if(planCount){$('#total-missions-label').textContent='Flugdateien';}
  const total = missions.length + points.length, q = query(), filtered = q || filter !== 'all';
  $('#result-line').textContent = total ? `${missions.length} ${t.n(canEdit() ? 'stats.missions' : 'stats.locations', missions.length)}${points.length ? ` · ${points.length} ${t.n('result.points', points.length)}` : ''}${filtered ? ' ' + t('result.found') : ''}` : '';
+ if(planCount)$('#result-line').textContent=`${planCount} ${planCount===1?'Planung':'Planungen'} · ${planGroups.grouped.size} zugehörige Flugdateien${standalone.length?' · '+standalone.length+' weitere Missionen':''}${points.length?' · '+points.length+' Planungspunkte':''}`;
  const empty = $('#empty');
  empty.classList.toggle('hidden', total > 0 || planCount > 0 || showMap || (view === 'archive' && $('#cards').children.length > 0));
  if (!total) {

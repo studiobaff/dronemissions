@@ -1,0 +1,16 @@
+# Gemeinsames Raster mit Flügen
+
+Eine gespeicherte Planung bleibt die bearbeitbare Quelle. Flug 1, Flug 2 usw. sind daraus erzeugte Abschnitte im selben Projekt. Eine neue Aufteilung verändert weder Polygon noch Rastergeometrie. Bereits exportierte Dateien bleiben als frühere Exporte mit Planungsrevision erhalten; sie werden nicht stillschweigend ersetzt.
+
+Im Planer stehen drei Aufteilungen zur Wahl:
+- Bisheriges Wegpunktlimit (bestehende Planungen bleiben kompatibel).
+- Automatisch nach Minuten pro Akku, inklusive geschätztem Anflug, Rückflug und Reserve.
+- Feste Anzahl Flüge, z. B. zwei statt drei. Budgetüberschreitungen werden ausgewiesen.
+
+Der H-Marker wird gesetzt oder gezogen. Er dient für die Routenreihenfolge und die Akku-Zeitschätzung. Die Höhenreferenz wird nicht durch Ziehen des Markers geändert. Bei DEM müssen H und der DEM-Startpunkt übereinstimmen.
+
+An-/Rückflug werden horizontal als Luftlinie und vertikal mit einstellbarer Geschwindigkeit geschätzt. Diese Wege werden nicht als hindernisgeprüfte Flugwege exportiert. Manöver werden mit einem pauschalen Stoppzuschlag sowie der gewählten Reserve berücksichtigt. Wind, Akku und tatsächliche Rückkehrhöhe bleiben vor Ort zu prüfen. Die Zeit ist keine garantierte Akkulaufzeit.
+
+Fortsetzungen überlappen um bis zur gewünschten Strecke; die Überlappung wird bei kurzen Flügen auf ein Viertel der vorherigen Flugstrecke begrenzt. Lange gerade Bahnen können im Inneren geteilt werden. Löcher, getrennte Bereiche und Kreuzraster bleiben getrennt. Eine feste Anzahl unterhalb dieser Mindestanzahl oder oberhalb der Wegpunktkapazität wird abgelehnt.
+
+Die Projektansicht gruppiert exportierte Flüge unter der gemeinsamen Planung. Frühere Exportrevisionen bleiben zugänglich. Die Kamerawahl ist weiterhin ein Berechnungsprofil; die DJI-Gerätekennung wird einmal pro Planung aus einer passenden Referenz-KMZ zugeordnet und mitgespeichert.

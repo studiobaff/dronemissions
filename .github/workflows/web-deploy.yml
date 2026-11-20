@@ -38,6 +38,7 @@ jobs:
           php dronemissions/tests/parser.php
           php dronemissions/tests/planner.php
           php dronemissions/tests/grid-turns.php
+          php dronemissions/tests/flights.php
   deploy:
     needs: check
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
