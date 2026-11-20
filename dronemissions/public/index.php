@@ -1,4 +1,5 @@
 <?php
+$releaseFile=__DIR__.'/release.json';if(is_file($releaseFile)){$release=json_decode(file_get_contents($releaseFile),true);if(preg_match('/^[a-f0-9]{40}$/D',$release['commit']??''))header('X-Drone-Release: '.$release['commit']);}
 header('Content-Type: text/html; charset=utf-8');
 header('X-Content-Type-Options: nosniff');header('X-Frame-Options: DENY');header('Referrer-Policy: strict-origin-when-cross-origin');  // OpenStreetMap sperrt Kachelanfragen ohne Referer; Freigabe-Token stehen nur im #-Teil und werden nie gesendet
 header('Cache-Control: no-store');

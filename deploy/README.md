@@ -106,3 +106,10 @@ finished main commits publish the web public directory automatically. Do not cop
 local worktrees or private data into the release. The Mac Bridge remains a separate
 local build and is not installed by the web workflow. Add new public asset extensions
 to both release allowlists if needed; never add config.json or source project files.
+
+
+## PHP cache and executed-release verification
+
+After switching the symlink, the receiver calls `release-health.php` with a short-lived HMAC derived from the existing private application `rateSecret`, the target commit and timestamp (60-second window). The endpoint accepts only authenticated POST requests and resets PHP OPcache; no token is stored in the repository or logged. Static manifest checks alone do not prove that PHP is executing the new release. The homepage now sends `X-Drone-Release` from its compiled release directory, and both receiver and external health check require it to match the deployed commit. A stale PHP release causes deployment failure/rollback.
+
+Update the private receiver from this repository before deploying the first release containing this endpoint. Back up the old receiver and preserve its private config and forced-command path. CLI `opcache_reset()` does not reset PHP-FPM's cache. If hosting disables the web reset function, an administrator must reload the affected PHP-FPM pool; do not bypass the executed-release check.
