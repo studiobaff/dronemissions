@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from integration import Client,synthetic_kmz
 p=argparse.ArgumentParser();p.add_argument('--base',required=True);p.add_argument('--access',type=Path,required=True);p.add_argument('--allow-test-writes',action='store_true',required=True);a=p.parse_args();assert urlparse(a.base).hostname in ('127.0.0.1','localhost')
-c=Client(a.base);c.call('mission-start',{'id':'missing','lat':48,'lng':16},expected=401);c.call('nature',{'category':'NP','bbox':[16,47,17,48]},expected=401);c.call('login',json.loads(a.access.read_text()))
+c=Client(a.base);c.call('mission-start',{'id':'missing','lat':48,'lng':16},expected=401);c.call('nature',{'category':'NP','bbox':[16,47,17,48]},expected=401);c.login(json.loads(a.access.read_text()))
 root=c.call('folder',{'name':'Freigabekarte Demo'})['id'];outside=c.call('folder',{'name':'Privater anderer Ordner'})['id']
 raw=synthetic_kmz();buf=io.BytesIO()
 with zipfile.ZipFile(io.BytesIO(raw)) as src,zipfile.ZipFile(buf,'w',zipfile.ZIP_DEFLATED) as out:

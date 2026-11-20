@@ -16,22 +16,42 @@ Der Standardpfad des privaten Verzeichnisses ist in `public/lib.php` definiert. 
 
 1. PHP-Erweiterungen und Upload-Limits prüfen.
 2. Privaten Ordner für den PHP-Benutzer vorsehen. Verzeichnisse Modus 0700, sensible Dateien 0600; keine Schreibrechte für andere Benutzer.
-3. Einen zufälligen Zugangsschlüssel mit mindestens 24 Zeichen über einen Passwortmanager oder kryptographischen Zufall erzeugen. Sicher verwahren.
-4. Eine JSON-Zugangsdatei außerhalb des Webroots mit Modus 0600 anlegen. Den Schlüssel über stdin an das CLI-Setup übergeben, nie als Kommandozeilenargument.
+3. Aktive Publisher-Benutzerverwaltung und funktionierende SMTP-Konfiguration außerhalb des Webroots bereitstellen. Nur `admin` und `superadmin` sind für die gesamte Bibliothek berechtigt.
+4. Eine private JSON-Datei für das CLI-Setup anlegen (0600):
+
+```json
+{
+  "authorName": "",
+  "emailLogin": {
+    "usersDatabase": "/absolute/private/publisher/publisher.sqlite",
+    "smtpConfig": "/absolute/private/publisher/config.json"
+  }
+}
+```
 
 ```sh
 env DRONEMISSIONS_PRIVATE=/absolute/private/dronemissions \
   php /absolute/source/dronemissions/tools/setup.php < /private/setup-access.json
 ```
 
-Das Setup verweigert die Änderung einer bestehenden Konfiguration. Die Zugangsdatei nach sicherer Übernahme in den Passwortmanager entfernen oder geschützt aufbewahren. Nicht in Tickets, Chat oder Git kopieren.
+Das Setup verweigert die Änderung bestehender Konfiguration. Bei einer bestehenden Installation nur `emailLogin` ergänzen; `rateSecret`, Einstellungen und Nutzdaten erhalten. Alte `passwordHash`-Einträge werden nicht mehr verwendet. Bestehende Eigentümersitzungen ohne E-Mail müssen sich neu anmelden. Projektfreigaben bleiben erhalten.
 
-5. Den Inhalt von `public/` einschließlich `vendor/images/` in das Zielverzeichnis kopieren.
-6. HTTPS-Aufruf, Login, Secure-/HttpOnly-Cookie und leere Bibliothek prüfen. Keine realen Kundendaten für öffentliche Screenshots verwenden.
+5. Über den [GitHub-Releaseweg](../../deploy/README.md) veröffentlichen.
+6. HTTPS, Login, Secure-/HttpOnly-/SameSite-Cookie und Freigaben prüfen. Keine realen Kundendaten für öffentliche Screenshots verwenden.
+
+### E-Mail-Anmeldung
+
+Die Publisher-Datenbank braucht `users(email, active, role)`. Der Zugriff schaltet SQLite auf `query_only`; Drone Missions verändert keine Publisher-Benutzer. Die Adresse wird kleingeschrieben und ohne äußere Leerzeichen verglichen. Eine deaktivierte oder entzogene Rolle sperrt den nächsten geschützten Zugriff; eine wieder erteilte Rolle belebt eine bereits verworfene Sitzung nicht wieder.
+
+`smtpConfig` verweist auf eine private JSON-Datei mit `smtp.host`, `port`, `username`, `password`, `sender`. Port 465 verwendet implizites TLS, andere Ports zwingend STARTTLS. Zertifikats- und Hostprüfung bleiben aktiv. Optional verweist `smtp.caFile` auf eine vertrauenswürdige CA-Datei (für eigene PKI oder isolierte Tests). cURL muss SMTP/SMTPS unterstützen. Konfiguration und Datenbank niemals öffentlich ausliefern oder einchecken.
+
+Codes sind sechsstellige Zufallswerte, acht Minuten gültig, an die anfordernde Sitzung gebunden und nur als HMAC gespeichert. Nach fünf falschen Eingaben wird die Challenge verworfen. In 15 Minuten sind fünf Anforderungen pro Adresse und 30 Anforderungen/Prüfungen pro IP erlaubt; die Zähler gelten auch über mehrere Browsersitzungen. Unberechtigte Adressen erhalten dieselbe neutrale Anforderungsantwort, aber keine Mail. SMTP-Fehler verwerfen den Code und liefern 503; keine SMTP-Zugangsdaten oder Codes werden protokolliert. Die Antwort ist kein Schutz gegen zeitbasierte Adresserkennung.
+
+Nach erfolgreicher Prüfung werden Sitzungs-ID und CSRF-Token erneuert. Die Sitzung und das Cookie enden absolut zwölf Stunden nach Login; API-Aufrufe verlängern diese Frist nicht. Abmelden zerstört die Sitzung und löscht das Cookie. HTTPS ist im Produktionsbetrieb erforderlich; HTTP ist nur für isolierte Loopback-Tests vorgesehen. Die Mail enthält HTML und eine Textalternative. Browserreload während der Codeeingabe erfordert eine erneute Codeanforderung; eine abgeschlossene Anmeldung überlebt Reloads bis zum Ablauf.
 
 ## Eigener Name
 
-Nach der Anmeldung unter **Einstellungen → Autor / Betreiber** den eigenen Namen eintragen. Alternativ kann die JSON-Eingabe des Setups neben `password` ein optionales `authorName` enthalten. Standard ist ein leeres Feld und damit eine neutrale Oberfläche. Neue Archivpakete enthalten diesen Namen im Manifest-Feld `author`. Bestehende Originaldateien werden dadurch nicht verändert.
+Nach der Anmeldung unter **Einstellungen → Autor / Betreiber** den eigenen Namen eintragen. Alternativ kann die JSON-Eingabe des Setups neben `emailLogin` ein optionales `authorName` enthalten. Standard ist ein leeres Feld und damit eine neutrale Oberfläche. Neue Archivpakete enthalten diesen Namen im Manifest-Feld `author`. Bestehende Originaldateien werden dadurch nicht verändert.
 
 ## Updates und Backups
 
@@ -47,7 +67,7 @@ Eigentümer haben Zugriff auf die ganze Bibliothek. Lesefreigaben erlauben Proje
 
 Freigaben lassen sich jederzeit in „Freigaben“ widerrufen und laufen nach 30 Tagen ab. Der Link wird nur beim Erstellen angezeigt. Keine Freigabelinks in öffentlichen Screenshots speichern.
 
-Für einen Schlüsselwechsel die Konfiguration administrativ aktualisieren und bestehende Sitzungen ungültig machen; dafür gibt es aktuell keinen Webdialog. Produktionszugang niemals für Integrationstests verwenden.
+Zugriff über Aktivstatus/Rolle im Publisher entziehen. Produktionszugang niemals für Integrationstests verwenden.
 
 ### Geozonen und Adresssuche
 

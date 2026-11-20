@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 from pathlib import Path
 from integration import Client,synthetic_kmz
 parser=argparse.ArgumentParser();parser.add_argument('--base',required=True);parser.add_argument('--access',type=Path,required=True);args=parser.parse_args();assert urlparse(args.base).hostname in ('127.0.0.1','localhost','::1')
-c=Client(args.base);c.call('login',json.loads(args.access.read_text()))
+c=Client(args.base);c.login(json.loads(args.access.read_text()))
 f=c.call('folder',{'name':'Synthetic 3DGS QA'})['id'];profile=c.call('upload',{'folder':f,'name':'Synthetic device'},files={'kmz':('device.kmz',synthetic_kmz())})['id']
 p={'name':'3DGS circle-grid QA','type':'circleGrid','cameraId':'mavic3','geometry':{'type':'Polygon','coordinates':[[[16,48],[16.0004,48],[16.0004,48.0004],[16,48.0004],[16,48]]]},'params':{'captureMode':'video','bottom':30,'top':55,'orbitRadius':30,'circleOverlap':50,'orbitLevels':2,'speed':3,'maxYawRate':6,'sampleFps':2,'photoLimit':150,'terrainMode':'off','poiReference':'relative','pitchMode':'auto'}}
 b={'folder':f,'profileMission':profile,'plan':p};r=c.call('planner-preview',b);assert r['circleGrid']['orbits']==4

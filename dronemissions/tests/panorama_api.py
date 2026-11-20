@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from integration import Client,synthetic_kmz
 p=argparse.ArgumentParser();p.add_argument('--base',required=True);p.add_argument('--access',type=Path,required=True);p.add_argument('--allow-test-writes',action='store_true',required=True);a=p.parse_args();assert urlparse(a.base).hostname in ('127.0.0.1','localhost')
-c=Client(a.base);c.call('login',json.loads(a.access.read_text()));folder=c.call('folder',{'name':'Pano Reorder QA'})['id'];outside=c.call('folder',{'name':'Foreign reorder QA'})['id'];raw=synthetic_kmz();ids=[]
+c=Client(a.base);c.login(json.loads(a.access.read_text()));folder=c.call('folder',{'name':'Pano Reorder QA'})['id'];outside=c.call('folder',{'name':'Foreign reorder QA'})['id'];raw=synthetic_kmz();ids=[]
 for name in ['OeBB.EF.Pano.008','OeBB.EF.Pano010','OeBB.EF.Pano.003']:
  ids.append(c.call('upload',{'folder':folder,'name':name},files={'kmz':(name+'.kmz',raw)})['id'])
 get=lambda:[m for m in c.call('library')['missions'] if m['id'] in ids]

@@ -1,5 +1,11 @@
 # Prüfung
 
+## E-Mail-Anmeldung (20. November 2026)
+
+`python3 dronemissions/tests/run-email-suite.py` richtet eine wegwerfbare Loopback-Installation ein. Voraussetzungen: PHP mit SQLite, ZIP, XML, GD und cURL, Python 3, OpenSSL. Die Suite nutzt eine synthetische Publisher-Benutzerverwaltung und einen lokalen STARTTLS-SMTP-Server mit eigener Test-CA. Die produktiven Authentifizierungs- und Versandfunktionen werden unverändert ausgeführt; keine echten Mails oder Nutzdaten.
+
+Prüffälle: HTML/Text-Mail, sechsstelliger Code, aktive Admin-/Superadmin-Rollen, unbekannte/deaktivierte/unberechtigte Konten, Rollenentzug während Sitzung und Codeprüfung, CSRF und fremder Origin, Codeablauf und Wiederverwendung, fünf Fehlversuche, Bindung an die Browsersitzung, Sitzungs-ID-Wechsel, zwölfstündiger absoluter Cookieablauf, Logout, SMTP-Fehler sowie Adress-/IP-Limits. Anschließend laufen die bestehenden Archiv-, Vorschau-, Projektkarten-, Planer-, Orbit-Grid- und KMZ-Editor-API-Tests inklusive eingeschränkter Projektfreigaben. Produktive Zustellung an einen realen Posteingang ist ein separater manueller Abnahmeschritt.
+
 Stand: 7. November 2026. PHP 8.3.36 auf FreeBSD, getrennte Entwicklungsdatenbank. Oberflächen-Überarbeitung geprüft mit PHP 8.3.6 (Linux, eingebauter Webserver) und headless Chromium über Playwright.
 
 ## Automatisierte API-Prüfung
@@ -7,7 +13,7 @@ Stand: 7. November 2026. PHP 8.3.36 auf FreeBSD, getrennte Entwicklungsdatenbank
 `tests/integration.py` verwendet nur die Python-Standardbibliothek und erzeugt synthetische WPML-KMZ-Dateien. Geprüft werden:
 
 - Autoreneinstellung: nur Eigentümer, HTML-Escaping, Manifest-Autor, neutrale Standardeinstellung.
-- Nicht angemeldeter Zugriff und ungültiger Zugangsschlüssel.
+- Nicht angemeldeter Zugriff und ungültige Login-Eingabe.
 - Projekte, Unterordner und Ablehnung zyklischer Ordnerbeziehungen.
 - WPML-Einlesen, Wegpunktzahl, Routenlänge, SVG-Vorschau und Ablehnung defekter KMZ.
 - Native LCHM/LCHZ: Dateisignatur, beide ZIP-Offset-Varianten von LCHZ, Originaldownload, Platzhalter ohne erfundene Route und exakter Inhalt im Archivpaket.

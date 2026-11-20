@@ -8,7 +8,7 @@ from previews import png
 
 def main():
  p=argparse.ArgumentParser();p.add_argument('--base',required=True);p.add_argument('--access',type=Path,required=True);a=p.parse_args();assert urlparse(a.base).hostname in ('127.0.0.1','localhost','::1')
- c=Client(a.base);c.call('kmz-edit-load&id=missing',expected=401);c.call('login',json.loads(a.access.read_text()))
+ c=Client(a.base);c.call('kmz-edit-load&id=missing',expected=401);c.login(json.loads(a.access.read_text()))
  folder=c.call('folder',{'name':'KMZ-Editor · Test'})['id'];other=c.call('folder',{'name':'KMZ-Editor · Fremd'})['id'];raw=synthetic_kmz()
  mid=c.call('upload',{'folder':folder,'name':'Editor · Rundflug'},files={'kmz':('editor.kmz',raw)})['id']
  def mission():return next(m for m in c.call('library')['missions'] if m['id']==mid)

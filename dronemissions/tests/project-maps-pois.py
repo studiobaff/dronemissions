@@ -8,7 +8,7 @@ from integration import Client,synthetic_kmz
 def main():
  p=argparse.ArgumentParser();p.add_argument('--base',required=True);p.add_argument('--access',type=Path,required=True);a=p.parse_args()
  assert urlparse(a.base).hostname in ('127.0.0.1','localhost','::1')
- c=Client(a.base);c.call('login',json.loads(a.access.read_text()))
+ c=Client(a.base);c.login(json.loads(a.access.read_text()))
  root=c.call('folder',{'name':'Reference test A'})['id'];sub=c.call('folder',{'parent':root,'name':'Child'})['id'];other=c.call('folder',{'name':'Reference test B'})['id']
  before=len(c.call('library')['missions']);geo=json.dumps({'type':'FeatureCollection','features':[{'type':'Feature','geometry':{'type':'LineString','coordinates':[[16,48],[16.001,48.001]]},'properties':{'name':'Synthetic line'}}]}).encode()
  original=io.BytesIO()
