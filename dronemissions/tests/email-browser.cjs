@@ -76,7 +76,7 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(()=>document.querySelector('#pl-status').textContent.includes('als Mission im gewählten Projekt gespeichert'));
     assert.equal(await page.getByRole('button',{name:'Planung speichern',exact:true}).count(),1);
     await page.locator('#planner-dialog').evaluate(dialog=>dialog.close());
-    assert.equal(await page.locator('#saved-plans [data-flight-open]').count(),3,'flights grouped within saved raster');
+    assert.equal(await page.locator('#saved-plans .saved-plan').filter({has:page.locator(`[data-planner-id="${saved.id}"]`)}).locator('[data-flight-open]').count(),3,'flights grouped within saved raster');
     assert.equal(await page.locator(`#saved-plans [data-planner-id="${saved.id}"]`).count(),1,'one master plan');
     const again=page.waitForResponse(r=>r.url().includes('action=planner-preview')&&r.status()===200);
     await page.locator(`#saved-plans [data-planner-id="${saved.id}"]`).click();
