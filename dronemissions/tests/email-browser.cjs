@@ -34,6 +34,33 @@ const assert = require('node:assert/strict');
    const cookie=(await context.cookies()).find(c=>c.name==='dm_session');
    assert(cookie.httpOnly && cookie.sameSite==='Strict');
    assert(cookie.expires>Date.now()/1000+43100);
+   if(viewport.width>1000){
+    const saved=await page.evaluate(async()=>{
+     const folder=(await api('folder',{name:'Synthetic smooth grid browser'})).id;
+     const plan={name:'Synthetic video turns',type:'grid',cameraId:'mavic3',geometry:{type:'Polygon',coordinates:[[[16,48],[16.003,48],[16.003,48.003],[16,48.003],[16,48]]]},params:{captureMode:'video',height:70,gridMotion:'smooth',gridTurnRadius:10,speed:5,photoLimit:200,sectionOverlap:2,terrainMode:'off'}};
+     const saved=await api('planner-save',{folder,plan});await refresh();return saved;
+    });
+    await page.locator('#planner-open').click();
+    await page.locator(`#pl-drafts option[value="${saved.id}"]`).waitFor({state:'attached'});
+    const preview=page.waitForResponse(r=>r.url().includes('action=planner-preview')&&r.status()===200);
+    await page.locator('#pl-drafts').selectOption(saved.id);
+    const result=await (await preview).json();
+    await page.waitForFunction(()=>document.querySelector('#pl-live-status').textContent.includes('Fließendes Raster'));
+    assert(result.gridTurns.roundedCorners>0);
+    assert.equal(await page.locator('#pl-gridMotion').inputValue(),'smooth');
+    assert.equal(await page.locator('#pl-limit-label').textContent(),'Max. Wegpunkte je Abschnitt');
+    const expected=result.parts.reduce((n,part)=>n+part.length,0);
+    const visible=await page.locator('#pl-map path[stroke="#fff"][fill-opacity="1"]').count();
+    assert.equal(visible,expected,'every video support point is drawn');
+    await page.locator('#pl-review').click();
+    const profile=await page.locator('#pl-profile').evaluate(select=>select.options[1]?.value);
+    assert(profile,'synthetic reference mission is available');
+    await page.locator('#pl-profile').selectOption(profile);
+    await page.getByRole('button',{name:'Mission im Projekt speichern',exact:true}).click();
+    await page.waitForFunction(()=>document.querySelector('#pl-status').textContent.includes('als Mission im gewählten Projekt gespeichert'));
+    assert.equal(await page.getByRole('button',{name:'Planung speichern',exact:true}).count(),1);
+    await page.locator('#planner-dialog').evaluate(dialog=>dialog.close());
+   }
    // Mobile navigation may hide logout; open the drawer through the existing toggle.
    const logout=page.locator('#logout');
    if (!await logout.isVisible()) {
