@@ -759,7 +759,7 @@ button.list-chip-project:focus-visible{outline-offset:1px}
 /* Saved planner records are discoverable before KMZ generation. */
 .saved-plans{margin:1rem 0 2rem}.saved-plans h2{font-size:1.1rem;margin-bottom:.35rem}.saved-plans h2 span{color:var(--muted);margin-left:.4rem}.saved-plan-list{display:grid;gap:.65rem;margin-top:.8rem}.saved-plan{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem;background:var(--surface,#fff);border:1px solid var(--line,#d4dccc);border-radius:14px}.saved-plan>div{min-width:0;flex:1 1 180px}.saved-plan strong,.saved-plan .hint{overflow-wrap:anywhere}.saved-plan .hint{margin:.3rem 0 0}.saved-plan .btn{flex-shrink:0}
 
-.pl-home-marker span{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;border:3px solid #fff;background:#245da0;color:#fff;font-size:22px;font-weight:800;box-shadow:0 1px 6px #0008;cursor:grab}.pl-home-marker:active span{cursor:grabbing}
+.pl-home-marker{box-sizing:border-box;border:2px solid #fff;border-radius:50%;background:#fff;box-shadow:0 1px 6px #0008;cursor:grab;font-size:0;line-height:0}.pl-home-marker img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:block;width:42px;height:42px;max-width:none;pointer-events:none;user-select:none}.pl-home-marker:active{cursor:grabbing}
 
 .saved-plan-list .saved-plan{display:block}.saved-plan-heading{display:flex;align-items:center;justify-content:space-between;gap:1rem}.plan-flight-group{margin-top:1rem}.plan-flight-group li{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:.5rem 0}.plan-flight-group ol{padding-left:1rem}@media(max-width:600px){.saved-plan-heading,.plan-flight-group li{flex-wrap:wrap}}
 
