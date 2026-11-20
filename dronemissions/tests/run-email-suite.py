@@ -159,6 +159,8 @@ def main():
                 args=[sys.executable,str(ROOT/'tests'/script),'--base',base,'--access',str(private/'access.json')]
                 if script=='integration.py':args.append('--allow-test-writes')
                 run(*args)
+            clear_rates()
+            run(sys.executable,str(ROOT/'tests/device-access.py'),base,str(private/'access.json'),tmp)
             if os.environ.get('DM_BROWSER_TESTS')=='1':
                 clear_rates()
                 run('node',str(ROOT/'tests/email-browser.cjs'),base,str(private/'access.json'))

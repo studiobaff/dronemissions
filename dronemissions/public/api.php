@@ -2,12 +2,13 @@
 declare(strict_types=1);
 require __DIR__.'/lib.php';
 require __DIR__.'/auth.php';
+require __DIR__.'/device-auth.php';
 header('Cache-Control: no-store');header('X-Content-Type-Options: nosniff');header('Referrer-Policy: no-referrer');header('X-Frame-Options: DENY');
 function respond(array $data,int $status=200): never {http_response_code($status);header('Content-Type: application/json; charset=utf-8');echo json_encode($data,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);exit;}
 function problem(string $message,int $status=400): never {respond(['error'=>$message],$status);}
 function stmt(string $sql,array $args=[]): PDOStatement {global $db;$s=$db->prepare($sql);$s->execute($args);return $s;}
 function scope(): ?array {
- if(dm_owner_valid())return null;
+ if(dm_owner_valid()||dm_device_valid())return null;
  if(!empty($_SESSION['share'])){$s=stmt('SELECT * FROM shares WHERE id=? AND expires>?',[$_SESSION['share'],time()])->fetch();if($s)return $s;}
  problem('Bitte anmelden oder eine gültige Projektfreigabe öffnen.',401);
 }
@@ -18,7 +19,7 @@ function may_folder(?string $id,bool $write=false): void {
 }
 function mission(string $id,bool $write=false): array {$m=stmt('SELECT * FROM missions WHERE id=?',[$id])->fetch();if(!$m)problem('Mission nicht gefunden.',404);may_folder($m['folder'],$write);return $m;}
 function next_public_mission(array $missions,string $id): array {foreach($missions as $m)if($m['id']===$id)return $m;problem('Standort nicht freigegeben.',404);}
-function owner(): void {if(scope()!==null)problem('Nur der Eigentümer kann Freigaben verwalten.',403);}
+function owner(): void {if(!dm_owner_valid())problem('Nur der Eigentümer kann Freigaben verwalten.',403);}
 function filename(string $s): string {$s=preg_replace('/[^\pL\pN._ -]/u','_',$s)??'Mission';return substr($s,0,160)?:'Mission';}
 function stream_file(string $path,string $mime,string $name,bool $inline=false): never {header('Content-Type: '.$mime);header('Content-Length: '.filesize($path));header('Content-Disposition: '.($inline?'inline':'attachment').'; filename="download"; filename*=UTF-8\'\''.rawurlencode($name));readfile($path);exit;}
 try {
@@ -27,13 +28,15 @@ try {
  ini_set('session.use_strict_mode','1');ini_set('session.use_only_cookies','1');ini_set('session.gc_maxlifetime','43200');session_name('dm_session');session_save_path(dm_private().'/sessions');
  session_set_cookie_params(['lifetime'=>0,'path'=>'/dronemissions/','secure'=>!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off','httponly'=>true,'samesite'=>'Strict']);session_start();
  if(empty($_SESSION['csrf']))$_SESSION['csrf']=bin2hex(random_bytes(32));
- $db=dm_db();$action=$_GET['action']??'session';$method=$_SERVER['REQUEST_METHOD'];$input=[];
+ $db=dm_db();dm_device_schema();$action=$_GET['action']??'session';$method=$_SERVER['REQUEST_METHOD'];$input=[];
  if($method==='POST'){
   if(!hash_equals($_SESSION['csrf'],$_SERVER['HTTP_X_CSRF_TOKEN']??''))problem('Sitzung abgelaufen. Bitte neu laden.',403);
   if(!empty($_SERVER['HTTP_ORIGIN'])){$expected=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off'?'https':'http').'://'.($_SERVER['HTTP_HOST']??'');if($_SERVER['HTTP_ORIGIN']!==$expected)problem('Fremde Anfrage abgelehnt.',403);}
   if(str_starts_with($_SERVER['CONTENT_TYPE']??'','application/json')){$input=json_decode(file_get_contents('php://input'),true,64,JSON_THROW_ON_ERROR);if(!is_array($input))problem('Ungültige Anfrage.');}else{$input=$_POST;}
  }elseif($method!=='GET')problem('Methode nicht unterstützt.',405);
- if($action==='session'&&$method==='GET'){$logged=(dm_owner_valid())||(!empty($_SESSION['share'])&&stmt('SELECT id FROM shares WHERE id=? AND expires>?',[$_SESSION['share'],time()])->fetch());respond(['authenticated'=>(bool)$logged,'csrf'=>$_SESSION['csrf'],'version'=>'1.0.0']);}
+ dm_device_guard($action,$method);
+ dm_device_route($action,$method,$input);
+ if($action==='session'&&$method==='GET'){$logged=(dm_owner_valid()||dm_device_valid())||(!empty($_SESSION['share'])&&stmt('SELECT id FROM shares WHERE id=? AND expires>?',[$_SESSION['share'],time()])->fetch());respond(['authenticated'=>(bool)$logged,'csrf'=>$_SESSION['csrf'],'version'=>'1.0.0']);}
  dm_auth_route($action,$method,$input);
  if($action==='share-login'&&$method==='POST'){$token=$input['token']??'';if(!is_string($token)||strlen($token)>128)problem('Ungültige Freigabe.',403);$s=stmt('SELECT * FROM shares WHERE token_hash=? AND expires>?',[hash('sha256',$token),time()])->fetch();if(!$s)problem('Freigabe ist ungültig, abgelaufen oder widerrufen.',403);session_regenerate_id(true);$_SESSION=['share'=>$s['id'],'csrf'=>bin2hex(random_bytes(32))];respond(['ok'=>true,'csrf'=>$_SESSION['csrf']]);}
  if($action==='logout'&&$method==='POST'){$_SESSION=[];dm_session_cookie(time()-3600);session_destroy();respond(['ok'=>true]);}
@@ -54,7 +57,7 @@ try {
  if($action==='nature'&&$method==='POST'){require_once __DIR__.'/nature.php';$category=(string)($input['category']??'');$bbox=$input['bbox']??null;session_write_close();respond(dm_nature($category,$bbox));}
  if($action==='address'&&$method==='POST'){require_once __DIR__.'/address.php';respond(dm_address($input['query']??'',(string)($config['geocoderURL']??'https://photon.komoot.io/api/')));}
  if($action==='zones'&&$method==='GET'){require_once __DIR__.'/zones.php';respond(dm_zones());}
- if($action==='library'&&$method==='GET')respond(dm_payload($db,$current));
+ if($action==='library'&&$method==='GET'){$payload=dm_payload($db,$current);if(!empty($_SESSION['device'])){$payload['role']='editor';$payload['plans']=[];$payload['points']=[];$payload['layers']=[];}respond($payload);}
  if($action==='point'&&$method==='POST'){
   $folder=(string)($input['folder']??'');may_folder($folder,true);$name=dm_text($input['name']??'');$notes=dm_text($input['notes']??'',20000);$lat=dm_num(isset($input['lat'])?(string)$input['lat']:null);$lng=dm_num(isset($input['lng'])?(string)$input['lng']:null);if(!$name||$lat===null||$lng===null||abs($lat)>90||abs($lng)>180)problem('Name und Koordinaten prüfen.');
   $settings=$input['settings']??[];if(!is_array($settings))problem('Ungültige Panorama-Einstellungen.');$height=dm_num(isset($settings['height'])?(string)$settings['height']:null);$heading=dm_num(isset($settings['heading'])?(string)$settings['heading']:null);$gimbal=dm_num(isset($settings['gimbal'])?(string)$settings['gimbal']:null);$mode=$settings['heightMode']??'relativeToStartPoint';$capture=$settings['capture']??'sphere';if($height===null||$height< -500||$height>10000||$heading===null||$heading< -180||$heading>360||$gimbal===null||$gimbal< -90||$gimbal>90||!in_array($mode,['relativeToStartPoint','WGS84'],true)||!in_array($capture,['sphere','wideAngle','photo'],true))problem('Panorama-Einstellungen prüfen.');$encoded=json_encode(['height'=>$height,'heading'=>$heading,'gimbal'=>$gimbal,'heightMode'=>$mode,'capture'=>$capture],JSON_THROW_ON_ERROR);
@@ -75,6 +78,7 @@ try {
  }
  if($action==='folder-archive'&&$method==='POST'){$id=(string)($input['id']??'');may_folder($id,true);stmt('UPDATE folders SET archived=? WHERE id=?',[(int)(bool)($input['archived']??false),$id]);respond(['ok'=>true]);}
  if($action==='upload'&&$method==='POST'){
+  if(!empty($_SESSION['device'])&&(!empty($input['mission'])||strtolower(pathinfo($_FILES['kmz']['name']??'',PATHINFO_EXTENSION))!=='kmz'))problem('Geräte dürfen neue KMZ-Missionen sichern, aber keine Archivversionen ersetzen.',403);
   $folder=($input['folder']??null)?:null;$existing=($input['mission']??null)?:null;$m=$existing?mission($existing,true):null;if($m)$folder=$m['folder'];may_folder($folder,true);
   $file=$_FILES['kmz']??null;if(!$file||$file['error']!==UPLOAD_ERR_OK||!is_uploaded_file($file['tmp_name']))problem('Upload fehlgeschlagen. Maximal 16 MB pro Datei.');
   $original=basename(str_replace('\\','/',$file['name']));$extension=strtolower(pathinfo($original,PATHINFO_EXTENSION));if(!in_array($extension,['kmz','csv','lchm','lchz','mproj'],true))problem('Bitte KMZ, CSV, LCHM/LCHZ oder ein Map-Creator-Projekt (MPROJ) auswählen.');

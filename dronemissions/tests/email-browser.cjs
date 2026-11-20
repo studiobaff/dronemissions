@@ -34,6 +34,13 @@ const assert = require('node:assert/strict');
    const cookie=(await context.cookies()).find(c=>c.name==='dm_session');
    assert(cookie.httpOnly && cookie.sameSite==='Strict');
    assert(cookie.expires>Date.now()/1000+43100);
+   await page.locator('#bridge').click();
+   await page.locator('#bridge-device-name').fill('Browser test Mac');
+   await page.locator('#bridge-device-create').click();
+   await page.waitForFunction(()=>document.querySelector('#bridge-device-secret').value.startsWith('dmb_'));
+   await page.locator('#bridge-device-list [data-device-revoke]').last().click();
+   await page.waitForFunction(()=>document.querySelector('#bridge-device-secret').value==='');
+   await page.locator('#bridge-dialog [data-close]').first().click();
    if(viewport.width>1000){
     const saved=await page.evaluate(async()=>{
      const folder=(await api('folder',{name:'Synthetic smooth grid browser'})).id;

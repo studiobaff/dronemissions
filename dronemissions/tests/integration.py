@@ -91,7 +91,7 @@ def main():
     p=argparse.ArgumentParser(); p.add_argument('--base',required=True); p.add_argument('--access',type=Path,required=True);p.add_argument('--fixture-dir',type=Path);p.add_argument('--allow-test-writes',action='store_true',required=True);p.add_argument('--wmts-fixture',help='http(s) URL of a WMTS capabilities document reachable from the server (DRONEMISSIONS_DEV allows loopback)'); a=p.parse_args()
     assert urlparse(a.base).hostname in ('127.0.0.1','localhost','::1'), 'Integration tests require a loopback-only dedicated test installation'
     c=Client(a.base); c.call('library',expected=401)
-    c.call('login',{'password':'incorrect'},expected=400); c.login(json.loads(a.access.read_text()))
+    c.call('login',{'password':'incorrect'},expected=401); c.login(json.loads(a.access.read_text()))
     saved=c.csrf;c.csrf='invalid';c.call('folder',{'name':'CSRF blocked'},expected=403);c.csrf=saved
     assert not c.call('library')['missions'], 'Use a dedicated empty test installation'
     author='Demo & Co <Test>';c.call('settings',{'authorName':author});assert c.call('settings')=={'authorName':author};html=c.opener.open(a.base.rstrip('/')+'/').read();assert b'Demo &amp; Co &lt;Test&gt;' in html and b'Demo & Co <Test>' not in html
