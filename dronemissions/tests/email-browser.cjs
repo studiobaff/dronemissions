@@ -73,7 +73,7 @@ const assert = require('node:assert/strict');
     assert(profile,'synthetic reference mission is available');
     await page.locator('#pl-profile').selectOption(profile);
     await page.getByRole('button',{name:'Mission im Projekt speichern',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('#pl-status').textContent.includes('als Mission im gewählten Projekt gespeichert'));
+    await page.waitForFunction(()=>document.querySelector('#pl-status').textContent.includes('Flüge zur gemeinsamen Planung im Projekt gespeichert'));
     assert.equal(await page.getByRole('button',{name:'Planung speichern',exact:true}).count(),1);
     await page.locator('#planner-dialog').evaluate(dialog=>dialog.close());
     assert.equal(await page.locator('#saved-plans .saved-plan').filter({has:page.locator(`[data-planner-id="${saved.id}"]`)}).locator('[data-flight-open]').count(),3,'flights grouped within saved raster');

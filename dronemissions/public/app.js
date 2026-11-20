@@ -262,8 +262,10 @@ function render() {
  const planGroups=renderSavedPlans(missions),planCount=planGroups.count;
  const standalone=missions.filter(m=>!planGroups.grouped.has(m.id));
  $('#cards').innerHTML = view === 'archive' ? archiveCards(standalone, points) : standalone.map(missionCard).join('') + points.map(pointCard).join('');
+ if(planCount){$('#total-missions-label').textContent='Flugdateien';}
  const total = missions.length + points.length, q = query(), filtered = q || filter !== 'all';
  $('#result-line').textContent = total ? `${missions.length} ${t.n(canEdit() ? 'stats.missions' : 'stats.locations', missions.length)}${points.length ? ` · ${points.length} ${t.n('result.points', points.length)}` : ''}${filtered ? ' ' + t('result.found') : ''}` : '';
+ if(planCount)$('#result-line').textContent=`${planCount} ${planCount===1?'Planung':'Planungen'} · ${planGroups.grouped.size} zugehörige Flugdateien${standalone.length?' · '+standalone.length+' weitere Missionen':''}${points.length?' · '+points.length+' Planungspunkte':''}`;
  const empty = $('#empty');
  empty.classList.toggle('hidden', total > 0 || planCount > 0 || showMap || (view === 'archive' && $('#cards').children.length > 0));
  if (!total) {
