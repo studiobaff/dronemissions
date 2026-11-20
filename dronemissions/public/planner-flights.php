@@ -25,20 +25,20 @@ function dm_flight_estimate(array $part,array $home,array $p): array {
  $speed=$p['speed'];$route=0.0;$photo=$p['captureMode']!=='video';
  foreach($part as $i=>$pt){if($i)$route+=hypot(dm_distance($part[$i-1],$pt),$pt['height']-$part[$i-1]['height'])/min($part[$i-1]['speed']??$speed,$pt['speed']??$speed);if($photo&&($pt['capture']??true))$route+=$p['photoPause']+2;elseif($i===0||$i===count($part)-1||!($pt['gridPass']??false))$route+=2;}
  $first=$part[0];$last=$part[count($part)-1];
- $out=dm_distance($home,$first)/$p['transitSpeed']+abs($first['height'])/$p['verticalSpeed'];
- $back=dm_distance($last,$home)/$p['transitSpeed']+abs($last['height'])/$p['verticalSpeed'];
+ $out=($p['entryEnabled']??true)?dm_distance($home,$first)/$p['transitSpeed']+abs($first['height'])/$p['verticalSpeed']:0.0;
+ $back=($p['entryEnabled']??true)?dm_distance($last,$home)/$p['transitSpeed']+abs($last['height'])/$p['verticalSpeed']:0.0;
  $reserve=$p['reserveMinutes']*60;
  return ['routeSeconds'=>$route,'outboundSeconds'=>$out,'returnSeconds'=>$back,'reserveSeconds'=>$reserve,'budgetSeconds'=>$route+$out+$back+$reserve];
 }
 function dm_plan_flights(array $points,array $p): array {
  $mode=$p['flightSplit']??'legacy';if(!in_array($mode,['legacy','time','count'],true))throw new InvalidArgumentException('Flugaufteilung prüfen.');
  if($mode==='legacy')return ['parts'=>null,'params'=>['flightSplit'=>'legacy'],'info'=>null];
- $minutes=dm_pnum($p,'flightMinutes',3,60,15);$count=(int)dm_pnum($p,'flightCount',1,100,2);
- if($count!== (int)($p['flightCount']??2)||$count!=dm_pnum($p,'flightCount',1,100,2))throw new InvalidArgumentException('Anzahl Flüge muss ganzzahlig sein.');
+ $minutes=dm_pnum($p,'flightMinutes',3,60,15);$count=(int)dm_pnum($p,'flightCount',1,100,1);
+ if($count!== (int)($p['flightCount']??1)||$count!=dm_pnum($p,'flightCount',1,100,1))throw new InvalidArgumentException('Anzahl Flüge muss ganzzahlig sein.');
  $reserve=dm_pnum($p,'reserveMinutes',0,15,2);if($reserve>=$minutes)throw new InvalidArgumentException('Reserve muss kleiner als die Flugzeit pro Akku sein.');
  $overlap=dm_pnum($p,'flightOverlap',0,100,15);
- if(($p['entryEnabled']??false)!==true)throw new InvalidArgumentException('Abflugpunkt H auf der Karte setzen und aktivieren.');
- $home=['lat'=>dm_pnum($p,'entryLat',-80,80),'lng'=>dm_pnum($p,'entryLng',-180,180)];
+ if($mode==='time'&&($p['entryEnabled']??false)!==true)throw new InvalidArgumentException('Abflugpunkt H auf der Karte setzen und aktivieren.');
+ $home=($p['entryEnabled']??false)?['lat'=>dm_pnum($p,'entryLat',-80,80),'lng'=>dm_pnum($p,'entryLng',-180,180)]:['lat'=>$points[0]['lat'],'lng'=>$points[0]['lng']];
  $opts=['flightSplit'=>$mode,'flightMinutes'=>$minutes,'flightCount'=>$count,'reserveMinutes'=>$reserve,'flightOverlap'=>$overlap,'transitSpeed'=>dm_pnum($p,'transitSpeed',.2,15,5),'verticalSpeed'=>dm_pnum($p,'verticalSpeed',.2,5,2)];
  $costParams=$opts+$p;$chains=[];$chain=[];foreach($points as $pt){if($chain&&$pt['breakBefore']){$chains[]=dm_flight_path($chain);$chain=[];}$chain[]=$pt;}if($chain)$chains[]=dm_flight_path($chain);
  if($mode==='count'&&$count<count($chains))throw new InvalidArgumentException('Der Umriss erfordert mindestens '.count($chains).' getrennte Flüge (Löcher/Kreuzraster).');
@@ -58,14 +58,18 @@ function dm_plan_flights(array $points,array $p): array {
     $lo=$cursor+.1;$hi=$path['length'];for($n=0;$n<40;$n++){$mid=($lo+$hi)/2;if($fits($mid))$lo=$mid;else $hi=$mid;}$end=$lo;
     if($path['length']-$end<.001)$end=$path['length'];
     // Prefer an existing lane/turn boundary when it costs at most 15% of progress.
-    if($end<$path['length']-.001)foreach($path['dist'] as $j=>$d)if($d>$cursor+($end-$cursor)*.85&&$d<=$end&&!($path['points'][$j]['gridTurn']??false)){$end=$d;}
+    // Keep the search ceiling fixed: mutating it inside the scan previously
+    // selected the FIRST candidate and wasted up to 15% of every flight.
+    $ceiling=$end;$boundary=null;
+    if($end<$path['length']-.001)foreach($path['dist'] as $j=>$d)if($d>$cursor+($ceiling-$cursor)*.85&&$d<=$ceiling&&!($path['points'][$j]['gridTurn']??false)&&$fits($d))$boundary=$d;
+    if($boundary!==null)$end=$boundary;
    }
    if($end-$cursor<.05)throw new InvalidArgumentException('Zu viele Flüge für diese Route.');
    $part=dm_flight_slice($path,$start,$end);
-   if(count($part)>min(200,$limit))throw new InvalidArgumentException('Die gewählte Anzahl Flüge überschreitet das Wegpunktlimit. Mehr Flüge wählen oder automatisch nach Minuten aufteilen.');
+   if($mode!=='count'&&count($part)>min(200,$limit))throw new InvalidArgumentException('Die gewählte Anzahl Flüge überschreitet das Wegpunktlimit. Mehr Flüge wählen oder automatisch nach Minuten aufteilen.');
    $estimate=dm_flight_estimate($part,$home,$costParams);$estimate['overBudget']=$estimate['budgetSeconds']>$budget+.01;$estimate['overlapMeters']=$cursor-$start;
    $parts[]=$part;$estimates[]=$estimate;$lastStart=$start;$cursor=$end;$flight++;
   }
  }
- return ['parts'=>$parts,'params'=>$opts,'info'=>['home'=>$home,'minutes'=>$minutes,'mode'=>$mode,'flights'=>$estimates,'overBudget'=>count(array_filter($estimates,fn($e)=>$e['overBudget']))]];
+ return ['parts'=>$parts,'params'=>$opts,'info'=>['home'=>$home,'homeKnown'=>($p['entryEnabled']??false)===true,'minutes'=>$minutes,'mode'=>$mode,'flights'=>$estimates,'overBudget'=>count(array_filter($estimates,fn($e)=>$e['overBudget']))]];
 }

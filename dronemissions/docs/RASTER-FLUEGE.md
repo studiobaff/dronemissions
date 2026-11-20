@@ -14,3 +14,12 @@ An-/Rückflug werden horizontal als Luftlinie und vertikal mit einstellbarer Ges
 Fortsetzungen überlappen um bis zur gewünschten Strecke; die Überlappung wird bei kurzen Flügen auf ein Viertel der vorherigen Flugstrecke begrenzt. Lange gerade Bahnen können im Inneren geteilt werden. Löcher, getrennte Bereiche und Kreuzraster bleiben getrennt. Eine feste Anzahl unterhalb dieser Mindestanzahl oder oberhalb der Wegpunktkapazität wird abgelehnt.
 
 Die Projektansicht gruppiert exportierte Flüge unter der gemeinsamen Planung. Frühere Exportrevisionen bleiben zugänglich. Die Kamerawahl ist weiterhin ein Berechnungsprofil; die DJI-Gerätekennung wird einmal pro Planung aus einer passenden Referenz-KMZ zugeordnet und mitgespeichert.
+
+
+## Manuelle Aufteilung einschließlich Helix
+
+Unter „Flüge innerhalb dieser Planung → Manuell: Anzahl Abschnitte festlegen“ ist 1 eine zusammenhängende Mission. Helix, Doppelhelix und Kreis unterstützen dieselbe Einstellung wie Raster, Korridor und Linie. Zeitüberschreitung oder mehr als 200 Wegpunkte erzeugen Hinweise, erhöhen aber die manuelle Anzahl nicht. Physisch getrennte Rasterketten (z. B. ausgesparte Flächen) werden nicht automatisch überbrückt.
+
+Bei manueller Doppelhelix werden Auf- und Abstieg verbunden: an der Spitze der Halbkugel/Kalotte direkt, beim Zylinder über Stützpunkte am oberen Halbkreis. Diese Verbindung enthält keine Fotoaktionen. Bestehende Flugdateien bleiben unverändert. Ohne H werden bei manueller Aufteilung keine An-/Rückflugzeiten erfunden; die Anzeige weist darauf hin. Die DJI-App muss Import und Fortsetzen für das konkrete Gerät unterstützen; dies wurde nicht durch einen Flugtest bestätigt.
+
+Automatische Trennstellen verwenden den letzten passenden Stützpunkt nahe der Zeitgrenze. Zuvor wurde durch eine veränderte Suchgrenze irrtümlich der erste Kandidat gewählt, wodurch bis zu 15 Prozent Abschnittslänge verloren gingen. Flugdetails zeigen Route, An-/Rückflug und Reserve getrennt.
