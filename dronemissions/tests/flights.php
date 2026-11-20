@@ -36,7 +36,7 @@ foreach(['helix','doubleHelix'] as $kind){$manual['type']=$kind;foreach([1,2,3] 
 $manual['type']='doubleHelix';$manual['params']['flightCount']=1;$joined=dm_plan_build($manual);$transit=array_filter($joined['points'],fn($p)=>($p['capture']??true)===false);ft(count($transit)>20,'cylinder top arc connects spirals');foreach($transit as $pt){ft($pt['height']===60.0,'top arc altitude');ft(abs(dm_distance($pt,['lat'=>48,'lng'=>16])-30)<.1,'top arc remains on radius');}
 $manual['params']['shape']='hemisphere';$dome=dm_plan_build($manual);ft(count($dome['parts'])===1,'dome joins at apex');
 // Exact budget endpoint must not choose the first candidate in the last 15%.
-$pts=[];for($i=0;$i<=100;$i++)$pts[]=['lat'=>48+$i*.0001,'lng'=>16,'height'=>20,'pitch'=>-90,'yaw'=>0,'breakBefore'=>false,'capture'=>false,'gridPass'=>true];
+$pts=[];for($i=0;$i<=100;$i++)$pts[]=['lat'=>48+$i*.00003,'lng'=>16,'height'=>20,'pitch'=>-90,'yaw'=>0,'breakBefore'=>false,'capture'=>false,'gridPass'=>true];
 $fp=['flightSplit'=>'time','flightMinutes'=>3,'reserveMinutes'=>0,'entryEnabled'=>true,'entryLat'=>48,'entryLng'=>16,'speed'=>3,'captureMode'=>'video','photoPause'=>0,'photoLimit'=>200,'transitSpeed'=>5,'verticalSpeed'=>2,'flightOverlap'=>0];
 $auto=dm_plan_flights($pts,$fp);$first=$auto['info']['flights'][0];ft($first['budgetSeconds']>170&&$first['budgetSeconds']<=180.01,'automatic budget is utilized near last fitting point');
 echo "PASS: manual 1/2/3 helix and double helix, >200 explicit points, continuous top arc, apex, replay, missing-home disclosure and automatic endpoint utilization.\n";
