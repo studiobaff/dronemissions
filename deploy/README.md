@@ -42,7 +42,7 @@ Outside the webroot, install `receiver.php` in a mode-0700 directory and put
   "live": "/absolute/htdocs/dronemissions",
   "releases": "/absolute/dronemissions-releases",
   "private": "/absolute/dronemissions-private",
-  "url": "https://service.studiobaff.com/dronemissions/",
+  "url": "https://archive.example.org/dronemissions/",
   "node": "/usr/local/bin/node"
 }
 ```
@@ -79,6 +79,11 @@ Repository Settings → Secrets and variables → Actions:
   known_hosts file. Never trust an unverified `ssh-keyscan` inside the workflow.
 * Repository variable `DEPLOY_ENABLED`: initially `false`, then `true` after both
   PRs are merged and production baseline is confirmed.
+* Repository variable `DRONEMISSIONS_DEPLOY_TARGET`: SSH target `user@host` of the
+  restricted deploy account. Repository variable `DRONEMISSIONS_SITE_URL`: public
+  archive address with trailing slash, used for the HTTPS health check. Both live only
+  in GitHub settings so the repository stays free of operator details; the deploy job
+  fails early when either is missing.
 
 Environment `production` is recorded by Actions. Restrict its deployment branches
 to main; optionally require a reviewer. Branch protection for main should require

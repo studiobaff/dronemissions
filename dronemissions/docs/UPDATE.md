@@ -2,6 +2,10 @@
 
 Neu: Archivmission öffnen → **Wegpunkte bearbeiten**. Punkte ziehen, Koordinaten/Höhen ändern, kontrolliert löschen/einfügen und als neue Version speichern. Originale bleiben erhalten. Separate Module `kmz-editor*`; Claudes Planer-UI wird nicht verändert. Umfang, Grenzen und Prüfungen: [KMZ-EDITOR.md](KMZ-EDITOR.md). Veröffentlichung über geprüften PR nach main; nur Web-App, kein Bridge-Build nötig.
 
+## Betreiberdaten getrennt · 13.11.2026
+
+Das Repository enthält keine Betreiber-Details mehr: Zielserver und Archiv-Adresse des Deployments stehen als Repository-Variablen `DRONEMISSIONS_DEPLOY_TARGET` und `DRONEMISSIONS_SITE_URL` (Deploy-Job bricht ohne sie ab), der private Ordner heißt ohne `DRONEMISSIONS_PRIVATE` neutral `../private`, externe Dienste sehen als User-Agent den Host der jeweiligen Installation. Neu unter Einstellungen: **Kartenstart** (Breite, Länge, Zoom oder „Aktuellen Kartenausschnitt übernehmen“) für Übersicht, Einzelkarten und Planer; ohne Eintrag Österreich-Mitte. Private Betriebsnotizen gehören in `docs/PRIVATE-*.md` (per `.gitignore` ausgeschlossen).
+
 ## Oberfläche, Freigabekarte und PDF · 10.11.2026
 
 Sprachen: Deutsch, English, Українська (Auswahl unten in der Seitenleiste oder unter Einstellungen; `?lang=uk` für Links). Übersetzt sind Seitenleiste, Kopf, Werkzeugleiste, Auswahl, kompakte Liste, Freigabekarte, Einzelmissionskarte, Kartenpanel-Beschriftungen, Naturschutz-Status und das gesamte PDF; Dialoge für Upload, Mission, Planer und Editor bleiben vorerst deutsch. Kompakte Liste: Griff links, Positionsnummer ohne Klammern, Titel mit Projekt- und Typ-Chip, Öffnen, Checkbox rechts; bei Touch zusätzlich Hoch/Runter-Knöpfe. Karte: H als weißer Kreis mit blauem Rand, Aufnahmepunkt als orangefarbenes Symbolquadrat, Kennung als eigenes Schild darunter, Zuordnung fein gestrichelt, Flugroute mit heller Kontur, gewählte Mission mit Ring hervorgehoben. PDF: Kopf mit Logo, Wortmarke und Betreiber (Einstellungen → Name), Karte, Legende, Quellen, Tabelle der Missionen bzw. Wegpunkte mit wiederholter Kopfzeile; Schrift DejaVu Sans als eingebettetes Unicode-Subset (Kyrillisch), keine Bedien- oder Statustexte mehr im Dokument.
@@ -61,13 +65,13 @@ Branch `codex/planner-live-preview`. Generator 0.3.0. Veröffentlichung über ei
 
 # Update vom GitHub-Branch auf den Server
 
-**Produktivinstallation:** Seit PR #1/#2 veröffentlicht GitHub Actions geprüfte Änderungen in `main` automatisch auf `service.studiobaff.com/dronemissions/`. Änderungen vom Claude-Branch zuerst per PR nach `main` übernehmen. Der Release-Wechsel sichert SQLite/Konfiguration und prüft HTTPS; private Daten bleiben außerhalb. Die folgenden manuellen Kopierbefehle sind nur für andere Installationen bzw. administrativen Notbetrieb gedacht. Für die Produktivinstallation nicht parallel per rsync veröffentlichen. Details: `deploy/README.md` im Repository.
+**Produktivinstallation:** Seit PR #1/#2 veröffentlicht GitHub Actions geprüfte Änderungen in `main` automatisch auf die Produktivinstallation (Adresse und Zielserver stehen als Repository-Variablen `DRONEMISSIONS_SITE_URL` und `DRONEMISSIONS_DEPLOY_TARGET`, nicht im Quellcode). Änderungen vom Claude-Branch zuerst per PR nach `main` übernehmen. Der Release-Wechsel sichert SQLite/Konfiguration und prüft HTTPS; private Daten bleiben außerhalb. Die folgenden manuellen Kopierbefehle sind nur für andere Installationen bzw. administrativen Notbetrieb gedacht. Für die Produktivinstallation nicht parallel per rsync veröffentlichen. Details: `deploy/README.md` im Repository.
 
 Übergabe für die Person oder den Assistenten, der den Webserver betreut. Stand: 8. November 2026.
 
 ## Was wo liegt
 
-- Quelle: `https://github.com/studiobaff/dronemissions`, Branch `claude/drone-missions-ui-handoff-4nsj6e` (nach dem Merge in `main`: Branch `main`).
+- Quelle: dieses Repository, Branch `claude/drone-missions-ui-handoff-4nsj6e` (nach dem Merge in `main`: Branch `main`).
 - Das Repository ist öffentlich. Das ist in Ordnung, weil es nur Code, Doku und synthetische Beispiele enthält. Zugangsschlüssel, `config.json`, `missions.sqlite`, `blobs/`, `sessions/` und `tmp/` liegen im privaten Verzeichnis außerhalb des Webroots und sind per `.gitignore` ausgeschlossen. Niemals private Daten ins Repository legen.
 - Auf dem Server wird nur der Inhalt von `dronemissions/public/` ausgeliefert. Alles andere (Tests, `tools/`, `bridge/`, Doku) bleibt außerhalb des Webroots.
 
@@ -77,7 +81,7 @@ Branch `codex/planner-live-preview`. Generator 0.3.0. Veröffentlichung über ei
 2. Aktuellen Stand holen, zum Beispiel in ein Arbeitsverzeichnis auf dem Server oder auf dem Mac:
 
 ```sh
-git clone --branch claude/drone-missions-ui-handoff-4nsj6e --depth 1 https://github.com/studiobaff/dronemissions.git dronemissions-src
+git clone --branch claude/drone-missions-ui-handoff-4nsj6e --depth 1 <repository-url> dronemissions-src
 ```
 
 Bei vorhandenem Arbeitsverzeichnis stattdessen `git fetch origin && git checkout claude/drone-missions-ui-handoff-4nsj6e && git pull`.
@@ -85,7 +89,7 @@ Bei vorhandenem Arbeitsverzeichnis stattdessen `git fetch origin && git checkout
 3. Nur `public/` in den Webroot kopieren, ohne private Dateien zu überschreiben:
 
 ```sh
-rsync -av --delete --exclude 'config.json' dronemissions-src/dronemissions/public/ /usr/local/www/vhosts/studiobaff/dronemissions/
+rsync -av --delete --exclude 'config.json' dronemissions-src/dronemissions/public/ /pfad/zum/webroot/dronemissions/
 ```
 
 Zielpfad an die Installation anpassen. `--delete` entfernt veraltete Dateien aus dem Webroot; der private Ordner liegt nicht darunter und ist nicht betroffen.
