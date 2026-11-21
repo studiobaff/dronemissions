@@ -22,8 +22,18 @@ def main():
  r=c.call('planner-preview',body);assert r['summary']['photos']>0 and len(r['parts'])==1
  saved=c.call('planner-save',body);body.update(saved);assert saved['revision']==1
  assert c.call('planner-catalog')['deviceProfiles']['mavic3']==profile
+ # Optional zero-valued fields serialize identically and must not create false ambiguity.
+ source=zipfile.ZipFile(io.BytesIO(raw));buf=io.BytesIO()
+ with zipfile.ZipFile(buf,'w') as target:
+  for name in source.namelist():
+   contents=source.read(name)
+   if name.endswith('template.kml') and b'payloadPositionIndex' not in contents:contents=contents.replace(b'</wpml:missionConfig>',b'<wpml:payloadPositionIndex>0</wpml:payloadPositionIndex></wpml:missionConfig>')
+   target.writestr(name,contents)
+ equivalent=c.call('upload',{'folder':folder,'name':'Equivalent device defaults'},files={'kmz':('equivalent.kmz',buf.getvalue())})['id']
+ c.call('planner-save',{'folder':folder,'profileMission':equivalent,'plan':plan()})
+ assert c.call('planner-catalog')['deviceProfiles']['mavic3'] in (profile,equivalent)
  auto={'folder':folder,'plan':plan()};auto['plan']['name']='Automatic remembered device';auto.update(c.call('planner-save',auto))
- assert c.call('planner-load&id='+auto['id'])['body']['profileMission']==profile
+ assert c.call('planner-load&id='+auto['id'])['body']['profileMission'] in (profile,equivalent)
  auto_raw=c.call('planner-export',auto);auto_zip=zipfile.ZipFile(io.BytesIO(auto_raw));assert b'<wpml:droneEnumValue>99</wpml:droneEnumValue>' in auto_zip.read('wpmz/waylines.wpml')
  assert c.call('planner-archive',auto)['ids']
  unknown={'folder':folder,'plan':plan()};unknown['plan']['cameraId']='mavic4';c.call('planner-export',unknown,expected=400)

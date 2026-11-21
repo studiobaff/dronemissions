@@ -20,7 +20,7 @@ function dm_planner_known_profiles(): array {
    if(!$v||($allowed!==null&&!isset($allowed[$v['folder']])))continue;
    $path=dm_private().'/blobs/'.$v['sha256'].'.kmz';
    if(!is_file($path)||!hash_equals($v['sha256'],hash_file('sha256',$path)))continue;
-   try{$device=dm_plan_device($path);ksort($device);$cache[$id]=json_encode($device);}catch(Throwable $e){continue;}
+   try{$device=dm_plan_device($path)+['droneSubEnumValue'=>'0','payloadPositionIndex'=>'0'];if(isset($device['payloadEnumValue']))$device+=['payloadSubEnumValue'=>'0'];else unset($device['payloadSubEnumValue']);ksort($device);$cache[$id]=json_encode($device);}catch(Throwable $e){continue;}
   }
   if($cache[$id]!==null)$candidates[$camera][$cache[$id]]=$id;
  }
