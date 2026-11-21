@@ -329,6 +329,21 @@ function referenceLayers(projectFolder){
  const ancestors=new Set();let f=folderById(projectFolder);while(f&&!ancestors.has(f.id)){ancestors.add(f.id);f=folderById(f.parent);}
  return (data.layers||[]).filter(l=>!l.folder||ancestors.has(l.folder));
 }
+// Project map context is independent of the currently visible library filter.
+const dmProjectViews = new Map();
+function dmApplyProjectView(map, projectFolder) {
+ const remembered=dmProjectViews.get(projectFolder||'');
+ if(remembered){map.setView(remembered.center,remembered.zoom,{animate:false});return;}
+ if(!projectFolder)return;
+ const ids=descendants(projectFolder),coords=[];
+ for(const m of data.missions||[])if(ids.has(m.folder)){
+  const points=m.details?.points||[];
+  for(const p of points)if(Number.isFinite(p.lat)&&Number.isFinite(p.lng))coords.push([p.lat,p.lng]);
+  if(!points.length&&m.overviewPoint)coords.push([m.overviewPoint.lat,m.overviewPoint.lng]);
+ }
+ for(const p of data.points||[])if(ids.has(p.folder))coords.push([p.lat,p.lng]);
+ const bounds=L.latLngBounds(coords);if(bounds.isValid())map.fitBounds(bounds,{padding:[45,45],maxZoom:17,animate:false});
+}
 function tiles(map,projectFolder=folder) {
  map.on('unload',()=>{map.dmDisposed=true;});
  const attribution = 'Datenquelle: <a href="https://basemap.at/#lizenz" target="_blank" rel="noreferrer">basemap.at</a> · CC BY 4.0';
@@ -342,9 +357,9 @@ function tiles(map,projectFolder=folder) {
  const roads = L.tileLayer('https://mapsneu.wien.gv.at/basemap/bmapoverlay/normal/google3857/{z}/{y}/{x}.png', { ...austria, zIndex: 350 });
  for (const l of referenceLayers(projectFolder)) if (l.kind === 'tile' && !l.overlay) base[l.name] = L.tileLayer(l.url, { maxZoom: l.maxZoom || 19, opacity: l.opacity ?? 1, attribution: esc(l.attribution || ''), referrerPolicy: 'strict-origin-when-cross-origin' });
  const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* privater Modus */ } } };
- const saved = store.get('dm-map-layer'); let activeBase = base[saved] ? saved : Object.keys(base)[0], syncingRoads = false; base[activeBase].addTo(map);
+ const layerKey='dm-map-layer:'+ (projectFolder||''), saved = store.get(layerKey)||store.get('dm-map-layer'); let activeBase = base[saved] ? saved : Object.keys(base)[0], syncingRoads = false; base[activeBase].addTo(map);
  const syncRoads = () => { const preference = store.get('dm-map-roads'), show = preference === null ? activeBase === 'Österreich · Luftbild' : preference === 'true'; syncingRoads = true; if (show) roads.addTo(map); else map.removeLayer(roads); syncingRoads = false; };
- map.on('baselayerchange', e => { activeBase = e.name; store.set('dm-map-layer', e.name); queueMicrotask(syncRoads); });
+ map.on('baselayerchange', e => { activeBase = e.name; store.set(layerKey, e.name); store.set('dm-map-layer', e.name); queueMicrotask(syncRoads); });
  map.on('overlayadd overlayremove', e => { if (e.layer === roads && !syncingRoads) store.set('dm-map-roads', String(e.type === 'overlayadd')); });
  const overlays = {};
  referenceLayers(projectFolder).forEach((l, index) => {
@@ -376,7 +391,8 @@ function renderOverview() {
   overview.on('click', e => { if (mapPointPick) { dmPickStart(e.latlng);return; } if (picking) { stopPicking(); openPoint(null, e.latlng); } });
  }
  dmPaintOverviewMissions();
- const currentMap=overview;currentMap.dmKeepPermitView=keepPermitView;currentMap.dmFitProject=()=>{if(currentMap.dmDisposed||currentMap.dmKeepPermitView||picking||mapPointPick)return;const bounds=L.latLngBounds(currentMap.dmPermitCoordinates||[]);if(currentMap.dmReferenceBounds)bounds.extend(currentMap.dmReferenceBounds);if(bounds.isValid())currentMap.fitBounds(bounds,{padding:[45,45],maxZoom:17});};
+ const projectKey=folder||'';overview.on('moveend',()=>{if(!overview.dmDisposed)dmProjectViews.set(projectKey,{center:overview.getCenter(),zoom:overview.getZoom()});});
+  const currentMap=overview;currentMap.dmKeepPermitView=keepPermitView;currentMap.dmFitProject=()=>{if(currentMap.dmDisposed||currentMap.dmKeepPermitView||picking||mapPointPick)return;const bounds=L.latLngBounds(currentMap.dmPermitCoordinates||[]);if(currentMap.dmReferenceBounds)bounds.extend(currentMap.dmReferenceBounds);if(bounds.isValid())currentMap.fitBounds(bounds,{padding:[45,45],maxZoom:17});};
  setTimeout(()=>{if(currentMap.dmDisposed)return;currentMap.invalidateSize();if(keepPermitView&&previousPermitView)currentMap.setView(previousPermitView.center,previousPermitView.zoom,{animate:false});else currentMap.dmFitProject();if(previousPermitView?.nature)currentMap.dmNature?.enable();},80);
 }
 function dmPaintOverviewMissions(){
