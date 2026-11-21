@@ -110,6 +110,14 @@ const assert = require('node:assert/strict');
     await page.locator('#planner-dialog').evaluate(dialog=>dialog.close());
    }
    if(viewport.width>1000){
+    const old=await page.evaluate(async()=>{const row=data.plans.find(p=>p.name==='Synthetic video turns');const loaded=await api('planner-load&id='+row.id);const plan={...loaded.body,name:'Synthetic video turns updated'};await api('planner-save',{id:row.id,revision:row.revision,folder:row.folder,profileMission:plan.profileMission,plan});await refresh();return {id:row.id,revision:row.revision};});
+    const remove=page.locator(`[data-delete-plan-export="${old.id}"][data-export-revision="${old.revision}"]`);
+    await remove.click();assert((await page.locator('#confirm-text').textContent()).includes(`Revision ${old.revision}`));
+    await page.locator('#confirm-dialog').getByRole('button',{name:'Abbrechen',exact:true}).click();assert(await remove.isVisible());
+    await remove.click();const deleted=page.waitForResponse(r=>r.url().includes('action=planner-export-delete')&&r.status()===200);await page.locator('#confirm-ok').click();assert.equal((await (await deleted).json()).deleted,3);
+    await page.waitForFunction(id=>!document.querySelector(`[data-delete-plan-export="${id}"]`),old.id);assert.equal(await page.locator(`[data-planner-id="${old.id}"]`).count(),1,'master plan survives export deletion');
+   }
+   if(viewport.width>1000){
     const h=await page.evaluate(async()=>{const p={name:'Manual helix browser',type:'doubleHelix',cameraId:'mavic3',geometry:{type:'Point',coordinates:[16,48]},params:{shape:'hemisphere',radius:30,bottom:20,top:50,standoff:20,spacingMode:'distance',photoDistance:5,trackDistance:10,flightSplit:'count',flightCount:1,flightMinutes:15,entryEnabled:false,photoLimit:200}};const h=await api('planner-save',{plan:p});await refresh();return h;});
     let response=page.waitForResponse(r=>r.url().includes('action=planner-preview')&&r.status()===200);
     await page.locator(`#saved-plans [data-planner-id="${h.id}"]`).click();
