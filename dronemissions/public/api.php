@@ -66,8 +66,9 @@ try {
  }
  if($action==='point-delete'&&$method==='POST'){$p=stmt('SELECT * FROM points WHERE id=?',[(string)($input['id']??'')])->fetch();if(!$p)problem('Punkt nicht gefunden.',404);may_folder($p['folder'],true);$q=stmt('DELETE FROM points WHERE id=? AND revision=?',[$p['id'],(int)($input['revision']??0)]);if(!$q->rowCount())problem('Punkt wurde inzwischen geändert.',409);respond(['ok'=>true]);}
  if($action==='folder'&&$method==='POST'){
+  $previewDefault=$input['previewDefault']??null;if($previewDefault!==null&&!in_array($previewDefault,['inherit','auto','aerial','3d','map'],true))problem('Vorschau-Standard prüfen.');
   $name=dm_text($input['name']??'');if($name==='')problem('Bitte einen Ordnernamen eingeben.');$parent=($input['parent']??null)?:null;may_folder($parent,true);
-  $id=$input['id']??null;if($id){may_folder($id,true);if($parent!==null&&in_array($parent,dm_folder_ids($db,$id),true))problem('Ein Ordner kann nicht in sich selbst verschoben werden.');if($current&&$id===$current['folder'])problem('Der freigegebene Hauptordner kann hier nicht verschoben werden.',403);stmt('UPDATE folders SET name=?,parent=? WHERE id=?',[$name,$parent,$id]);}else{$id=dm_id();stmt('INSERT INTO folders(id,parent,name) VALUES(?,?,?)',[$id,$parent,$name]);}respond(['id'=>$id]);
+  $id=$input['id']??null;if($id){may_folder($id,true);if($parent!==null&&in_array($parent,dm_folder_ids($db,$id),true))problem('Ein Ordner kann nicht in sich selbst verschoben werden.');if($current&&$id===$current['folder'])problem('Der freigegebene Hauptordner kann hier nicht verschoben werden.',403);stmt('UPDATE folders SET name=?,parent=? WHERE id=?',[$name,$parent,$id]);}else{$id=dm_id();stmt('INSERT INTO folders(id,parent,name) VALUES(?,?,?)',[$id,$parent,$name]);}if($previewDefault!==null)stmt('UPDATE folders SET preview_default=? WHERE id=?',[$previewDefault,$id]);respond(['id'=>$id]);
  }
  if($action==='folder-delete'&&$method==='POST'){
   owner();$id=(string)($input['id']??'');may_folder($id,true);$db->beginTransaction();$f=stmt('SELECT * FROM folders WHERE id=?',[$id])->fetch();

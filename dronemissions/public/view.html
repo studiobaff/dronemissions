@@ -17,7 +17,7 @@
 <script defer src="vendor/geoman/leaflet-geoman.js"></script>
 <script defer src="i18n.js"></script><script defer src="nature.js"></script><script defer src="zones.js"></script>
 <script defer src="permit-font.js"></script><script defer src="permit-pdf.js"></script><script defer src="mission-selection.js"></script><script defer src="permit-map.js"></script><script defer src="app.js?v=manual-flights-1"></script>
-<script defer src="previews.js"></script>
+<script defer src="preview-renderer.js"></script><script defer src="previews.js"></script>
 <script defer src="layers.js"></script>
 <script defer src="planner-live.js"></script>
 <script defer src="planner.js?v=manual-flights-1"></script>
@@ -259,6 +259,7 @@
   <div class="dialog-body">
    <label class="field"><span>Name</span><input name="name" maxlength="200" required></label>
    <label class="field"><span>Übergeordneter Ordner</span><select name="parent"></select></label>
+   <label class="field"><span>Standard für Missionsvorschaubilder</span><select name="previewDefault"><option value="inherit">Vom übergeordneten Projekt übernehmen</option><option value="auto">Automatisch: Raster als Luftbild, Helix in 3D</option><option value="aerial">Luftbild mit Flugroute</option><option value="3d">3D-Ansicht</option><option value="map">Karte mit Flugroute</option></select></label><p class="hint">Ohne übergeordnete Vorgabe gilt Automatisch. Individuell gespeicherte Titelbilder bleiben erhalten.</p>
   </div>
   <div class="dialog-foot"><button id="archive-folder" type="button" class="btn btn-outline hidden"><svg class="icon"><use href="#i-archive"/></svg><span>Ordner archivieren</span></button><button id="delete-folder" type="button" class="btn btn-outline btn-danger hidden"><svg class="icon"><use href="#i-trash"/></svg><span>Leeren Ordner löschen</span></button><span class="dialog-foot-spacer"></span><button type="button" class="btn btn-outline" data-close>Abbrechen</button><button type="submit" class="btn btn-primary">Speichern</button></div>
  </form>
