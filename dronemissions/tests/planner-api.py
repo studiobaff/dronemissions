@@ -37,6 +37,9 @@ def main():
  auto_raw=c.call('planner-export',auto);auto_zip=zipfile.ZipFile(io.BytesIO(auto_raw));assert b'<wpml:droneEnumValue>99</wpml:droneEnumValue>' in auto_zip.read('wpmz/waylines.wpml')
  assert c.call('planner-archive',auto)['ids']
  unknown={'folder':folder,'plan':plan()};unknown['plan']['cameraId']='mavic4';c.call('planner-export',unknown,expected=400)
+ assigned=c.call('planner-device-assign',{'cameraId':'mavic4','profileMission':profile});assert assigned['deviceProfiles']['mavic4']==profile
+ assert c.call('planner-export',unknown)[:2]==b'PK'
+ c.call('planner-device-assign',{'cameraId':'custom','profileMission':profile},expected=400)
  listed=next(p for p in c.call('library')['plans'] if p['id']==saved['id']);assert listed['folder']==folder and 'body' not in listed
  loaded=c.call('planner-load&id='+saved['id']);assert loaded['body']['heightReference']==imported;assert loaded['body']['profileMission']==profile and loaded['body']['geometry']==body['plan']['geometry']
  single=c.call('planner-export',body);assert single[:2]==b'PK';z=zipfile.ZipFile(io.BytesIO(single));assert {'wpmz/template.kml','wpmz/waylines.wpml'}<=set(z.namelist());xml=E.fromstring(z.read('wpmz/waylines.wpml'));tags=lambda tag:[e for e in xml.iter() if e.tag.rsplit('}',1)[-1]==tag];assert tags('droneEnumValue')[0].text=='99' and len(tags('Placemark'))==r['summary']['photos']
@@ -55,6 +58,8 @@ def main():
  f.call('planner-height-import',{'folder':other,'mission':profile},expected=403) # permitted destination, forbidden source
  e.call('planner-height-import',{'folder':other,'mission':profile},expected=403) # permitted source, forbidden destination
  assert e.call('planner-height-import',{'folder':folder,'mission':profile})['heightReference']['sha256']==archive_ref['sha256']
+ for guest in (e,f,v):guest.call('planner-device-assign',{'cameraId':'mavic4','profileMission':profile},expected=403)
+ assert f.call('planner-catalog')['deviceProfiles']=={}
  archive_plan={'folder':folder,'plan':plan()};archive_plan['plan']['heightReference']=archive_ref
  ah=c.call('planner-save',archive_plan);assert c.call('planner-load&id='+ah['id'])['body']['heightReference']==archive_ref
  pm=next(m for m in c.call('library')['missions'] if m['id']==profile)
