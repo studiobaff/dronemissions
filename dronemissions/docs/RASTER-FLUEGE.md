@@ -23,3 +23,9 @@ Unter „Flüge innerhalb dieser Planung → Manuell: Anzahl Abschnitte festlege
 Bei manueller Doppelhelix werden Auf- und Abstieg verbunden: an der Spitze der Halbkugel/Kalotte direkt, beim Zylinder über Stützpunkte am oberen Halbkreis. Diese Verbindung enthält keine Fotoaktionen. Bestehende Flugdateien bleiben unverändert. Ohne H werden bei manueller Aufteilung keine An-/Rückflugzeiten erfunden; die Anzeige weist darauf hin. Die DJI-App muss Import und Fortsetzen für das konkrete Gerät unterstützen; dies wurde nicht durch einen Flugtest bestätigt.
 
 Automatische Trennstellen verwenden den letzten passenden Stützpunkt nahe der Zeitgrenze. Zuvor wurde durch eine veränderte Suchgrenze irrtümlich der erste Kandidat gewählt, wodurch bis zu 15 Prozent Abschnittslänge verloren gingen. Flugdetails zeigen Route, An-/Rückflug und Reserve getrennt.
+
+## Fotos ohne erzwungene Stopps
+
+Ab Generator 0.7.3 bedeutet Fotopause 0 s bei Routenaufnahmen: Innenpunkte im Durchflug, keine Hover-Aktionen, keine zeitgesteuerte Kameraausrichtung an jedem Foto. Die Kamera wird am Abschnittsanfang ausgerichtet und ihre Neigung zwischen benachbarten Punkten interpoliert. Start und Ende jedes Abschnitts bleiben Haltepunkte. Nur Aufnahmepunkte lösen Fotos aus; Verbindungs- und Geländepunkte erhalten keine Fotoaktion.
+
+Die nominale Routenzeit enthält bei 0 s keine pauschalen zwei Sekunden pro Foto mehr. Vorschau, Abschnittsbudget und KMZ-Dauer verwenden denselben entfallenen Fotozuschlag. Tatsächliches Abbremsen an engen Wendungen ist damit nicht ausgeschlossen. Eine ausdrücklich gesetzte positive Fotopause und stationäre Panoramen behalten ihre Stopps. Vorhandene KMZ-Dateien ändern sich nicht: Planung mit 0 s Pause erneut speichern und exportieren. Tests prüfen beide XML-Dokumente, Fotoanzahl, Durchflugmodus, fehlende Hovers und die Zeitberechnung; kein Hardware-Flugtest.
