@@ -13,6 +13,15 @@ function switch_link(string $live,string $target): void {
  if(!symlink($target,$tmp))fail('Cannot stage release link');
  if(!rename($tmp,$live)){unlink($tmp);fail('Cannot activate release');}
 }
+function reset_web_cache(array $config,string $sha): void {
+ $app=json_decode(file_get_contents($config['private'].'/config.json'),true,512,JSON_THROW_ON_ERROR);
+ $secret=$app['rateSecret']??'';if(!is_string($secret)||strlen($secret)<32)fail('Missing deployment cache authentication');
+ $stamp=(string)time();$mac=hash_hmac('sha256','release-reset|'.$sha.'|'.$stamp,$secret);
+ $context=stream_context_create(['http'=>['method'=>'POST','content'=>'','header'=>"X-Deploy-Time: $stamp\r\nX-Deploy-Mac: $mac\r\nContent-Length: 0\r\n",'timeout'=>20,'ignore_errors'=>true],'ssl'=>['verify_peer'=>true,'verify_peer_name'=>true]]);
+ $raw=@file_get_contents(rtrim($config['url'],'/').'/release-health.php',false,$context);
+ $result=$raw===false?[]:json_decode($raw,true);
+ if(($result['commit']??null)!==$sha||($result['ok']??false)!==true)fail('Authenticated PHP cache reset failed');
+}
 function receive(array $config,string $command,string $input): array {
  if(!preg_match('/^deploy ([a-f0-9]{40}) ([a-f0-9]{64})$/D',$command,$match))fail('Only deploy SHA SHA256 is permitted');
  [, $sha,$hash]=$match;
@@ -64,13 +73,18 @@ function receive(array $config,string $command,string $input): array {
  }
  try {
   switch_link($live,$stage);
+  if(is_file($stage.'/release-health.php'))reset_web_cache($config,$sha);
   $context=stream_context_create(['http'=>['timeout'=>15,'ignore_errors'=>true],'ssl'=>['verify_peer'=>true,'verify_peer_name'=>true]]);
   $url=rtrim($config['url'],'/').'/';
   $served=@file_get_contents($url.'release.json?deploy='.$sha,false,$context);
   if($served===false||(json_decode($served,true)['commit']??null)!==$sha)fail('HTTPS release verification failed');
   $page=@file_get_contents($url,false,$context);
   if($page===false||!preg_match('~^HTTP/\S+ 200\b~',$http_response_header[0]??''))fail('HTTPS application check failed');
- } catch(Throwable $e){switch_link($live,$previous);throw $e;}
+  if(is_file($stage.'/release-health.php')&&!in_array('x-drone-release: '.$sha,array_map('strtolower',$http_response_header),true))fail('PHP is serving a stale release');
+ } catch(Throwable $e){
+  if(is_file($stage.'/release-health.php')){try{reset_web_cache($config,$sha);}catch(Throwable $ignored){}}
+  switch_link($live,$previous);throw $e;
+ }
  $receipt=['commit'=>$sha,'previous'=>$previous,'current'=>$stage,'backup'=>$backup,'time'=>gmdate(DATE_ATOM)];
  file_put_contents($root.'/last-deployment.json',json_encode($receipt,JSON_PRETTY_PRINT));chmod($root.'/last-deployment.json',0600);
  return ['commit'=>$sha,'status'=>'published'];

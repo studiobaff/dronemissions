@@ -7,6 +7,7 @@ def verify(base, commit):
             if data['commit']!=commit: raise RuntimeError('Release SHA differs')
             with urllib.request.urlopen(base,timeout=15) as r:
                 if r.status!=200: raise RuntimeError('Homepage unavailable')
+                if 'release-health.php' in data.get('files',{}) and r.headers.get('X-Drone-Release')!=commit: raise RuntimeError('PHP is serving a stale release')
             return
         except Exception:
             if attempt==3: raise

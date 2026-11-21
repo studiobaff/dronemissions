@@ -6,14 +6,16 @@ $releases=$root.'/releases';$private=$root.'/private';$web=$root.'/web';$live=$w
 foreach([$releases,$private,$web,$live] as $dir)mkdir($dir,0755,true);
 file_put_contents($live.'/index.php','OLD');
 $db=new PDO('sqlite:'.$private.'/missions.sqlite');$db->exec("CREATE TABLE test(value TEXT); INSERT INTO test VALUES ('preserved')");$db=null;
-file_put_contents($private.'/config.json','{"owner":"preserved"}');
+file_put_contents($private.'/config.json',json_encode(['owner'=>'preserved','rateSecret'=>str_repeat('a',64)]));
 file_put_contents($private.'/original.kmz','UNCHANGED');
 $socket=stream_socket_server('tcp://127.0.0.1:0',$errno,$error);$address=stream_socket_get_name($socket,false);fclose($socket);
+$oldPrivate=getenv('DRONEMISSIONS_PRIVATE');putenv('DRONEMISSIONS_PRIVATE='.$private);
 $pipes=[];$server=proc_open([PHP_BINARY,'-S',$address,'-t',$web],[0=>['file','/dev/null','r'],1=>['file',$root.'/server.log','a'],2=>['file',$root.'/server.log','a']],$pipes);
+putenv('DRONEMISSIONS_PRIVATE'.($oldPrivate===false?'':'='.$oldPrivate));
 function check(bool $ok,string $message): void {if(!$ok)throw new RuntimeException($message);}
 function archive(string $root,string $sha,bool $broken=false): string {
  $path=$root.'/test.zip';@unlink($path);$z=new ZipArchive();$z->open($path,ZipArchive::CREATE);
- $files=['index.php'=>$broken?'<?php http_response_code(500); echo "BROKEN";':'<?php echo "NEW";','api.php'=>'<?php echo "API";','lib.php'=>'<?php // lib','view.html'=>'view','app.js'=>'const example = 1;','style.css'=>'body {}'];$hashes=[];
+ $files=['index.php'=>$broken?'<?php http_response_code(500); echo "BROKEN";':'<?php header("X-Drone-Release: ".json_decode(file_get_contents(__DIR__."/release.json"),true)["commit"]); echo "NEW";','api.php'=>'<?php echo "API";','lib.php'=>'<?php // lib','view.html'=>'view','app.js'=>'const example = 1;','style.css'=>'body {}','release-health.php'=>file_get_contents(dirname(__DIR__,2).'/dronemissions/public/release-health.php')];$hashes=[];
  foreach($files as $name=>$bytes){$z->addFromString($name,$bytes);$hashes[$name]=hash('sha256',$bytes);}
  $z->addFromString('release.json',json_encode(['commit'=>$sha,'files'=>$hashes]));$z->close();return file_get_contents($path);
 }
@@ -22,6 +24,7 @@ try {
  $cfg=['live'=>$live,'releases'=>$releases,'private'=>$private,'url'=>'http://'.$address.'/dronemissions','node'=>'node'];
  $data=archive($root,str_repeat('a',40));receive($cfg,'deploy '.str_repeat('a',40).' '.hash('sha256',$data),$data);
  check(is_link($live),'Live directory was not converted');$first=readlink($live);
+ $unauthorized=stream_context_create(['http'=>['ignore_errors'=>true]]);file_get_contents('http://'.$address.'/dronemissions/release-health.php',false,$unauthorized);check(str_contains($http_response_header[0],'404'),'Unauthenticated cache reset accepted');
  check(file_get_contents($private.'/original.kmz')==='UNCHANGED','Original changed');
  $db=new PDO('sqlite:'.$private.'/missions.sqlite');check($db->query('SELECT value FROM test')->fetchColumn()==='preserved','DB data lost');$db=null;
  $data=archive($root,str_repeat('b',40),true);$failed=false;

@@ -1,6 +1,17 @@
 # Bridge bedienen und aktualisieren
 
-Stand: 8. November 2026.
+Stand: 20. November 2026.
+
+## Neuer Gerätezugang nach der E-Mail-Anmeldung
+
+Der frühere gemeinsame Zugangsschlüssel funktioniert nicht mehr. Im Webarchiv per E-Mail anmelden, **Bridge → Geräteschlüssel erstellen** wählen und den einmal angezeigten Schlüssel in der Mac-App unter **Einstellungen → Zugangsschlüssel** einsetzen. Die bestehende Bridge 0.6.2 kann diesen Schlüssel ohne App-Update verwenden. Jeder Mac sollte einen eigenen Schlüssel erhalten.
+
+Geräteschlüssel gelten 180 Tage, Sitzungen höchstens 12 Stunden. Unter Bridge können Schlüssel sofort widerrufen werden; auch bestehende Sitzungen verlieren dann Zugriff. Deaktivierung des ausstellenden Administrators sperrt ebenfalls den Zugang. Der Server speichert nur einen Hash des Schlüssels.
+
+Erlaubt sind Bibliothek, Originaldateien und Vorschaubilder lesen, neue KMZ-Missionen und Vorschaubilder sichern sowie vorhandene Missionen in Projektordner verschieben. Nicht erlaubt sind Einstellungen, Freigaben, Planungsänderungen, Löschungen oder das Ersetzen bestehender Archivversionen. Diese Grenzen gelten serverseitig unabhängig vom User-Agent; ein Geräteschlüssel ist kein Browser-Administratorzugang.
+
+Kompatibilitätstest: unveränderter HTTP-Client aus Bridge 0.6.2, Quellstand 618aa5a, mit synthetischen Dateien. Der USB-Transfer selbst wird dadurch nicht verändert; ein erneuter realer Mac-/DJI-Gerätetest steht aus.
+
 
 ## Aktueller Stand und offene Gerätetests
 

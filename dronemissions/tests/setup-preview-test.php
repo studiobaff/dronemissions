@@ -9,5 +9,6 @@ $db=new PDO('sqlite:'.$dir.'/missions.sqlite',null,null,[PDO::ATTR_ERRMODE=>PDO:
 // Verify idempotent migration against existing data/schema as used by old installations.
 $db->exec('DROP TABLE mission_preview_selection; DROP TABLE mission_previews');dm_migrate($db);dm_migrate($db);
 if((int)$db->query("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('mission_previews','mission_preview_selection')")->fetchColumn()!==2)throw new RuntimeException('Missing preview migration');
-$password='synthetic-preview-test-only';file_put_contents($dir.'/config.json',json_encode(['passwordHash'=>password_hash($password,PASSWORD_DEFAULT),'rateSecret'=>bin2hex(random_bytes(32))]));
-file_put_contents($dir.'/access.json',json_encode(['password'=>$password]));chmod($dir.'/config.json',0600);chmod($dir.'/access.json',0600);
+// SMTP and identity fixtures are configured by run-email-suite.py.
+file_put_contents($dir.'/config.json',json_encode(['rateSecret'=>bin2hex(random_bytes(32))]));
+chmod($dir.'/config.json',0600);

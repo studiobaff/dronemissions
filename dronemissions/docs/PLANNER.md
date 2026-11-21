@@ -146,15 +146,15 @@ Direkt in der geöffneten App getestet: Mavic 4 Pro, Double Helix, 15 m Fotoabst
 - SkySplat an/aus änderte im verglichenen Export keine Positionen oder Höhen. Mit SkySplat: `startRecord`, initiales `gimbalRotate`, 117 `gimbalEvenlyRotate`, `stopRecord`; ohne SkySplat: 118 `takePhoto`. SkySplat ist hier ein Video-/Kameraaktionsmodus, nicht die Geländeverformung. Unser Planer exportiert weiterhin Einzelbilder; daraus folgt keine SkySplat-Kompatibilitätszusage.
 - Referenztempo 4,1 m/s beobachtet, nicht als pauschaler Standard für neu berechnete Routen übernommen. Kein Geräte- oder Flugtest dieser Vergleichsmissionen.
 
-## Aufnahme: Einzelbilder oder Video (Generator 0.5.2)
+## Aufnahme: Einzelbilder oder Video (Generator 0.6.0)
 
 Oben neben der Kamera **Aufnahme → Video** wählen. Die Auswahl bleibt im Entwurf und in der Planungsdatei erhalten; ältere Entwürfe verwenden weiterhin Einzelbilder. Der Export bleibt eine DJI-Waypoint-KMZ, die Bridge überträgt sie wie bisher.
 
-- **Video-Grid / Kreuzraster:** nur zwei Wegpunkte je Bahn (Anfang/Ende), ohne Foto-Zwischenpunkte. Fotoabstand und Längsüberlappung sind ausgeblendet. Bahnenabstand direkt in Metern oder über nominale Querüberdeckung steuert die Dichte. Löcher und getrennte Durchgänge erzeugen weiterhin getrennte Abschnitte.
+- **Video-Grid / Kreuzraster:** gerade Bahnen benötigen nur Anfang/Ende. Bei fließenden Wenden kommen Kurvenstützpunkte hinzu, ohne Foto-Zwischenpunkte. Fotoabstand und Längsüberlappung sind ausgeblendet. Bahnenabstand direkt in Metern oder über nominale Querüberdeckung steuert die Dichte. Löcher und getrennte Durchgänge erzeugen weiterhin getrennte Abschnitte.
 - **Gelände:** zusätzliche Navigationspunkte erhalten die exportierten Höhen. Sie sind keine Fotoauslöser. **Helix:** Kurvenstützpunkte bleiben, damit die Bahn ihre Form behält.
 - **Abschnittsteilung:** im Video-Modus zählt das Limit alle Wegpunkte inklusive Gelände, höchstens 200. Wiederholung am Übergang bezieht sich auf Wegpunkte. Jeder Abschnitt ist eigenständig mit Aufnahmestart/-stopp, kein automatisch fortlaufender Flug über die Abschnittsgrenzen.
 - **Aktionen in beiden KMZ-XMLs:** zuerst `gimbalRotate`, dann `startRecord` am ersten Punkt; `gimbalEvenlyRotate` mit `betweenAdjacentPoints` und Ziel-Pitch am folgenden Punkt; `stopRecord` am letzten Punkt. Keine `takePhoto`-/`hover`-Aktionen. Geräte-/Nutzlastkennung kommt wie bisher aus der Referenzmission. Basis: [DJI-WPML-Aktionsdokumentation](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/dji-wpml/common-element.html) und die bereitgestellte Map-Creator-Video-KMZ. DJI-Cloud-Dokumentation ist kein Nachweis für die Unterstützung jeder Consumer-Drohne.
-- **Flugverhalten:** gerade Wegpunktsegmente und bisherige Stopp-Wendemodi bleiben erhalten. Durchgehende Videoaufnahme bedeutet daher noch keinen Flug ohne Abbremsen an Wegpunkten. Zeitangaben sind reine Streckenzeit ohne Beschleunigung, Stopps, Aufnahmestart oder An-/Rückflug. Keine zusätzlichen Fotopausen.
+- **Flugverhalten:** im Raster ist der Flugmodus wählbar (siehe unten). Bestehende Planungen ohne Flugmodus behalten Wegpunkt-Stopps. Andere Flugarten behalten ihre bisherigen Modi. Durchgehende Videoaufnahme garantiert keinen Flug ohne Abbremsen. Zeitangaben sind reine Streckenzeit ohne Beschleunigung, Stopps, Aufnahmestart oder An-/Rückflug. Keine zusätzlichen Fotopausen.
 - **Bildabdeckung:** FOV/Seitenverhältnis müssen dem tatsächlichen Videomodus entsprechen. Foto-Kameraprofile sind keine Zusage für Videocrop oder Videoauflösung. Überdeckung zeigt nur die nominale Planungsgeometrie; die spätere Frame-Auswahl hängt von Geschwindigkeit, Bildrate und Extraktion ab. Im Video-Modus wird deshalb keine Foto-GSD als Videoauflösung ausgegeben.
 - **Vor dem Einsatz:** Auflösung, Bildrate und Kameraeinstellungen in DJI Fly prüfen. Aufnahme und Gimbal-Aktionen am Zielgerät testen. Bisher sind Parser, Export und UI geprüft, kein echter Video-Flug. Der Planer extrahiert keine Frames; dafür dienen nachgelagerte Programme.
 
@@ -289,3 +289,22 @@ zusätzliche Klick-Dialoge im Flugplaner unterbrochen. Neue Hinweise DE/EN/UK.
 Tests: nature-status.cjs mit fehlenden/veralteten/fehlerhaften Daten, Restriktionen,
 Ausnahmen, FFH/SPA, Polygonloch, Escaping und allen drei Sprachen; bestehende
 Geozonen-, Missionsauswahl-, PDF-, Scheduler- und Pakettests.
+
+
+## Fließende Video-Raster-Wenden
+
+Neue Planungen bieten unter **Aufnahme → Video → Video-Wenden** den Modus **Fließend** und einen gewünschten Radius (Standard 10 m). Bestehende Planungen ohne gespeicherten Modus bleiben bei **Anhalten an Bahnenden**, bis sie ausdrücklich umgestellt werden. Lange gerade Bahnen erhalten keine Foto-Zwischenpunkte.
+
+Der Generator ersetzt geeignete Ecken durch Kreisbögen mit höchstens 30° Winkelabstand zwischen Kurvenstützpunkten. Die Tangentenlänge bleibt auf 40 % beider angrenzenden Segmente begrenzt; bei Platzmangel wird der Radius kleiner. Bögen und exportierte Verbindungsstrecken werden gegen den Umriss einschließlich Löchern geprüft. Ein Radius unter 1 m, beinahe vollständige Richtungsumkehr oder ein Bogen außerhalb der Fläche führt zu einem ausgewiesenen inneren Stopp. Durchgangswechsel und getrennte Gebiete werden nicht verbunden. Die gerundeten Wendebereiche können die Randabdeckung verkleinern.
+
+Aus dem kleinsten Radius wird eine einheitliche effektive Sollgeschwindigkeit begrenzt: `min(gewünscht, sqrt(Radius × 1 m/s²))`. Das ist eine Planungsannahme für die Querbeschleunigung, keine gemessene Gerätegrenze oder Garantie konstanter Geschwindigkeit. Die Oberfläche zeigt effektives Tempo, kleinsten Radius, abgerundete Ecken und innere Stopps. Die Zeit bleibt eine Schätzung ohne An-/Rückflug und reale Beschleunigungsphasen.
+
+Innere geeignete Stützpunkte verwenden in beiden KMZ-XMLs `toPointAndPassWithContinuityCurvature`, `useStraightLine=1` und begrenzte Dämpfungsabstände. Die Summe benachbarter Dämpfungsabstände bleibt kleiner als das Segment. Grundlage: [DJI-WPML-Wendemodi](https://developer.dji.com/doc/cloud-api-tutorial/en/api-reference/dji-wpml/common-element.html). Die tatsächliche DJI-Kurve kann von der nominalen Kreisbogen-Vorschau abweichen; Consumer-DJI-Fly-Annahme und Flugtest sind offen.
+
+Abschnittsanfang/-ende bleiben Stopps mit Aufnahmestart/-stopp. **Max. Wegpunkte je Abschnitt** ist eine Obergrenze, keine Zielpunktzahl. Kurvenstützpunkte zählen mit; ein geteilter Export bleibt mehrere einzeln auszuführende Missionen. Fließende Raster-Wenden mit DEM-Geländeanpassung werden derzeit abgelehnt, damit eine Kurve nicht ungeprüft zwischen Geländehöhen verläuft. Fotoplanungen sind unverändert.
+
+## Planung speichern und Mission erzeugen
+
+**Planung speichern** sichert die bearbeitbare Planung dauerhaft. Sie lässt sich oben unter **Gespeicherte Planung** wieder öffnen. **Prüfen & Exportieren → Geräteprofil wählen → Mission im Projekt speichern** erzeugt die DJI-KMZ-Abschnitte in der Missionsbibliothek des gewählten Projekts. Dafür ist eine passende DJI-Referenzmission für die Geräte-/Nutzlastkennung erforderlich. Ein Geräteprofil ersetzt keine Geräteprüfung. Wiederholtes Speichern desselben Planungsstands erzeugt keine doppelten Missionen.
+
+Gespeicherte Planungen werden außerdem direkt in der Projektübersicht unter **Gespeicherte Planungen** mit **Planung öffnen** angezeigt. Projekt-/Unterordnerfilter und Suche gelten auch hier. Planungen bleiben von erzeugten Missionsdateien unterscheidbar. Kunden mit reiner Standort-Lesefreigabe erhalten keine Planungsmetadaten; Bearbeitungsfreigaben sehen ausschließlich Planungen ihres freigegebenen Projektbereichs.

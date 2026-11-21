@@ -80,7 +80,14 @@ async function api(action, body, form = false) {
  try {
   const r = await fetch(`api.php?action=${action}`, options);
   let d; try { d = await r.json(); } catch { throw Error('Serverantwort konnte nicht gelesen werden.'); }
-  if (!r.ok) throw Error(d.error || 'Anfrage fehlgeschlagen.');
+  if (!r.ok) {
+   if (r.status === 401 && !['login', 'login-verify', 'share-login'].includes(action)) {
+    $$('dialog[open]').forEach(dialog => dialog.close());
+    $('#shell').classList.add('hidden'); $('#login').classList.remove('hidden');
+    loginStep(false); $('#login-status').textContent = 'Bitte erneut anmelden.';
+   }
+   throw Error(d.error || 'Anfrage fehlgeschlagen.');
+  }
   return d;
  } finally { progress(false); }
 }
@@ -229,17 +236,40 @@ $('#cards').addEventListener('toggle', e => {
  if (!group) return;
  if (group.open) archiveExpanded.add(group.dataset.archiveGroup); else archiveExpanded.delete(group.dataset.archiveGroup);
 }, true);
+function renderSavedPlans(missions) {
+ const ids=scopeIds(),q=query(),grouped=new Set();
+ const plans=canEdit()&&['all','kmz'].includes(filter)?(data.plans||[]).filter(p=>{
+  const archived=isArchived(p.folder);
+  if(view==='archive'?!archived:view==='folder'&&isArchived(folder)?false:archived)return false;
+  if(view==='unfiled'&&p.folder)return false;
+  return (!ids||ids.has(p.folder))&&(`${p.name} ${pathFor(p.folder)}`.toLocaleLowerCase().includes(q)||missions.some(m=>m.details.plannerId===p.id));
+ }):[];
+ const section=$('#saved-plans');section.classList.toggle('hidden',!plans.length);
+ section.innerHTML=plans.length?`<h2>Planungen im Projekt <span class="num">${plans.length}</span></h2><p class="hint">Raster gemeinsam bearbeiten. Fluganzahl und Akku-Aufteilung können jederzeit in der Planung geändert werden.</p><div class="saved-plan-list">${plans.map(p=>{
+  const flights=missions.filter(m=>m.details.plannerId===p.id).sort((a,b)=>Number(b.details.plannerRevision)-Number(a.details.plannerRevision)||Number(a.details.plannerPart)-Number(b.details.plannerPart));
+  flights.forEach(m=>grouped.add(m.id));
+  const revisions=[...new Set(flights.map(m=>Number(m.details.plannerRevision)))];
+  return `<article class="saved-plan"><div class="saved-plan-heading"><div><strong>${esc(p.name)}</strong><p class="hint">${esc(pathFor(p.folder)||'Ohne Projekt')} · Gemeinsame Planung · Revision ${Number(p.revision)}</p></div><button type="button" class="btn btn-outline" data-planner-id="${esc(p.id)}">Planung öffnen</button></div>${revisions.map((rev,i)=>`<details class="plan-flight-group" ${i===0?'open':''}><summary>${rev===Number(p.revision)?'Exportierte Flüge':'Früherer Export'} · Revision ${rev}${rev!==Number(p.revision)?' · Planung inzwischen geändert':''}</summary><ol>${flights.filter(m=>Number(m.details.plannerRevision)===rev).map(m=>`<li><span>Flug ${Number(m.details.plannerPart)} von ${Number(m.details.plannerParts)} · ${km(m.details.distance,2)}</span><button type="button" class="btn btn-outline btn-sm" data-flight-open="${esc(m.id)}">Flug öffnen</button></li>`).join('')}</ol></details>`).join('')}${!flights.length?'<p class="hint">Planung gespeichert. Flüge nach der Aufteilung unter „Prüfen & Exportieren“ erzeugen.</p>':''}</article>`;
+ }).join('')}</div>`:'';
+ return {count:plans.length,grouped};
+}
+$('#saved-plans').addEventListener('click',e=>{const b=e.target.closest('[data-flight-open]');if(b)run(()=>openMission(b.dataset.flightOpen));});
+
 function render() {
  const missions = visibleMissions(), points = visiblePoints();
  checkedMissions = new Set([...checkedMissions].filter(id => missions.some(m => m.id === id)));
  renderSidebar(); renderHeader(); renderStats(missions, points);
  $$('#filters .chip').forEach(c => c.classList.toggle('selected', c.dataset.filter === filter));
  $('#filters').classList.toggle('hidden', !canEdit());
- $('#cards').innerHTML = view === 'archive' ? archiveCards(missions, points) : missions.map(missionCard).join('') + points.map(pointCard).join('');
+ const planGroups=renderSavedPlans(missions),planCount=planGroups.count;
+ const standalone=missions.filter(m=>!planGroups.grouped.has(m.id));
+ $('#cards').innerHTML = view === 'archive' ? archiveCards(standalone, points) : standalone.map(missionCard).join('') + points.map(pointCard).join('');
+ if(planCount){$('#total-missions-label').textContent='Flugdateien';}
  const total = missions.length + points.length, q = query(), filtered = q || filter !== 'all';
  $('#result-line').textContent = total ? `${missions.length} ${t.n(canEdit() ? 'stats.missions' : 'stats.locations', missions.length)}${points.length ? ` · ${points.length} ${t.n('result.points', points.length)}` : ''}${filtered ? ' ' + t('result.found') : ''}` : '';
+ if(planCount)$('#result-line').textContent=`${planCount} ${planCount===1?'Planung':'Planungen'} · ${planGroups.grouped.size} zugehörige Flugdateien${standalone.length?' · '+standalone.length+' weitere Missionen':''}${points.length?' · '+points.length+' Planungspunkte':''}`;
  const empty = $('#empty');
- empty.classList.toggle('hidden', total > 0 || showMap || (view === 'archive' && $('#cards').children.length > 0));
+ empty.classList.toggle('hidden', total > 0 || planCount > 0 || showMap || (view === 'archive' && $('#cards').children.length > 0));
  if (!total) {
   $('#empty-upload').classList.add('hidden'); $('#empty-clear').classList.add('hidden');
   if (filtered) { $('#empty-title').textContent = t('empty.nothing'); $('#empty-text').textContent = q ? t('empty.noMatch', { q: $('#search').value.trim() }) : t('empty.noFilterMatch'); $('#empty-clear').classList.remove('hidden'); }
@@ -535,7 +565,35 @@ $('#sidebar-toggle').onclick = () => { const collapsed = !document.body.classLis
 function showLibrary() { $('#login').classList.add('hidden'); $('#shell').classList.remove('hidden'); if (!loaded) renderSkeleton(); }
 
 /* ---------- Ereignisse ---------- */
-$('#login-form').onsubmit = e => { e.preventDefault(); const b = $('button[type=submit]', e.target); run(async () => { try { const d = await api('login', { password: $('#password').value }); csrf = d.csrf; $('#password').value = ''; $('#login-error').textContent = ''; showLibrary(); await refresh(); applyHash(); dmApplyPermitView(); } catch (err) { $('#login-error').textContent = err.message; $('#password').focus(); } }, b); };
+let loginCodeStep = false;
+function loginStep(codeStep) {
+ loginCodeStep = codeStep;
+ $('#login-email-field').classList.toggle('hidden', codeStep);
+ $('#login-code-field').classList.toggle('hidden', !codeStep);
+ $('#login-email').disabled = codeStep;
+ $('#login-code').disabled = !codeStep;
+ $('#login-code').value = '';
+ $('#login-submit-label').textContent = codeStep ? 'Archiv öffnen' : 'Code anfordern';
+ $('#login-restart').classList.toggle('hidden', !codeStep);
+ $('#login-error').textContent = '';
+ $(codeStep ? '#login-code' : '#login-email').focus();
+}
+$('#login-restart').onclick = () => { loginStep(false); $('#login-status').textContent = ''; };
+$('#login-form').onsubmit = async e => {
+ e.preventDefault(); if (!e.target.reportValidity()) return;
+ const b = $('button[type=submit]', e.target); b.disabled = true; $('#login-restart').disabled = true;
+ try {
+  if (!loginCodeStep) {
+   const d = await api('login', {email: $('#login-email').value.trim()});
+   loginStep(true); $('#login-status').textContent = d.message;
+  } else {
+   const d = await api('login-verify', {code: $('#login-code').value.trim()});
+   csrf = d.csrf; loginStep(false); $('#login-status').textContent = '';
+   showLibrary(); await refresh(); applyHash(); dmApplyPermitView();
+  }
+ } catch (err) { $('#login-error').textContent = err.message; $(loginCodeStep ? '#login-code' : '#login-email').focus(); }
+ finally { b.disabled = false; $('#login-restart').disabled = false; }
+};
 $('#settings').onclick = () => run(async () => { const d = await api('settings'); const f = $('#settings-form').elements; f.authorName.value = d.authorName; f.mapLat.value = d.mapStart.lat; f.mapLng.value = d.mapStart.lng; f.mapZoom.value = d.mapStart.zoom; $('#settings-dialog').showModal(); });
 $('#settings-map-current').onclick = () => { const f = $('#settings-form').elements, map = overview || detailMap; if (!map) { toast('Zuerst eine Karte öffnen, deren Ausschnitt übernommen werden soll.', true); return; } const c = map.getCenter(); f.mapLat.value = c.lat.toFixed(5); f.mapLng.value = c.lng.toFixed(5); f.mapZoom.value = map.getZoom(); };
 $('#settings-form').onsubmit = e => { e.preventDefault(); run(async () => { const f = e.target.elements, mapStart = f.mapLat.value !== '' && f.mapLng.value !== '' ? { lat: Number(f.mapLat.value), lng: Number(f.mapLng.value), zoom: Number(f.mapZoom.value || 13) } : null; await api('settings', { authorName: f.authorName.value, mapStart }); location.reload(); }, $('button[type=submit]', e.target)); };
@@ -581,6 +639,8 @@ $('#delete-folder').onclick = async () => {
 $('#point-form').onsubmit = e => { e.preventDefault(); run(async () => { const f = e.target.elements; const settings = { height: Number(f.height.value), heightMode: f.heightMode.value, heading: Number(f.heading.value), gimbal: Number(f.gimbal.value), capture: f.capture.value }; await api('point', { id: editPoint?.id, revision: editPoint?.revision, folder: editPoint?.folder || folder, name: f.name.value, notes: f.notes.value, lat: Number(f.lat.value), lng: Number(f.lng.value), settings }); $('#point-dialog').close(); await refresh(); toast('Panorama-Standort gespeichert. Noch keine ausführbare Flugmission.'); }, $('button[type=submit]', e.target)); };
 $('#delete-point').onclick = async () => { if (await confirmDialog('Planungspunkt löschen?', `„${editPoint.name}“ wird endgültig entfernt. Dieser Schritt lässt sich nicht rückgängig machen.`, 'Endgültig löschen', true)) run(async () => { await api('point-delete', { id: editPoint.id, revision: editPoint.revision }); $('#point-dialog').close(); await refresh(); toast('Planungspunkt gelöscht.'); }); };
 async function openBridge() {
+ $('#bridge-device-secret').value='';$('#bridge-device-secret-wrap').classList.add('hidden');
+ $('#bridge-device-access').classList.toggle('hidden',!isOwner());if(isOwner())await loadDeviceKeys();
  const dlg = $('#bridge-dialog'); if (!dlg.open) dlg.showModal();
  $('#bridge-files').innerHTML = '<p class="hint">Pakete werden geladen …</p>';
  const d = await api('bridge'); $('#bridge-url').textContent = `Archiv-Adresse: ${d.archiveURL}`;
@@ -613,7 +673,18 @@ run(async () => {
   catch (e) { $('#shell').classList.add('hidden'); $('#login').classList.remove('hidden'); $('#login-error').textContent = e.message; }
   return;
  }
- if (s.authenticated) { showLibrary(); await refresh(); applyHash(); dmApplyPermitView(); } else { $('#login').classList.remove('hidden'); $('#password').focus(); }
+ if (s.authenticated) { showLibrary(); await refresh(); applyHash(); dmApplyPermitView(); } else { $('#login').classList.remove('hidden'); $('#login-email').focus(); }
 });
 
 $('#project-reference').onclick=()=>{$('#settings').click();setTimeout(()=>{const f=$('#vector-folder');f.value=folder||'';f.closest('details').open=true;f.scrollIntoView({block:'center'});f.focus();},100);};
+
+async function loadDeviceKeys(){
+ const d=await api('device-keys');
+ $('#bridge-device-list').innerHTML=d.keys.map(k=>`<p><strong>${esc(k.name)}</strong> · ${k.revoked?'Widerrufen':Number(k.expires)*1000<=Date.now()?'Abgelaufen':'Gültig bis '+esc(new Date(Number(k.expires)*1000).toLocaleDateString())} ${!k.revoked?`<button class="btn btn-outline btn-sm" type="button" data-device-revoke="${esc(k.id)}">Widerrufen</button>`:''}</p>`).join('');
+}
+$('#bridge-device-create').onclick=()=>run(async()=>{
+ const d=await api('device-key-create',{name:$('#bridge-device-name').value});
+ $('#bridge-device-secret').value=d.token;$('#bridge-device-secret-wrap').classList.remove('hidden');await loadDeviceKeys();
+});
+$('#bridge-device-list').onclick=e=>{const b=e.target.closest('[data-device-revoke]');if(b)run(async()=>{await api('device-key-revoke',{id:b.dataset.deviceRevoke});$('#bridge-device-secret').value='';$('#bridge-device-secret-wrap').classList.add('hidden');await loadDeviceKeys();});};
+$('#bridge-dialog').addEventListener('close',()=>{$('#bridge-device-secret').value='';$('#bridge-device-secret-wrap').classList.add('hidden');});

@@ -11,16 +11,16 @@
 <link rel="apple-touch-icon" href="favicon.png?v=1">
 <link rel="stylesheet" href="vendor/leaflet.css">
 <link rel="stylesheet" href="vendor/geoman/leaflet-geoman.css">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=manual-flights-1">
 <link rel="stylesheet" href="kmz-editor.css">
 <script defer src="vendor/leaflet.js"></script>
 <script defer src="vendor/geoman/leaflet-geoman.js"></script>
 <script defer src="i18n.js"></script><script defer src="nature.js"></script><script defer src="zones.js"></script>
-<script defer src="permit-font.js"></script><script defer src="permit-pdf.js"></script><script defer src="mission-selection.js"></script><script defer src="permit-map.js"></script><script defer src="app.js"></script>
+<script defer src="permit-font.js"></script><script defer src="permit-pdf.js"></script><script defer src="mission-selection.js"></script><script defer src="permit-map.js"></script><script defer src="app.js?v=manual-flights-1"></script>
 <script defer src="previews.js"></script>
 <script defer src="layers.js"></script>
 <script defer src="planner-live.js"></script>
-<script defer src="planner.js"></script>
+<script defer src="planner.js?v=manual-flights-1"></script>
 <script defer src="kmz-editor.js"></script>
 </head>
 <body>
@@ -78,11 +78,14 @@
   <h1 class="login-title">Deine Mission.<br>Am richtigen Ort.</h1>
   <p class="login-lead">Projekte, Flugrouten und Originaldateien. Ein Archiv für dein ganzes Team.</p>
   <form id="login-form" novalidate>
-   <label class="field"><span>Zugangsschlüssel</span><input id="password" type="password" autocomplete="current-password" enterkeyhint="go" required></label>
+   <label class="field" id="login-email-field" for="login-email"><span>E-Mail-Adresse</span><input id="login-email" type="email" autocomplete="email" enterkeyhint="go" required></label>
+   <label class="field hidden" id="login-code-field" for="login-code"><span>Sechsstelliger Anmeldecode</span><input id="login-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" disabled required></label>
+   <p id="login-status" role="status"></p>
+   <button id="login-restart" type="button" class="btn hidden">Neuen Code anfordern / Adresse ändern</button>
    <p id="login-error" class="form-error" role="alert"></p>
-   <button class="btn btn-primary btn-lg btn-block" type="submit"><span>Archiv öffnen</span><svg class="icon"><use href="#i-arrow"/></svg></button>
+   <button class="btn btn-primary btn-lg btn-block" type="submit"><span id="login-submit-label">Code anfordern</span><svg class="icon"><use href="#i-arrow"/></svg></button>
   </form>
-  <p class="login-note">Private Installation · Drone Missions 1.0</p>
+  <p class="login-note">Anmeldung per E-Mail-Code · 12 Stunden angemeldet</p>
  </section>
  <aside class="login-art" aria-hidden="true">
   <svg viewBox="0 0 600 600"><g fill="none" stroke="currentColor"><circle cx="300" cy="300" r="230"/><circle cx="300" cy="300" r="170"/><circle cx="300" cy="300" r="110"/><path d="M70 300H530M300 70V530"/><path class="route-line" d="M150 380L180 190L280 220L340 150L440 310L350 430L150 380"/></g></svg>
@@ -176,6 +179,7 @@
   </div>
 
   <p id="result-line" class="result-line" aria-live="polite"></p>
+  <section id="saved-plans" class="saved-plans hidden" aria-label="Gespeicherte Planungen"></section>
   <section id="permit-tools" class="permit-tools hidden" aria-label="Karte für Naturschutz-Freigabe"><div class="permit-head"><strong data-i18n="permit.title">Freigabekarte</strong><span class="permit-legend"><i class="lg lg-start">H</i><span data-i18n="permit.legend">H = Startplatz am Boden · Kamera = Aufnahmepunkt / Wegpunkt 2 · gestrichelt = Zuordnung, keine Flugroute</span></span></div><div class="permit-actions"><label id="permit-mission-label"><span data-i18n="permit.mission">Mission</span><select id="permit-mission" aria-label="Mission für Startplatz" data-i18n-aria="permit.missionAria"></select></label><label id="permit-type-label"><span data-i18n="permit.captureType">Aufnahmeart</span><select id="permit-type" aria-label="Aufnahmeart" data-i18n-aria="permit.captureType"><option value="photo" data-i18n="capture.photo">Foto</option><option value="video" data-i18n="capture.video">Video</option><option value="panorama" data-i18n="capture.panorama">Panorama</option><option value="sphere" data-i18n="capture.sphere">Kugelpanorama</option></select></label><button id="permit-set-start" type="button" class="btn btn-primary" data-i18n="permit.setStart">Startplatz auf Karte setzen</button><button id="permit-clear-start" type="button" class="btn btn-outline" data-i18n="permit.clearStart">Startplatz entfernen</button><button id="permit-share" type="button" class="btn btn-outline" data-i18n="permit.share">Kartenlink erstellen</button><button id="permit-print" type="button" class="btn btn-outline" data-i18n="permit.pdf">PDF herunterladen</button><button id="permit-fit" type="button" class="btn btn-outline" data-i18n="permit.fit">Alle Punkte zeigen</button><button id="permit-auth" type="button" class="btn btn-outline hidden" data-i18n="permit.auth">Archiv anmelden</button></div><details id="permit-selection" class="permit-selection" open></details><p id="permit-hint" class="hint" role="status"></p></section>
   <div id="overview-map" class="overview-map hidden" role="region" aria-label="Übersichtskarte"></div>
   <section id="permit-print-list" class="permit-print-list"></section>
@@ -320,13 +324,21 @@
 <dialog id="bridge-dialog" class="dialog">
  <div class="dialog-head"><div><div class="eyebrow">USB-Übertragung</div><h2>Drone Missions Bridge</h2></div><button class="btn btn-icon" type="button" data-close aria-label="Schließen"><svg class="icon"><use href="#i-close"/></svg></button></div>
  <div class="dialog-body">
-  <p class="hint" style="max-width:none">Die Bridge-App überträgt DJI-KMZ-Missionen aus diesem Archiv per USB auf iPad, iPhone oder DJI-Fernsteuerung. Sie meldet sich mit deinem Zugangsschlüssel am Archiv an; der Schlüssel wird nicht in der Konfiguration gespeichert.</p>
+  <p class="hint" style="max-width:none">Die Bridge-App überträgt DJI-KMZ-Missionen aus diesem Archiv per USB auf iPad, iPhone oder DJI-Fernsteuerung. Sie verwendet einen eigenen Geräteschlüssel zum Übertragen und Sichern. Der Browser bleibt bei der E-Mail-Anmeldung. Der alte gemeinsame Zugangsschlüssel ist nicht mehr gültig.</p>
+  <section id="bridge-device-access" class="hidden">
+   <h3>Mac-Gerätezugang</h3>
+   <p class="hint">Erlaubt Missionen herunterzuladen, neue KMZs und Vorschaubilder zu sichern sowie vorhandene Missionen Projektordnern zuzuordnen. Keine Einstellungen, Freigaben, Planungsänderungen oder Löschrechte. Gültig für 180 Tage, jederzeit widerrufbar.</p>
+   <label class="field">Gerätename<input id="bridge-device-name" maxlength="80" value="Meine Mac-Bridge" autocomplete="off"></label>
+   <button id="bridge-device-create" class="btn btn-outline" type="button">Geräteschlüssel erstellen</button>
+   <label id="bridge-device-secret-wrap" class="field hidden">Einmalig angezeigter Geräteschlüssel – in der Mac-App unter Einstellungen → Zugangsschlüssel einfügen<input id="bridge-device-secret" readonly autocomplete="off" spellcheck="false"></label>
+   <div id="bridge-device-list"></div>
+  </section>
   <div id="bridge-files" class="bridge-files"></div>
   <div class="bridge-config">
    <div><strong>Konfiguration</strong><small id="bridge-url"></small></div>
    <a id="bridge-config-link" class="btn btn-outline btn-sm" href="api.php?action=bridge-config" download><svg class="icon"><use href="#i-download"/></svg><span>Konfiguration herunterladen</span></a>
   </div>
-  <p class="hint" style="max-width:none">Nach der Installation: Bridge öffnen, Tab „Webarchiv“, „Konfiguration laden …“ und die Datei wählen, dann mit dem Zugangsschlüssel anmelden.</p>
+  <p class="hint" style="max-width:none">Nach der Installation: Bridge öffnen, Tab „Webarchiv“, „Konfiguration laden …“ und die Datei wählen, dann in Einstellungen → Zugangsschlüssel den neuen Geräteschlüssel einfügen und verbinden. Das vorhandene Mac-App-Paket kann weiterverwendet werden.</p>
  </div>
  <div class="dialog-foot"><button type="button" class="btn btn-primary" data-close>Schließen</button></div>
 </dialog>
