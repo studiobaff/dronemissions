@@ -7,7 +7,7 @@ try {
  clearstatcache(true);
  $public=realpath(dirname($_SERVER['SCRIPT_FILENAME']??__FILE__));
  $manifest=json_decode(file_get_contents($public.'/release.json'),true,512,JSON_THROW_ON_ERROR);
- $private=getenv('DRONEMISSIONS_PRIVATE')?:'/usr/local/www/vhosts/studiobaff/dronemissions-private';
+ $private=getenv('DRONEMISSIONS_PRIVATE')?:dirname(__DIR__).'/private';
  $config=json_decode(file_get_contents($private.'/config.json'),true,512,JSON_THROW_ON_ERROR);
  $stamp=$_SERVER['HTTP_X_DEPLOY_TIME']??'';$secret=$config['rateSecret']??'';
  if(($_SERVER['REQUEST_METHOD']??'')!=='POST'||!ctype_digit($stamp)||abs(time()-(int)$stamp)>60||!is_string($secret)||strlen($secret)<32||!hash_equals(hash_hmac('sha256','release-reset|'.$manifest['commit'].'|'.$stamp,$secret),$_SERVER['HTTP_X_DEPLOY_MAC']??'')){

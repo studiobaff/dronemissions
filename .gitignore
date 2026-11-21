@@ -19,3 +19,6 @@ __pycache__/
 
 # User Litchi exports (private mission coordinates)
 /litchi/
+
+# Private Betriebsnotizen (Server, Adressen, Zugänge) bleiben lokal
+/dronemissions/docs/PRIVATE-*.md
