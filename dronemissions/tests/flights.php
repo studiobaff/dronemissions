@@ -40,3 +40,18 @@ $pts=[];for($i=0;$i<=100;$i++)$pts[]=['lat'=>48+$i*.00003,'lng'=>16,'height'=>20
 $fp=['flightSplit'=>'time','flightMinutes'=>3,'reserveMinutes'=>0,'entryEnabled'=>true,'entryLat'=>48,'entryLng'=>16,'speed'=>3,'captureMode'=>'video','photoPause'=>0,'photoLimit'=>200,'transitSpeed'=>5,'verticalSpeed'=>2,'flightOverlap'=>0];
 $auto=dm_plan_flights($pts,$fp);$first=$auto['info']['flights'][0];ft($first['budgetSeconds']>170&&$first['budgetSeconds']<=180.01,'automatic budget is utilized near last fitting point');
 echo "PASS: manual 1/2/3 helix and double helix, >200 explicit points, continuous top arc, apex, replay, missing-home disclosure and automatic endpoint utilization.\n";
+
+// Concave outer boundaries must not force extra batteries in manual mode.
+$notch=[[0,0],[600,0],[600,600],[350,600],[350,350],[250,350],[250,600],[0,600],[0,0]];
+ft(!dm_grid_link_inside([200,500],[400,500],[$notch]),'notch chord rejected');
+$link=dm_grid_boundary_link([250,500],[350,500],$notch);ft($link!==null&&count($link)>=2,'boundary link follows notch');
+$thin=[[0,0],[10,0],[10,10],[5.1,10],[5.1,4],[5,4],[5,10],[0,10],[0,0]];
+ft(!dm_grid_link_inside([0,5],[10,5],[$thin]),'sub-metre notch detected');
+$concave=$in;$concave['geometry']['coordinates']=[array_map(fn($p)=>[16+$p[0]/75000,48+$p[1]/111319.49],$notch)];
+$concave['params']=array_replace($concave['params'],['flightSplit'=>'count','flightCount'=>2,'bearing'=>90,'gridMotion'=>'stop','captureMode'=>'photo']);
+$r=dm_plan_build($concave);ft(count($r['parts'])===2,'concave raster accepts two manual flights');
+ft(count(array_filter($r['points'],fn($p)=>($p['capture']??true)===false))>0,'boundary corners are transit only');
+$geo=dm_plan_geometry($r['geometry']);$to=$geo['project'];$rings=array_map(fn($ring)=>array_map($to,$ring),$r['geometry']['coordinates']);
+foreach($r['points'] as $i=>$pt)if($i&&!$pt['breakBefore'])ft(dm_grid_link_inside($to([$r['points'][$i-1]['lng'],$r['points'][$i-1]['lat']]),$to([$pt['lng'],$pt['lat']]),$rings),'all connectors stay inside');
+$again=dm_plan_build(array_intersect_key($r,array_flip(['name','type','cameraId','camera','geometry','params'])));ft($r['parts']===$again['parts'],'concave manual replay');
+echo "PASS: concave manual raster, transit corners, narrow notch and replay.\n";
