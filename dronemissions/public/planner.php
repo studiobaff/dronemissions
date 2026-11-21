@@ -5,6 +5,27 @@ function dm_planner_schema(PDO $db): void {
  $db->exec('CREATE TABLE IF NOT EXISTS mission_plans(id TEXT PRIMARY KEY,folder TEXT REFERENCES folders(id),name TEXT NOT NULL,body TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,created TEXT NOT NULL,updated TEXT NOT NULL); CREATE TABLE IF NOT EXISTS mission_plan_runs(id TEXT PRIMARY KEY,plan TEXT NOT NULL REFERENCES mission_plans(id),missions TEXT NOT NULL,created TEXT NOT NULL)');
 }
 function dm_planner_body(array $p): array {return array_intersect_key($p,array_flip(['format','generatorVersion','routeSha256','name','type','geometry','cameraId','camera','params','heightReference']));}
+// Reuse an already assigned device only when all accessible assignments agree.
+function dm_planner_known_profiles(): array {
+ global $db,$current;
+ $allowed=$current?array_fill_keys(dm_folder_ids($db,$current['folder']),true):null;
+ $candidates=[];$cache=[];$cameraIds=array_column(dm_plan_catalog(),'id');
+ foreach(stmt('SELECT folder,body FROM mission_plans ORDER BY updated DESC')->fetchAll() as $row){
+  if($allowed!==null&&!isset($allowed[$row['folder']]))continue;
+  $body=json_decode($row['body'],true);$camera=$body['cameraId']??'';$id=$body['profileMission']??'';
+  if(!$id||!in_array($camera,$cameraIds,true))continue;
+  if(!array_key_exists($id,$cache)){
+   $cache[$id]=null;
+   $v=stmt('SELECT m.folder,v.sha256 FROM missions m JOIN versions v ON v.mission=m.id WHERE m.id=? ORDER BY v.ordinal DESC LIMIT 1',[$id])->fetch();
+   if(!$v||($allowed!==null&&!isset($allowed[$v['folder']])))continue;
+   $path=dm_private().'/blobs/'.$v['sha256'].'.kmz';
+   if(!is_file($path)||!hash_equals($v['sha256'],hash_file('sha256',$path)))continue;
+   try{$device=dm_plan_device($path)+['droneSubEnumValue'=>'0','payloadPositionIndex'=>'0'];if(isset($device['payloadEnumValue']))$device+=['payloadSubEnumValue'=>'0'];else unset($device['payloadSubEnumValue']);ksort($device);$cache[$id]=json_encode($device);}catch(Throwable $e){continue;}
+  }
+  if($cache[$id]!==null)$candidates[$camera][$cache[$id]]=$id;
+ }
+ $out=[];foreach($candidates as $camera=>$devices)if(count($devices)===1)$out[$camera]=array_values($devices)[0];return $out;
+}
 function dm_planner_profile(string $id): array {
  if($id==='')problem('Für den DJI-Export einmal eine vorhandene KMZ derselben Drohne zuordnen. Die Kameraauswahl allein enthält noch keine bestätigte Gerätekennung.');
  $m=mission($id);$v=stmt('SELECT sha256,details FROM versions WHERE mission=? ORDER BY ordinal DESC LIMIT 1',[$id])->fetch();if(!$v)problem('Profilmission fehlt.',404);$d=json_decode($v['details'],true,512,JSON_THROW_ON_ERROR);if(dm_format($d)!=='kmz')problem('Geräteprofil benötigt eine DJI-KMZ.');$path=dm_private().'/blobs/'.$v['sha256'].'.kmz';if(!is_file($path)||!hash_equals($v['sha256'],hash_file('sha256',$path)))problem('Profilmission beschädigt.',500);return dm_plan_device($path)+['sourceMission'=>$id,'sourceHash'=>$v['sha256']];
@@ -12,7 +33,7 @@ function dm_planner_profile(string $id): array {
 if(in_array($action,['planner-catalog','planner-list','planner-load','planner-save','planner-preview','planner-export','planner-archive','planner-osm','planner-height-import','planner-export-delete'],true)){
  if($current&&$current['role']!=='edit')problem('Der Missionsplaner ist nicht für Kunden freigegeben.',403);
  dm_planner_schema($db);
- if($action==='planner-catalog'&&$method==='GET')respond(['cameras'=>dm_plan_catalog(),'version'=>1]);
+ if($action==='planner-catalog'&&$method==='GET')respond(['cameras'=>dm_plan_catalog(),'version'=>1,'deviceProfiles'=>(object)dm_planner_known_profiles()]);
  if($action==='planner-list'&&$method==='GET'){$rows=stmt('SELECT id,folder,name,revision,updated FROM mission_plans ORDER BY updated DESC')->fetchAll();if($current){$ids=dm_folder_ids($db,$current['folder']);$rows=array_values(array_filter($rows,fn($r)=>in_array($r['folder'],$ids,true)));}respond(['plans'=>$rows]);}
  if($action==='planner-load'&&$method==='GET'){$row=stmt('SELECT * FROM mission_plans WHERE id=?',[(string)($_GET['id']??'')])->fetch();if(!$row)problem('Planung nicht gefunden.',404);may_folder($row['folder']);$row['body']=json_decode($row['body'],true,64,JSON_THROW_ON_ERROR);respond($row);}
  if($method!=='POST')problem('Methode nicht unterstützt.',405);
@@ -82,11 +103,11 @@ if(in_array($action,['planner-catalog','planner-list','planner-load','planner-sa
  $folder=($input['folder']??null)?:null;may_folder($folder,true);$planInput=$input['plan']??[];if(!is_array($planInput))problem('Planungsdaten prüfen.');$plan=dm_plan_build($planInput,'dm_planner_elevations');$body=dm_planner_body($plan);
  if($action==='planner-preview')respond($plan);
  if($action==='planner-save'){
-  $id=(string)($input['id']??'');$now=gmdate('c');$body['profileMission']=(string)($input['profileMission']??'');if($body['profileMission']!=='')dm_planner_profile($body['profileMission']);
+  $id=(string)($input['id']??'');$now=gmdate('c');$body['profileMission']=(string)($input['profileMission']??'');if($body['profileMission']==='')$body['profileMission']=dm_planner_known_profiles()[$body['cameraId']??'']??'';if($body['profileMission']!=='')dm_planner_profile($body['profileMission']);
   if($id!==''){$row=stmt('SELECT * FROM mission_plans WHERE id=?',[$id])->fetch();if(!$row)problem('Planung nicht gefunden.',404);may_folder($row['folder'],true);$s=stmt('UPDATE mission_plans SET folder=?,name=?,body=?,revision=revision+1,updated=? WHERE id=? AND revision=?',[$folder,$plan['name'],json_encode($body,JSON_THROW_ON_ERROR),$now,$id,(int)($input['revision']??0)]);if(!$s->rowCount())problem('Planung wurde inzwischen geändert. Bitte neu laden.',409);$rev=(int)$row['revision']+1;}
   else{$id=dm_id();$rev=1;stmt('INSERT INTO mission_plans(id,folder,name,body,created,updated) VALUES(?,?,?,?,?,?)',[$id,$folder,$plan['name'],json_encode($body,JSON_THROW_ON_ERROR),$now,$now]);}respond(['id'=>$id,'revision'=>$rev,'routeSha256'=>$plan['routeSha256'],'generatorVersion'=>$plan['generatorVersion']]);
  }
- $device=dm_planner_profile((string)($input['profileMission']??''));$files=[];foreach($plan['parts'] as $i=>$part)$files[]=dm_plan_kmz($plan,$part,$device,$i+1);
+ $profileId=(string)($input['profileMission']??'');if($profileId==='')$profileId=dm_planner_known_profiles()[$body['cameraId']??'']??'';$device=dm_planner_profile($profileId);$files=[];foreach($plan['parts'] as $i=>$part)$files[]=dm_plan_kmz($plan,$part,$device,$i+1);
  if($action==='planner-export'){
   if(count($files)===1){header('Content-Type: application/vnd.google-earth.kmz');header('Content-Disposition: attachment; filename="mission.kmz"; filename*=UTF-8\'\''.rawurlencode(filename($plan['name']).'.kmz'));echo $files[0];exit;}
   $tmp=tempnam(dm_private().'/tmp','plan-export-');try{$z=new ZipArchive();$z->open($tmp,ZipArchive::OVERWRITE);foreach($files as $i=>$raw)$z->addFromString(sprintf('%s-%02d.kmz',filename($plan['name']),$i+1),$raw);$z->addFromString('planung.dmplan.json',json_encode($body,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));$z->addFromString('HINWEISE.txt',implode("\n",$plan['notes'])."\nGerätekennung aus Referenzmission. Diese neu erzeugten Missionen wurden noch nicht auf DJI Fly getestet.");$z->close();stream_file($tmp,'application/zip',filename($plan['name']).'-Abschnitte.zip');}finally{if(is_file($tmp))unlink($tmp);}

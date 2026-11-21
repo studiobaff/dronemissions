@@ -95,6 +95,7 @@ const assert = require('node:assert/strict');
     await page.locator('#pl-review').click();
     const profile=await page.locator('#pl-profile').evaluate(select=>select.options[1]?.value);
     assert(profile,'synthetic reference mission is available');
+    await page.locator('#pl-device-settings').evaluate(e=>e.open=true);
     await page.locator('#pl-profile').selectOption(profile);
     await page.getByRole('button',{name:'Mission im Projekt speichern',exact:true}).click();
     await page.waitForFunction(()=>document.querySelector('#pl-status').textContent.includes('Flüge zur gemeinsamen Planung im Projekt gespeichert'));
@@ -106,7 +107,7 @@ const assert = require('node:assert/strict');
     await page.locator(`#saved-plans [data-planner-id="${saved.id}"]`).click();
     assert.equal((await (await again).json()).parts.length,3);
     assert.equal(await page.locator('#pl-flightCount').inputValue(),'3');
-    assert.equal(await page.locator('#pl-profile').inputValue(),profile,'device reference retained');
+    assert.equal(await page.locator('#pl-profile').inputValue(),profile,'device reference retained');assert.equal(await page.locator('#pl-device-settings').evaluate(e=>e.open),false,'known device requires no additional selection');
     await page.locator('#planner-dialog').evaluate(dialog=>dialog.close());
    }
    if(viewport.width>1000){
