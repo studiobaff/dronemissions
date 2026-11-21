@@ -21,6 +21,12 @@ def main():
  imported.update({'datum':'sameStart','enabled':True,'margin':10});body['plan']['heightReference']=imported
  r=c.call('planner-preview',body);assert r['summary']['photos']>0 and len(r['parts'])==1
  saved=c.call('planner-save',body);body.update(saved);assert saved['revision']==1
+ assert c.call('planner-catalog')['deviceProfiles']['mavic3']==profile
+ auto={'folder':folder,'plan':plan()};auto['plan']['name']='Automatic remembered device';auto.update(c.call('planner-save',auto))
+ assert c.call('planner-load&id='+auto['id'])['body']['profileMission']==profile
+ auto_raw=c.call('planner-export',auto);auto_zip=zipfile.ZipFile(io.BytesIO(auto_raw));assert b'<wpml:droneEnumValue>99</wpml:droneEnumValue>' in auto_zip.read('wpmz/waylines.wpml')
+ assert c.call('planner-archive',auto)['ids']
+ unknown={'folder':folder,'plan':plan()};unknown['plan']['cameraId']='mavic4';c.call('planner-export',unknown,expected=400)
  listed=next(p for p in c.call('library')['plans'] if p['id']==saved['id']);assert listed['folder']==folder and 'body' not in listed
  loaded=c.call('planner-load&id='+saved['id']);assert loaded['body']['heightReference']==imported;assert loaded['body']['profileMission']==profile and loaded['body']['geometry']==body['plan']['geometry']
  single=c.call('planner-export',body);assert single[:2]==b'PK';z=zipfile.ZipFile(io.BytesIO(single));assert {'wpmz/template.kml','wpmz/waylines.wpml'}<=set(z.namelist());xml=E.fromstring(z.read('wpmz/waylines.wpml'));tags=lambda tag:[e for e in xml.iter() if e.tag.rsplit('}',1)[-1]==tag];assert tags('droneEnumValue')[0].text=='99' and len(tags('Placemark'))==r['summary']['photos']
@@ -33,7 +39,7 @@ def main():
  for action in ['planner-catalog','planner-list','planner-load&id='+saved['id']]:v.call(action,expected=403)
  v.call('planner-height-import',{'folder':folder},expected=403,files={'file':('reference.kmz',synthetic_kmz(20))});v.call('planner-preview',body,expected=403);v.call('planner-export',body,expected=403);v.call('planner-archive',body,expected=403)
  edit=c.call('share',{'folder':folder,'role':'edit'});e=Client(a.base);e.call('share-login',{'token':edit['token']});assert any(x['id']==saved['id'] for x in e.call('planner-list')['plans']);e.call('planner-load&id='+saved['id']);e.call('planner-preview',body);assert any(p['id']==saved['id'] for p in e.call('library')['plans'])
- outsider=c.call('share',{'folder':other,'role':'edit'});f=Client(a.base);f.call('share-login',{'token':outsider['token']});assert not f.call('planner-list')['plans'];assert f.call('library')['plans']==[];f.call('planner-load&id='+saved['id'],expected=403);f.call('planner-preview',body,expected=403)
+ outsider=c.call('share',{'folder':other,'role':'edit'});f=Client(a.base);f.call('share-login',{'token':outsider['token']});assert f.call('planner-catalog')['deviceProfiles']=={};assert not f.call('planner-list')['plans'];assert f.call('library')['plans']==[];f.call('planner-load&id='+saved['id'],expected=403);f.call('planner-preview',body,expected=403)
  f.call('planner-height-import',{'folder':folder},expected=403,files={'file':('reference.kmz',synthetic_kmz(20))})
  v.call('planner-height-import',{'folder':folder,'mission':profile},expected=403)
  f.call('planner-height-import',{'folder':other,'mission':profile},expected=403) # permitted destination, forbidden source
