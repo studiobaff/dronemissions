@@ -79,3 +79,11 @@ try{
  $body['params']['photoPause']=3;$paused=dm_plan_build($body);$file=$tmp.'/pause.kmz';file_put_contents($file,dm_plan_kmz($paused,$paused['parts'][0],['droneEnumValue'=>68]));$z=new ZipArchive();$z->open($file);$x=dm_xml($z->getFromName('wpmz/waylines.wpml'));ft(count($x->xpath('//*[local-name()="hoverTime"][text()="3"]'))>0,'explicit user pause retained');$z->close();unlink($file);
 }finally{putenv('DRONEMISSIONS_PRIVATE'.($env===false?'':'='.$env));rmdir($tmp.'/tmp');rmdir($tmp);}
 echo "PASS: photo through-flight in both XMLs, exact photos, pitch interpolation, boundary stops, consistent nominal timing and explicit optional pause.\n";
+
+// Selected limits above 200 apply to both legacy and time-based splitting.
+$large=$manual;$large['type']='helix';$large['params']['shape']='cylinder';$large['params']=array_replace($large['params'],['photoPause'=>0,'photoLimit'=>5000,'flightSplit'=>'legacy']);$whole=dm_plan_build($large);ft(count($whole['points'])>200&&count($whole['parts'])===1,'legacy accepts selected cap above 200');
+$large['params']['photoLimit']=222;$chunks=dm_plan_build($large);ft(count($chunks['parts'][0])===222,'legacy uses selected 222 cap, not hidden 200');
+$large['params']['photoLimit']=5001;try{dm_plan_build($large);throw new RuntimeException('global 5000 cap ignored');}catch(InvalidArgumentException $expected){}
+$fp['flightMinutes']=60;$fp['photoLimit']=500;$pts=[];for($i=0;$i<300;$i++)$pts[]=['lat'=>48+$i*.000003,'lng'=>16,'height'=>20,'pitch'=>-90,'yaw'=>0,'capture'=>true,'breakBefore'=>false];$fp['captureMode']='photo';
+$long=dm_plan_flights($pts,$fp);ft(count($long['parts'])===1&&count($long['parts'][0])===300,'time mode retains >200 points within selected cap and budget');
+echo "PASS: selected legacy/time caps above 200 and global geometry bound.\n";
