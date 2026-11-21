@@ -23,7 +23,7 @@ function dm_flight_slice(array $path,float $start,float $end): array {
 }
 function dm_flight_estimate(array $part,array $home,array $p): array {
  $speed=$p['speed'];$route=0.0;$photo=$p['captureMode']!=='video';
- foreach($part as $i=>$pt){if($i)$route+=hypot(dm_distance($part[$i-1],$pt),$pt['height']-$part[$i-1]['height'])/min($part[$i-1]['speed']??$speed,$pt['speed']??$speed);if($photo&&($pt['capture']??true))$route+=$p['photoPause']+2;elseif($i===0||$i===count($part)-1||!($pt['gridPass']??false))$route+=2;}
+ foreach($part as $i=>$pt){if($i)$route+=hypot(dm_distance($part[$i-1],$pt),$pt['height']-$part[$i-1]['height'])/min($part[$i-1]['speed']??$speed,$pt['speed']??$speed);if($photo&&$p['photoPause']<=0)continue;if($photo&&($pt['capture']??true))$route+=$p['photoPause']+2;elseif($i===0||$i===count($part)-1||!($pt['gridPass']??false))$route+=2;}
  $first=$part[0];$last=$part[count($part)-1];
  $out=($p['entryEnabled']??true)?dm_distance($home,$first)/$p['transitSpeed']+abs($first['height'])/$p['verticalSpeed']:0.0;
  $back=($p['entryEnabled']??true)?dm_distance($last,$home)/$p['transitSpeed']+abs($last['height'])/$p['verticalSpeed']:0.0;

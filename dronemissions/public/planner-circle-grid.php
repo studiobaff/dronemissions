@@ -76,7 +76,7 @@ function dm_plan_circle_grid(array $in): array {
  $sections=[];$totalDistance=0;$totalSeconds=0;$photoCount=0;$maxStep=0;
  foreach($parts as $part){$d=0;$seconds=0;$photos=$video?0:count(array_filter($part,fn($pt)=>$pt['capture']??true));
   for($j=1;$j<count($part);$j++){$step=hypot(dm_distance($part[$j-1],$part[$j]),$part[$j]['height']-$part[$j-1]['height']);$d+=$step;$maxStep=max($maxStep,$step);$seconds+=$step/min($part[$j-1]['speed'],$part[$j]['speed']);}
-  $seconds+=$photos*($seed['params']['photoPause']+2);$sections[]=['photos'=>$photos,'waypoints'=>count($part),'distance'=>round($d,1),'seconds'=>round($seconds)];$totalDistance+=$d;$totalSeconds+=$seconds;$photoCount+=$photos;
+  $seconds+=$photos*($seed['params']['photoPause']>0?$seed['params']['photoPause']+2:0);$sections[]=['photos'=>$photos,'waypoints'=>count($part),'distance'=>round($d,1),'seconds'=>round($seconds)];$totalDistance+=$d;$totalSeconds+=$seconds;$photoCount+=$photos;
  }
  $refs=dm_plan_height_reference($in['heightReference']??null);$floor=dm_plan_height_floor($refs);
  if($floor){foreach($refs['points'] as $hp)if($hp['selected']&&dm_distance($hp,$points[0])>5000)throw new InvalidArgumentException('Höhenreferenz liegt mehr als 5 km vom Fluggebiet entfernt.');if($bottom<$floor['minimum']-1e-7)throw new InvalidArgumentException('Untere Flugbahn liegt unter der Mindesthöhe aus Höhenreferenzen.');}
