@@ -51,7 +51,7 @@ function dm_plan_flights(array $points,array $p): array {
   while($cursor<$path['length']-.001){
    if(count($parts)>=100)throw new InvalidArgumentException('Mehr als 100 Flüge; Zeitbudget oder Gebiet prüfen.');
    $start=$flight?max($lastStart+($cursor-$lastStart)*.75,$cursor-$overlap):0.0;
-   $fits=function($end)use($path,$start,$home,$costParams,$limit,$budget){$part=dm_flight_slice($path,$start,$end);return count($part)<=$limit&&count($part)<=200&&dm_flight_estimate($part,$home,$costParams)['budgetSeconds']<=$budget;};
+   $fits=function($end)use($path,$start,$home,$costParams,$limit,$budget){$part=dm_flight_slice($path,$start,$end);return count($part)<=$limit&&dm_flight_estimate($part,$home,$costParams)['budgetSeconds']<=$budget;};
    if($mode==='count')$end=$path['length']*($flight+1)/$allocation[$k];
    else{
     if(!$fits(min($path['length'],$cursor+.1)))throw new InvalidArgumentException('Zeitbudget reicht für Anflug, Rückflug, Reserve und Fortsetzung nicht aus. Startpunkt näher setzen oder Budget erhöhen.');
@@ -66,7 +66,7 @@ function dm_plan_flights(array $points,array $p): array {
    }
    if($end-$cursor<.05)throw new InvalidArgumentException('Zu viele Flüge für diese Route.');
    $part=dm_flight_slice($path,$start,$end);
-   if($mode!=='count'&&count($part)>min(200,$limit))throw new InvalidArgumentException('Die gewählte Anzahl Flüge überschreitet das Wegpunktlimit. Mehr Flüge wählen oder automatisch nach Minuten aufteilen.');
+   if($mode!=='count'&&count($part)>$limit)throw new InvalidArgumentException('Die gewählte Anzahl Flüge überschreitet das Wegpunktlimit. Mehr Flüge wählen oder automatisch nach Minuten aufteilen.');
    $estimate=dm_flight_estimate($part,$home,$costParams);$estimate['overBudget']=$estimate['budgetSeconds']>$budget+.01;$estimate['overlapMeters']=$cursor-$start;
    $parts[]=$part;$estimates[]=$estimate;$lastStart=$start;$cursor=$end;$flight++;
   }

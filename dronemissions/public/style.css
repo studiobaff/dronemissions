@@ -770,3 +770,15 @@ button.list-chip-project:focus-visible{outline-offset:1px}
 .pl-flight-controls .pl-bearing-control{grid-template-columns:24px minmax(40px,1fr) 6rem 24px}
 .pl-flight-controls input[type=number]{font-variant-numeric:tabular-nums}
 @media(max-width:850px){.pl-main-controls{grid-template-columns:minmax(0,1fr)}.pl-main-controls .pl-top-field{grid-template-columns:5.5rem minmax(0,1fr)}.pl-main-controls #pl-cameraId,.pl-main-controls #pl-spacingMode{width:100%;min-width:0}.pl-main-controls .pl-top-field select{width:100%;min-width:0}.pl-flight-controls{grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))}}
+
+/* Numeric steppers are controls, not the label spans styled by .field > span. */
+.mission-planner .field>.pl-stepper{display:grid;grid-template-columns:32px minmax(0,1fr) 32px;gap:0;align-items:stretch;margin:0;width:100%}
+.mission-planner .pl-stepper input[type=number]{appearance:textfield;-moz-appearance:textfield;margin:0;min-height:36px;box-sizing:border-box;padding:.3rem .35rem}
+.mission-planner .pl-stepper input::-webkit-inner-spin-button,.mission-planner .pl-stepper input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.mission-planner .pl-stepper .pl-step{min-height:36px;margin:0}
+.mission-planner .pl-fields{column-gap:.8rem;row-gap:.4rem}
+
+.mission-planner .pl-split-controls.pl-single{grid-template-columns:minmax(0,1fr)}
+.mission-planner #pl-flight-fields{margin:.6rem 0;padding:.65rem .7rem;border:1px solid var(--line-2);border-radius:var(--radius-sm)}
+.mission-planner #pl-flight-fields legend{padding:0 .3rem}
+.mission-planner #pl-transit-fields .pl-fields{margin-top:.5rem}
