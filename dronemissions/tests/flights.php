@@ -55,3 +55,27 @@ $geo=dm_plan_geometry($r['geometry']);$to=$geo['project'];$rings=array_map(fn($r
 foreach($r['points'] as $i=>$pt)if($i&&!$pt['breakBefore'])ft(dm_grid_link_inside($to([$r['points'][$i-1]['lng'],$r['points'][$i-1]['lat']]),$to([$pt['lng'],$pt['lat']]),$rings),'all connectors stay inside');
 $again=dm_plan_build(array_intersect_key($r,array_flip(['name','type','cameraId','camera','geometry','params'])));ft($r['parts']===$again['parts'],'concave manual replay');
 echo "PASS: concave manual raster, transit corners, narrow notch and replay.\n";
+
+// Default photos fly through: both XML documents retain photos and interpolate
+// pitch across navigation-only points without hover or timed capture rotations.
+$tmp=sys_get_temp_dir().'/dm-photo-flow-'.bin2hex(random_bytes(5));mkdir($tmp,0700);mkdir($tmp.'/tmp',0700);$env=getenv('DRONEMISSIONS_PRIVATE');putenv('DRONEMISSIONS_PRIVATE='.$tmp);
+try{
+ foreach(['grid','doubleHelix'] as $type){
+  $body=$type==='grid'?$concave:$manual;$body['type']=$type;$body['params']=array_replace($body['params'],['photoPause'=>0,'flightCount'=>2,'captureMode'=>'photo']);$plan=dm_plan_build($body);
+  foreach($plan['parts'] as $i=>$part){
+   $file=$tmp.'/flow.kmz';file_put_contents($file,dm_plan_kmz($plan,$part,['droneEnumValue'=>68],$i+1));$zip=new ZipArchive();$zip->open($file);
+   $travel=0;for($j=1;$j<count($part);$j++)$travel+=hypot(dm_distance($part[$j-1],$part[$j]),$part[$j]['height']-$part[$j-1]['height'])/min($part[$j-1]['speed']??$plan['params']['speed'],$part[$j]['speed']??$plan['params']['speed']);
+   ft(abs($plan['flights']['flights'][$i]['routeSeconds']-$travel)<.001,'budget has no phantom photo dwell');ft(abs($plan['sections'][$i]['seconds']-$travel)<=.5,'section timing matches budget');
+   foreach(['wpmz/template.kml','wpmz/waylines.wpml'] as $entry){
+    $xml=dm_xml($zip->getFromName($entry));$marks=$xml->xpath('//*[local-name()="Placemark"]');$photos=$xml->xpath('//*[local-name()="actionActuatorFunc"][text()="takePhoto"]');
+    ft(count($photos)===count(array_filter($part,fn($p)=>$p['capture']??true)),'all and only capture photos exported');
+    ft(count($xml->xpath('//*[local-name()="actionActuatorFunc"][text()="hover"]'))===0,'no hidden hover');
+    ft(count($xml->xpath('//*[local-name()="actionActuatorFunc"][text()="gimbalEvenlyRotate"]'))===count($part)-1,'pitch follows every leg');
+    foreach($marks as $j=>$mark)ft(dm_value($mark,'waypointTurnMode')===($j===0||$j===count($marks)-1?'toPointAndStopWithDiscontinuityCurvature':'toPointAndPassWithContinuityCurvature'),'only section boundaries stop');
+    if($entry==='wpmz/waylines.wpml')ft(abs((float)dm_value($xml,'duration')-$travel)<.06,'export duration matches nominal route');
+   }$zip->close();unlink($file);
+  }
+ }
+ $body['params']['photoPause']=3;$paused=dm_plan_build($body);$file=$tmp.'/pause.kmz';file_put_contents($file,dm_plan_kmz($paused,$paused['parts'][0],['droneEnumValue'=>68]));$z=new ZipArchive();$z->open($file);$x=dm_xml($z->getFromName('wpmz/waylines.wpml'));ft(count($x->xpath('//*[local-name()="hoverTime"][text()="3"]'))>0,'explicit user pause retained');$z->close();unlink($file);
+}finally{putenv('DRONEMISSIONS_PRIVATE'.($env===false?'':'='.$env));rmdir($tmp.'/tmp');rmdir($tmp);}
+echo "PASS: photo through-flight in both XMLs, exact photos, pitch interpolation, boundary stops, consistent nominal timing and explicit optional pause.\n";
