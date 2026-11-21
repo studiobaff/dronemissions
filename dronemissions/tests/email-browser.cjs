@@ -168,6 +168,28 @@ const assert = require('node:assert/strict');
     // The fallback uses project routes even if its overview was never opened.
     assert(await page.evaluate(()=>{dmProjectViews.clear();const map=window.testPlannerMap,original=data.missions;try{data.missions=[{folder,details:{points:[{lat:48,lng:16},{lat:48.003,lng:16.003}]}}];dmApplyProjectView(map,folder);return map.getBounds().contains([48.001,16.001])&&map.getZoom()>12;}finally{data.missions=original;}}),'project route extent fallback');
    }
+   if(viewport.width>1000){
+    const tile=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64');
+    await page.route('https://mapsneu.wien.gv.at/**',route=>route.fulfill({body:tile,contentType:'image/png',headers:{'access-control-allow-origin':'*'}}));
+    await page.evaluate(()=>{const f=data.folders.find(f=>f.name==='Synthetic smooth grid browser');navigate('folder',f.id);});
+    await page.locator('#folder-options').click();await page.locator('#folder-form [name="previewDefault"]').selectOption('3d');
+    const savedFolder=page.waitForResponse(r=>r.url().includes('action=folder')&&r.request().method()==='POST');await page.locator('#folder-form button[type="submit"]').click();await savedFolder;
+    await page.waitForFunction(()=>folderById(folder)?.preview_effective==='3d');
+    await page.evaluate(()=>{
+     const host=document.createElement('div');host.id='test-preview-host';host.style='position:fixed;top:10px;left:10px;z-index:99999;background:white;display:flex';document.body.append(host);
+     const points=[{lat:48,lng:16,height:60},{lat:48.001,lng:16.001,height:60},{lat:48.002,lng:16,height:60}];
+     const grid={id:'preview-grid-test',folder,versionId:'fixture',revision:1,name:'Synthetic raster',hasCustomPreview:false,details:{plannerType:'grid',points,routes:[{start:0,count:3}],pois:[]}};
+     const helix={...grid,id:'preview-helix-test',name:'Synthetic helix',folder:null,details:{...grid.details,plannerType:'doubleHelix',points:points.map((p,i)=>({...p,height:20+i*20}))}};
+     for(const m of [grid,helix,{...grid,id:'preview-custom-test',hasCustomPreview:true}]){data.missions.push(m);const img=document.createElement('img');img.dataset.missionPreview=m.id;img.width=240;img.height=150;img.src='data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';host.append(img);}
+    });
+    await page.locator('[data-mission-preview="preview-grid-test"][data-preview-rendered="3d"]').waitFor();
+    await page.locator('[data-mission-preview="preview-helix-test"][data-preview-rendered="3d"]').waitFor();
+    assert.equal(await page.locator('[data-mission-preview="preview-custom-test"]').getAttribute('data-preview-rendered'),null,'custom title remains untouched');
+    await page.evaluate(()=>{const m=data.missions.find(m=>m.id==='preview-grid-test');m.folder=null;document.querySelector('#test-preview-host').append(document.createElement('span'));});
+    await page.locator('[data-mission-preview="preview-grid-test"][data-preview-rendered="aerial"]').waitFor();
+    assert((await page.locator('[data-mission-preview="preview-grid-test"]').getAttribute('src')).startsWith('data:image/jpeg'));
+    await page.evaluate(()=>{document.querySelector('#test-preview-host').remove();data.missions=data.missions.filter(m=>!m.id.startsWith('preview-'));});
+   }
    // Mobile navigation may hide logout; open the drawer through the existing toggle.
    const logout=page.locator('#logout');
    if (!await logout.isVisible()) {

@@ -15,6 +15,13 @@ def main():
     c=Client(o.base);c.login(json.loads(o.access.read_text()));folder=c.call('folder',{'name':'Vorschaubilder · Test'})['id'];other=c.call('folder',{'name':'Anderes Projekt · Test'})['id']
     m=c.call('upload',{'folder':folder,'name':'Halbkugel'},files={'kmz':('demo.kmz',synthetic_kmz())})['id']
     def mission(): return next(x for x in c.call('library')['missions'] if x['id']==m)
+    assert not mission()['hasCustomPreview']
+    c.call('folder',{'id':folder,'name':'Vorschaubilder · Test','previewDefault':'aerial'})
+    child=c.call('folder',{'name':'Inherited preview','parent':folder})['id']
+    assert next(f for f in c.call('library')['folders'] if f['id']==child)['preview_effective']=='aerial'
+    c.call('folder',{'id':child,'name':'Inherited preview','parent':folder,'previewDefault':'3d'})
+    assert next(f for f in c.call('library')['folders'] if f['id']==child)['preview_effective']=='3d'
+    c.call('folder',{'id':child,'name':'Inherited preview','parent':folder,'previewDefault':'invalid'},expected=400)
     before=mission();versions=c.call('versions&id='+m)['versions'];original=c.call('original&id='+m)
     initial=c.call('previews&id='+m);assert initial['images']==[] and initial['active'] is None
     settings={'mode':'3d','title':'Halbkugel','provider':'map','yaw':-35,'pitch':25,'zoom':1,'x':0,'y':0,'mapZoom':16}
@@ -30,6 +37,8 @@ def main():
     c.call('preview-image&id='+m+'&image='+image+'&source=1',expected=404)
     c.call('preview-select',{'id':m,'revision':mission()['revision'],'image':image})
     assert c.call('previews&id='+m)['active']==image
+    assert mission()['hasCustomPreview']
+    c.call('folder',{'id':folder,'name':'Vorschaubilder · Test','previewDefault':'3d'})
     assert c.call('preview&id='+m)==rendered
     assert c.call('versions&id='+m)['versions']==versions and c.call('original&id='+m)==original
     assert mission()['versionId']==before['versionId'] and mission()['sha256']==before['sha256']
