@@ -784,3 +784,5 @@ button.list-chip-project:focus-visible{outline-offset:1px}
 .mission-planner #pl-transit-fields .pl-fields{margin-top:.5rem}
 
 .mission-planner .pl-split-controls{align-items:end}
+
+.plan-export-actions{display:flex;justify-content:flex-end;padding:.45rem .7rem 0}

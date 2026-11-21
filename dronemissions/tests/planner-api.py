@@ -63,6 +63,32 @@ def main():
  c.call('mission-map-type',{'id':vm['id'],'revision':vm['revision'],'captureType':'photo'})
  assert next(m for m in c.call('library')['missions'] if m['id']==vm['id'])['captureType']=='photo'
  video['plan']['params']['captureMode']='photo';c.call('planner-archive',video,expected=409)
+ # Whole old export deletion: exact snapshot, current revision and scope guards.
+ dp={'folder':folder,'profileMission':profile,'plan':plan()};dp['plan']['name']='Synthetic removable export';dp['plan']['params'].update({'flightSplit':'count','flightCount':2,'photoPause':0})
+ dp.update(c.call('planner-save',dp));oldrun=c.call('planner-archive',dp);assert len(oldrun['ids'])==2
+ dp['plan']['name']='Synthetic current export';dp.update(c.call('planner-save',dp));currentrun=c.call('planner-archive',dp)
+ lib=c.call('library');oldrows=[m for m in lib['missions'] if m['id'] in oldrun['ids']]
+ delete={'id':dp['id'],'revision':dp['revision'],'exportRevision':1,'missions':[{'id':m['id'],'revision':m['revision']} for m in oldrows]}
+ v.call('planner-export-delete',delete,expected=403);f.call('planner-export-delete',delete,expected=403)
+ c.call('planner-export-delete',dict(delete,exportRevision=2),expected=409)
+ c.call('planner-export-delete',dict(delete,revision=1),expected=409)
+ c.call('planner-export-delete',dict(delete,missions=delete['missions'][:1]),expected=409)
+ # Keep a dependent device-profile source usable until explicitly reassigned.
+ dependent={'folder':folder,'profileMission':oldrun['ids'][0],'plan':plan()};dependent.update(c.call('planner-save',dependent))
+ c.call('planner-export-delete',delete,expected=409)
+ dependent['profileMission']=profile;dependent.update(c.call('planner-save',dependent))
+ # A concurrent edit to any member invalidates the complete deletion snapshot.
+ c.call('mission-map-type',{'id':oldrows[0]['id'],'revision':oldrows[0]['revision'],'captureType':'video'})
+ c.call('planner-export-delete',delete,expected=409)
+ oldrows=[m for m in c.call('library')['missions'] if m['id'] in oldrun['ids']];assert len(oldrows)==2
+ delete['missions']=[{'id':m['id'],'revision':m['revision']} for m in oldrows]
+ token=c.csrf;c.csrf='invalid';c.call('planner-export-delete',delete,expected=403);c.csrf=token
+ result=e.call('planner-export-delete',delete);assert result['deleted']==2 and set(result['ids'])==set(oldrun['ids'])
+ lib=c.call('library');ids={m['id'] for m in lib['missions']};assert not ids.intersection(oldrun['ids']) and set(currentrun['ids'])<=ids and profile in ids
+ assert c.call('planner-load&id='+dp['id'])['revision']==2
+ assert c.call('planner-archive',dp)['ids']==currentrun['ids']
+ c.call('planner-export-delete',delete,expected=409)
+ print('PASS: atomic old export deletion, current-plan/current-export preservation, device dependencies, CAS, CSRF, scope and replay')
  print('PASS: video draft persistence, endpoint grid export and archive mode conflict')
  print('PASS: planner catalog, preview, draft CAS/reopen, device profile, KMZ/section ZIP, archive idempotency/linkage, customer/foreign-project denial, delete guard and OSM bounds')
 if __name__=='__main__':

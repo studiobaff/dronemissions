@@ -9,13 +9,43 @@ function dm_planner_profile(string $id): array {
  if($id==='')problem('Für den DJI-Export einmal eine vorhandene KMZ derselben Drohne zuordnen. Die Kameraauswahl allein enthält noch keine bestätigte Gerätekennung.');
  $m=mission($id);$v=stmt('SELECT sha256,details FROM versions WHERE mission=? ORDER BY ordinal DESC LIMIT 1',[$id])->fetch();if(!$v)problem('Profilmission fehlt.',404);$d=json_decode($v['details'],true,512,JSON_THROW_ON_ERROR);if(dm_format($d)!=='kmz')problem('Geräteprofil benötigt eine DJI-KMZ.');$path=dm_private().'/blobs/'.$v['sha256'].'.kmz';if(!is_file($path)||!hash_equals($v['sha256'],hash_file('sha256',$path)))problem('Profilmission beschädigt.',500);return dm_plan_device($path)+['sourceMission'=>$id,'sourceHash'=>$v['sha256']];
 }
-if(in_array($action,['planner-catalog','planner-list','planner-load','planner-save','planner-preview','planner-export','planner-archive','planner-osm','planner-height-import'],true)){
+if(in_array($action,['planner-catalog','planner-list','planner-load','planner-save','planner-preview','planner-export','planner-archive','planner-osm','planner-height-import','planner-export-delete'],true)){
  if($current&&$current['role']!=='edit')problem('Der Missionsplaner ist nicht für Kunden freigegeben.',403);
  dm_planner_schema($db);
  if($action==='planner-catalog'&&$method==='GET')respond(['cameras'=>dm_plan_catalog(),'version'=>1]);
  if($action==='planner-list'&&$method==='GET'){$rows=stmt('SELECT id,folder,name,revision,updated FROM mission_plans ORDER BY updated DESC')->fetchAll();if($current){$ids=dm_folder_ids($db,$current['folder']);$rows=array_values(array_filter($rows,fn($r)=>in_array($r['folder'],$ids,true)));}respond(['plans'=>$rows]);}
  if($action==='planner-load'&&$method==='GET'){$row=stmt('SELECT * FROM mission_plans WHERE id=?',[(string)($_GET['id']??'')])->fetch();if(!$row)problem('Planung nicht gefunden.',404);may_folder($row['folder']);$row['body']=json_decode($row['body'],true,64,JSON_THROW_ON_ERROR);respond($row);}
  if($method!=='POST')problem('Methode nicht unterstützt.',405);
+ if($action==='planner-export-delete'){
+  $id=(string)($input['id']??'');$revision=(int)($input['revision']??0);$exportRevision=(int)($input['exportRevision']??0);
+  $expected=$input['missions']??[];if(!is_array($expected)||!array_is_list($expected)||!$expected)problem('Export-Flüge fehlen.');
+  $db->beginTransaction();
+  $reject=function($message,$code=409)use($db){$db->rollBack();problem($message,$code);};
+  try{
+   $plan=stmt('SELECT * FROM mission_plans WHERE id=?',[$id])->fetch();if(!$plan)$reject('Planung nicht gefunden.',404);may_folder($plan['folder'],true);
+   if((int)$plan['revision']!==$revision)$reject('Planung wurde inzwischen geändert. Bitte neu laden.');
+   if($exportRevision<1||$exportRevision>=$revision)$reject('Nur frühere Exporte können hier gelöscht werden.');
+   $targets=[];foreach(stmt('SELECT m.id,m.folder,m.revision,v.details FROM missions m JOIN versions v ON v.mission=m.id AND v.ordinal=1')->fetchAll() as $m){$d=json_decode($m['details'],true,512,JSON_THROW_ON_ERROR);if(($d['plannerId']??null)===$id&&(int)($d['plannerRevision']??0)===$exportRevision)$targets[$m['id']]=$m;}
+   $seen=[];foreach($expected as $m){if(!is_array($m)||!isset($m['id'],$m['revision'])||isset($seen[$m['id']]))$reject('Export-Auswahl ist ungültig.');$seen[$m['id']]=(int)$m['revision'];}
+   if(count($seen)!==count($targets)||!$targets)$reject('Export wurde inzwischen geändert oder gelöscht. Bitte neu laden.');
+   foreach($targets as $mid=>$m){may_folder($m['folder'],true);if(($seen[$mid]??null)!==(int)$m['revision'])$reject('Ein Flug wurde inzwischen geändert. Bitte neu laden.');}
+   // Other plans may use a flight as their device-profile source. Keep that source.
+   foreach(stmt('SELECT body FROM mission_plans')->fetchAll() as $p){$body=json_decode($p['body'],true,64,JSON_THROW_ON_ERROR);if(isset($targets[$body['profileMission']??'']))$reject('Ein Flug dieses Exports wird als Geräteprofil verwendet. Zuerst ein anderes Geräteprofil zuordnen.');}
+   $ids=array_keys($targets);$marks=implode(',',array_fill(0,count($ids),'?'));
+   if(stmt("SELECT 1 FROM mission_attachments a JOIN versions v ON v.id=a.version WHERE v.mission IN ($marks) AND a.mission NOT IN ($marks) LIMIT 1",array_merge($ids,$ids))->fetch())$reject('Ein Export wird von einer anderen Mission als Projektdatei verwendet.');
+   if(stmt("SELECT 1 FROM mission_previews p JOIN versions v ON v.id=p.source_version WHERE v.mission IN ($marks) AND p.mission NOT IN ($marks) LIMIT 1",array_merge($ids,$ids))->fetch())$reject('Ein Export wird von einer anderen Mission als Vorschauquelle verwendet.');
+   $runs=[];foreach(stmt('SELECT id,missions FROM mission_plan_runs WHERE plan=?',[$id])->fetchAll() as $run){$members=json_decode($run['missions'],true,64,JSON_THROW_ON_ERROR);if(array_intersect($members,$ids)){if(array_diff($members,$ids))$reject('Export-Zuordnung ist widersprüchlich.');$runs[]=$run['id'];}}
+   stmt("DELETE FROM mission_preview_selection WHERE mission IN ($marks)",$ids);
+   stmt("DELETE FROM mission_previews WHERE mission IN ($marks)",$ids);
+   stmt("DELETE FROM mission_attachments WHERE mission IN ($marks)",$ids);
+   stmt("DELETE FROM versions WHERE mission IN ($marks)",$ids);
+   stmt("DELETE FROM missions WHERE id IN ($marks)",$ids);
+   foreach($runs as $run)stmt('DELETE FROM mission_plan_runs WHERE id=?',[$run]);
+   // Content-addressed blobs can be shared by other missions and snapshots.
+   // Do not unlink files here; this action removes only the chosen archive entries.
+   $db->commit();respond(['deleted'=>count($ids),'ids'=>$ids]);
+  }catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
+ }
  if($action==='planner-height-import'){
   may_folder(($input['folder']??null)?:null,true);
   if(isset($input['mission'])){
