@@ -129,6 +129,44 @@ const assert = require('node:assert/strict');
     assert.equal((await (await response).json()).parts.length,2);
     await page.locator('#planner-dialog').evaluate(dialog=>dialog.close());
    }
+   if(viewport.width>1000){
+    await page.evaluate(async()=>{
+     const f=data.folders.find(f=>f.name==='Synthetic smooth grid browser');
+     navigate('folder',f.id);
+     document.querySelector('#page-title').textContent='3GS';
+     document.querySelector('#page-subtitle').textContent='Flugmissionen und wiederverwendbare Panorama-Standorte an einem Ort. Vier archivierte Missionen sind im selben Projektordner zu finden.';
+    });
+    for(const width of [1600,1280]){
+     await page.setViewportSize({width,height:900});
+     assert(await page.locator('.page-head-text').evaluate(e=>e.getBoundingClientRect().width>=300),'project heading retains readable width');
+     assert(await page.locator('#page-title').evaluate(e=>e.getBoundingClientRect().height<70),'short project title stays on one line');
+     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'header buttons stay within page');
+    }
+    await page.evaluate(()=>{
+     document.querySelector('#overview-map').classList.remove('hidden');renderOverview();
+    });
+    await page.waitForTimeout(150);
+    await page.evaluate(()=>{
+     overview.setView([47.91,16.23],14,{animate:false});
+     const input=[...document.querySelectorAll('#overview-map [data-map-base]')].find(e=>e.value==='Weltweit · OpenStreetMap');input.click();
+     const original=L.map;L.map=function(...args){const map=original.apply(this,args);if(args[0]==='pl-map')window.testPlannerMap=map;return map;};
+    });
+    await page.locator('#planner-open').click();
+    await page.locator('#pl-map .map-panel>summary').click();
+    assert(await page.locator('#pl-map .map-address-form input').isVisible());
+    assert(await page.locator('#pl-map [data-map-base][value="Weltweit · OpenStreetMap"]').isChecked(),'project background retained');
+    const start=await page.evaluate(()=>({lat:window.testPlannerMap.getCenter().lat,lng:window.testPlannerMap.getCenter().lng,zoom:window.testPlannerMap.getZoom()}));
+    assert(Math.abs(start.lat-47.91)<.0001&&Math.abs(start.lng-16.23)<.0001&&start.zoom===14,'new mission retains project map view');
+    await page.route('**/api.php?action=address',route=>route.fulfill({json:{results:[{label:'Synthetic address',lat:48.123,lng:16.456}],source:'fixture'}}));
+    await page.locator('#pl-map .map-address-form input').fill('Synthetic address');
+    await page.locator('#pl-map .map-address-form button[type="submit"]').click();
+    await page.locator('#pl-map [data-address-result]').click();
+    await page.waitForFunction(()=>Math.abs(window.testPlannerMap.getCenter().lat-48.123)<.0001);
+    assert.equal(await page.locator('#pl-live-status').textContent(),'Umriss zeichnen oder importieren','search does not draw or change mission');
+    await page.locator('#planner-dialog').evaluate(d=>d.close());
+    // The fallback uses project routes even if its overview was never opened.
+    assert(await page.evaluate(()=>{dmProjectViews.clear();const map=window.testPlannerMap,original=data.missions;try{data.missions=[{folder,details:{points:[{lat:48,lng:16},{lat:48.003,lng:16.003}]}}];dmApplyProjectView(map,folder);return map.getBounds().contains([48.001,16.001])&&map.getZoom()>12;}finally{data.missions=original;}}),'project route extent fallback');
+   }
    // Mobile navigation may hide logout; open the drawer through the existing toggle.
    const logout=page.locator('#logout');
    if (!await logout.isVisible()) {
