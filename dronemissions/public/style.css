@@ -782,3 +782,5 @@ button.list-chip-project:focus-visible{outline-offset:1px}
 .mission-planner #pl-flight-fields{margin:.6rem 0;padding:.65rem .7rem;border:1px solid var(--line-2);border-radius:var(--radius-sm)}
 .mission-planner #pl-flight-fields legend{padding:0 .3rem}
 .mission-planner #pl-transit-fields .pl-fields{margin-top:.5rem}
+
+.mission-planner .pl-split-controls{align-items:end}

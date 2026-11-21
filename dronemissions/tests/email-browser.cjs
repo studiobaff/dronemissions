@@ -72,6 +72,7 @@ const assert = require('node:assert/strict');
     const stepLayout=await page.locator('#pl-flightCount').evaluate(input=>{const wrap=input.closest('.pl-stepper'),boxes=[...wrap.children].map(e=>e.getBoundingClientRect());return {display:getComputedStyle(wrap).display,gap:Math.max(Math.abs(boxes[0].right-boxes[1].left),Math.abs(boxes[1].right-boxes[2].left)),height:Math.max(...boxes.map(b=>b.height))-Math.min(...boxes.map(b=>b.height))};});
     assert.equal(stepLayout.display,'grid');assert(stepLayout.gap<1&&stepLayout.height<1,'stepper buttons flush and aligned');
     assert.equal(await page.locator('#pl-photoLimit').getAttribute('max'),'5000','point limit can exceed 200');
+    assert.equal(await page.locator('#pl-slider-photoLimit').getAttribute('max'),'5000','slider shares raised limit');
     const minutes=page.locator('#pl-flightMinutes');
     await minutes.scrollIntoViewIfNeeded();
     const before=Number(await minutes.inputValue());
