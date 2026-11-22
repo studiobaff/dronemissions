@@ -21,3 +21,7 @@ $rejected=false;try{dm_cloud_extract(gzcompress(str_repeat('x',16777217)));}catc
 
 $nearby=['summary'=>['name'=>'Other name'],'track'=>array_map(fn($p)=>['lat'=>$p['lat']+34/111319.49,'lng'=>$p['lng']],$points)];check(count(dm_log_candidates($nearby,[$missions[0]]))===1,'Bounding box excluded nearby route');
 $far=['summary'=>['name'=>'Other name'],'track'=>array_map(fn($p)=>['lat'=>$p['lat']+1,'lng'=>$p['lng']],$points)];check(dm_log_candidates($far,[$missions[0]])===[],'Distant route accepted');
+
+$exact=['id'=>'exact','versionId'=>'v','name'=>'Exact','details'=>['points'=>$points,'distance'=>400]];$offset=$exact;$offset['id']='offset';$offset['details']['points']=array_map(fn($p)=>['lat'=>$p['lat']+6/111319.49,'lng'=>$p['lng']],$points);
+$flight=['summary'=>['name'=>'Flight','distanceMeters'=>400],'track'=>$points];$choices=dm_log_candidates($flight,[$exact,$offset]);check(dm_log_auto_candidate($flight,$choices,[$exact,$offset])['id']==='exact','Clearly better exact route not selected');
+$offset['details']['points']=array_map(fn($p)=>['lat'=>$p['lat']+1/111319.49,'lng'=>$p['lng']],$points);check(dm_log_auto_candidate($flight,dm_log_candidates($flight,[$exact,$offset]),[$exact,$offset])===null,'Near-equal route selected');
