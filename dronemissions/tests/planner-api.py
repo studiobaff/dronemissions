@@ -39,6 +39,17 @@ def main():
  unknown={'folder':folder,'plan':plan()};unknown['plan']['cameraId']='mavic4';c.call('planner-export',unknown,expected=400)
  assigned=c.call('planner-device-assign',{'cameraId':'mavic4','profileMission':profile});assert assigned['deviceProfiles']['mavic4']==profile
  assert c.call('planner-export',unknown)[:2]==b'PK'
+ # Simulate the old production foreign-key schema, then exercise lazy migration.
+ import sqlite3
+ with sqlite3.connect(a.access.parent/'missions.sqlite') as legacy:
+  legacy.execute('DROP TABLE planner_device_profiles')
+  legacy.execute('CREATE TABLE planner_device_profiles(camera TEXT PRIMARY KEY,mission TEXT NOT NULL REFERENCES missions(id),updated TEXT NOT NULL)')
+  legacy.execute('INSERT INTO planner_device_profiles VALUES(?,?,?)',('mavic4',profile,'2026-01-01'))
+  legacy.execute('DELETE FROM planner_device_snapshots')
+ assert c.call('planner-catalog')['deviceProfiles']['mavic4']==profile
+ with sqlite3.connect(a.access.parent/'missions.sqlite') as migrated:
+  assert not migrated.execute('PRAGMA foreign_key_list(planner_device_profiles)').fetchall()
+  assert migrated.execute('SELECT count(*) FROM planner_device_snapshots').fetchone()[0]>=2
  c.call('planner-device-assign',{'cameraId':'custom','profileMission':profile},expected=400)
  listed=next(p for p in c.call('library')['plans'] if p['id']==saved['id']);assert listed['folder']==folder and 'body' not in listed
  loaded=c.call('planner-load&id='+saved['id']);assert loaded['body']['heightReference']==imported;assert loaded['body']['profileMission']==profile and loaded['body']['geometry']==body['plan']['geometry']
@@ -94,10 +105,9 @@ def main():
  c.call('planner-export-delete',dict(delete,exportRevision=2),expected=409)
  c.call('planner-export-delete',dict(delete,revision=1),expected=409)
  c.call('planner-export-delete',dict(delete,missions=delete['missions'][:1]),expected=409)
- # Keep a dependent device-profile source usable until explicitly reassigned.
+ # A dependent plan keeps an independent device snapshot after source deletion.
  dependent={'folder':folder,'profileMission':oldrun['ids'][0],'plan':plan()};dependent.update(c.call('planner-save',dependent))
- c.call('planner-export-delete',delete,expected=409)
- dependent['profileMission']=profile;dependent.update(c.call('planner-save',dependent))
+ c.call('planner-device-assign',{'cameraId':'mavic4','profileMission':oldrun['ids'][0]})
  # A concurrent edit to any member invalidates the complete deletion snapshot.
  c.call('mission-map-type',{'id':oldrows[0]['id'],'revision':oldrows[0]['revision'],'captureType':'video'})
  c.call('planner-export-delete',delete,expected=409)
@@ -107,6 +117,12 @@ def main():
  result=e.call('planner-export-delete',delete);assert result['deleted']==2 and set(result['ids'])==set(oldrun['ids'])
  lib=c.call('library');ids={m['id'] for m in lib['missions']};assert not ids.intersection(oldrun['ids']) and set(currentrun['ids'])<=ids and profile in ids
  assert c.call('planner-load&id='+dp['id'])['revision']==2
+ # Both a saved plan and a new mission still export after the profile source is gone.
+ assert c.call('planner-export',dependent)[:2]==b'PK'
+ assert c.call('planner-catalog')['deviceProfiles']['mavic4']==oldrun['ids'][0]
+ assert c.call('planner-export',unknown)[:2]==b'PK'
+ f.call('planner-export',dict(unknown,folder=other,profileMission=oldrun['ids'][0]),expected=403)
+ assert c.call('planner-save',dependent)['revision']==2
  assert c.call('planner-archive',dp)['ids']==currentrun['ids']
  c.call('planner-export-delete',delete,expected=409)
  print('PASS: atomic old export deletion, current-plan/current-export preservation, device dependencies, CAS, CSRF, scope and replay')
