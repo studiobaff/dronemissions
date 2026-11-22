@@ -286,6 +286,7 @@ function render() {
  }
  updateSelection();
  document.body.classList.toggle('permit-map-active',showMap);$('#permit-tools').classList.toggle('hidden',!showMap);$('#cards').classList.toggle('hidden', showMap); $('#overview-map').classList.toggle('hidden', !showMap);
+ $('#flight-logs-open').classList.toggle('hidden',!canEdit());
  $('#planner-open').classList.toggle('hidden',!canEdit());
  $('#project-reference').classList.toggle('hidden',data.role!=='owner'||!folder);
  if (showMap) renderOverview();

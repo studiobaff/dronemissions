@@ -154,7 +154,7 @@ def main():
             for n in range(30): Client(base).call('login',{'email':f'missing{n}@example.test'})
             Client(base).call('login',{'email':'another@example.test'},expected=429)
             print('PASS: STARTTLS HTML/text delivery, active roles, rejection, revocation, CSRF/origin, replay, session rotation, absolute cookie/expiry, OTP expiry/attempts, cross-session rejection, SMTP failure, address/IP limits',flush=True)
-            for script in ['integration.py','previews.py','project-maps-pois.py','planner-api.py','circle-grid-api.py','kmz-editor-api.py']:
+            for script in ['integration.py','previews.py','flight-logs.py','project-maps-pois.py','planner-api.py','circle-grid-api.py','kmz-editor-api.py']:
                 clear_rates()
                 args=[sys.executable,str(ROOT/'tests'/script),'--base',base,'--access',str(private/'access.json')]
                 if script=='integration.py':args.append('--allow-test-writes')

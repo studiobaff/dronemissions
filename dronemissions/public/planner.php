@@ -61,6 +61,7 @@ if(in_array($action,['planner-catalog','planner-list','planner-load','planner-sa
    if(count($seen)!==count($targets)||!$targets)$reject('Export wurde inzwischen geändert oder gelöscht. Bitte neu laden.');
    foreach($targets as $mid=>$m){may_folder($m['folder'],true);if(($seen[$mid]??null)!==(int)$m['revision'])$reject('Ein Flug wurde inzwischen geändert. Bitte neu laden.');}
    // Other plans may use a flight as their device-profile source. Keep that source.
+   if($db->query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='flight_log_links'")->fetchColumn()&&stmt("SELECT 1 FROM flight_log_links WHERE mission IN ($marks) LIMIT 1",$ids)->fetch())$reject('Ein Flug dieses Exports ist mit einem Fluglog verknüpft. Zuerst die Zuordnung lösen.');
    foreach(stmt('SELECT mission FROM planner_device_profiles')->fetchAll() as $p)if(isset($targets[$p['mission']]))$reject('Ein Flug dieses Exports wird als gespeichertes Exportgerät verwendet. Zuerst eine andere Referenz zuordnen.');
    foreach(stmt('SELECT body FROM mission_plans')->fetchAll() as $p){$body=json_decode($p['body'],true,64,JSON_THROW_ON_ERROR);if(isset($targets[$body['profileMission']??'']))$reject('Ein Flug dieses Exports wird als Geräteprofil verwendet. Zuerst ein anderes Geräteprofil zuordnen.');}
    $ids=array_keys($targets);$marks=implode(',',array_fill(0,count($ids),'?'));

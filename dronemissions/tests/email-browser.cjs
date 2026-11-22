@@ -190,6 +190,22 @@ const assert = require('node:assert/strict');
     assert((await page.locator('[data-mission-preview="preview-grid-test"]').getAttribute('src')).startsWith('data:image/jpeg'));
     await page.evaluate(()=>{document.querySelector('#test-preview-host').remove();data.missions=data.missions.filter(m=>!m.id.startsWith('preview-'));});
    }
+   if(viewport.width>1000){
+    await page.locator('#flight-logs-open').click();
+    const project=await page.evaluate(()=>data.folders.find(f=>f.name==='Synthetic flight logs').id);
+    await page.locator('#fl-folder').selectOption(project);
+    const fixture={_exportInfo:{format:'Open DroneLog JSON Export'},flight:{displayName:'Browser log import',startTime:'2026-10-17T13:00:00Z',durationSecs:600,totalDistance:1200,droneModel:'Synthetic Mavic 4'},telemetry:{time:[0,300,600],latitude:[48,48.001,48],longitude:[16,16.002,16.004],battery:[95,80,65]}};
+    await page.locator('#fl-files').setInputFiles({name:'browser-flight.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(fixture))});
+    await page.waitForFunction(()=>document.querySelector('#fl-status').textContent.includes('Prüfung fertig'));
+    assert((await page.locator('#fl-imports').textContent()).includes('30 Prozentpunkte'));
+    const option=await page.locator('[data-import-choice="0"]').evaluate(e=>e.options[1].value);
+    await page.locator('[data-import-choice="0"]').selectOption(option);
+    await page.locator('#fl-import').click();await page.waitForFunction(()=>document.querySelector('#fl-status').textContent.includes('1 Fluglogs importiert'));
+    assert((await page.locator('#fl-list').textContent()).includes('Browser log import'));
+    await page.locator('[data-log-map="0"]').click();await page.waitForFunction(()=>document.querySelector('#fl-status').textContent.includes('Orange:'));
+    assert(await page.locator('#fl-map path[stroke="#ed6a28"]').count()>0);
+    await page.locator('[data-log-close]').click();
+   }
    // Mobile navigation may hide logout; open the drawer through the existing toggle.
    const logout=page.locator('#logout');
    if (!await logout.isVisible()) {
