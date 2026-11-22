@@ -27,6 +27,8 @@ def main():
  for battery in ([None]*5,[50,40,100,90,80]):
   changed=fixture();changed['telemetry']['battery']=battery;assert call('flight-log-inspect',content=json.dumps(changed).encode())['summary']['batteryUsedPercent'] is None
  malformed=fixture();malformed['telemetry']['time']=[0,240,10,720,960];c.call('flight-log-inspect',{'folder':folder},files={'file':('bad.json',json.dumps(malformed).encode())},expected=400)
+ for field,value in [('track',42),('telemetry',{'time':'bad'}),('flight',{'totalDistance':{}})]:
+  malformed=fixture();malformed[field]=value;c.call('flight-log-inspect',{'folder':folder},files={'file':('bad.json',json.dumps(malformed).encode())},expected=400)
  # Identical route in another mission makes the automatic match ambiguous.
  second=c.call('upload',{'folder':folder,'name':'Another route'},files={'kmz':('second.kmz',synthetic_kmz(65))})['id'];assert call('flight-log-inspect')['automatic'] is None
  # Snapshot is retained after the mission gains another version.

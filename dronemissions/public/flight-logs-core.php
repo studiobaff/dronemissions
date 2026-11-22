@@ -15,6 +15,10 @@ function dm_log_parse(string $raw,string $filename): array {
   $d=json_decode($raw,true,64,JSON_THROW_ON_ERROR);
   if(($d['_exportInfo']['format']??'')!=='Open DroneLog JSON Export'||!is_array($d['flight']??null)||!is_array($d['telemetry']??null))throw new InvalidArgumentException('Bitte einen vollständigen OpenDroneLog-JSON-Export wählen.');
   $f=$d['flight'];$t=$d['telemetry'];$u=$d['_exportInfo']['units']??[];$format='json';
+  foreach(['time','latitude','longitude','battery','batteryRemainedCapacity','isPhoto'] as $key)if(isset($t[$key])&&(!is_array($t[$key])||!array_is_list($t[$key])))throw new InvalidArgumentException('Telemetriespalten müssen Listen sein.');
+  if(isset($d['track'])&&(!is_array($d['track'])||!array_is_list($d['track'])))throw new InvalidArgumentException('GPS-Spur muss eine Liste sein.');
+  if(!is_array($u))throw new InvalidArgumentException('Ungültige Einheiten.');
+  if(isset($f['totalDistance'])&&dm_log_number($f['totalDistance'],0)===null)throw new InvalidArgumentException('Ungültige Flugstrecke.');
   $meta=['display_name'=>$f['displayName']??$f['fileName']??$filename,'drone_model'=>$f['droneModel']??null,'drone_serial'=>$f['droneSerial']??null,'battery_serial'=>$f['batterySerial']??null,'start_time'=>$f['startTime']??null,'duration_secs'=>$f['durationSecs']??null,'total_distance_m'=>isset($f['totalDistance'])?$f['totalDistance']/(($u['distance']??'metric')==='imperial'?3.28084:1):null];
   $times=$t['time']??[];if(!is_array($times)||count($times)>50000)throw new InvalidArgumentException('Zu viele Telemetriepunkte.');
   $track=$d['track']??[];$aligned=count($track)===count($times);
