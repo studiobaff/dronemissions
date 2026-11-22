@@ -18,7 +18,7 @@ function normalize(details,frames,version=13){
   telemetry.batteryRemainedCapacity.push(measured&&b.currentCapacity>0?b.currentCapacity:null);
  }
  const recovered=frames.find(f=>f.recover?.aircraftSn)?.recover||{};
- return {_exportInfo:{format:'Open DroneLog JSON Export',units:{distance:'metric'},decoder:'dji-log-parser-js 0.5.7'},flight:{displayName:details.aircraftName||'DJI-Flug',startTime:details.startTime,durationSecs:details.totalTime,totalDistance:details.totalDistance*(version>=13?1000:1),droneModel:typeof details.productType==='string'?details.productType:'DJI',droneSerial:recovered.aircraftSn||details.aircraftSn,batterySerial:recovered.batterySn||details.batterySn},telemetry};
+ return {_exportInfo:{format:'Open DroneLog JSON Export',units:{distance:'metric'},distanceUnit:'m',decoder:'dji-log-parser-js 0.5.7'},flight:{displayName:details.aircraftName||'DJI-Flug',startTime:details.startTime,durationSecs:details.totalTime,totalDistance:details.totalDistance*(version>=13?1000:1),droneModel:typeof details.productType==='string'?details.productType:'DJI',droneSerial:recovered.aircraftSn||details.aircraftSn,batterySerial:recovered.batterySn||details.batterySn},telemetry};
 }
 async function main(){
  const [mode,path]=process.argv.slice(2);
