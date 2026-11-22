@@ -43,6 +43,7 @@ try {
  $current=scope();
  require __DIR__.'/dji-log-settings.php';
  require __DIR__.'/flight-logs.php';
+ require __DIR__.'/dji-cloud.php';
  require __DIR__.'/previews.php';
  require __DIR__.'/layers.php';
  require __DIR__.'/planner.php';

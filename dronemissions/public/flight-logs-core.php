@@ -63,3 +63,15 @@ function dm_log_candidates(array $log,array $missions): array {
  }
  usort($out,fn($a,$b)=>($b['coverage']<=>$a['coverage'])?:($a['meanDistance']<=>$b['meanDistance']));return array_slice($out,0,10);
 }
+function dm_log_auto_candidate(array $log,array $candidates,array $missions): ?array {
+ // Cloud filenames do not carry a mission name. Require a unique bidirectional route match.
+ if(count($candidates)!==1||$candidates[0]['coverage']<.95||count($log['track'])<3)return null;
+ $candidate=$candidates[0];$points=[];$distance=null;foreach($missions as $m)if($m['id']===$candidate['id']){$points=$m['details']['points']??[];$distance=$m['details']['distance']??null;break;}
+ $flown=$log['summary']['distanceMeters']??null;if(!is_numeric($distance)||$distance<=0||!is_numeric($flown)||$flown<$distance*.85||$flown>$distance*1.5)return null;
+ if(count($points)<3)return null;$near=0;
+ foreach($log['track'] as $q){$best=INF;
+  for($i=1;$i<count($points);$i++){$a=$points[$i-1];$b=$points[$i];$scale=111319.49*cos(deg2rad($q['lat']));$ax=($a['lng']-$q['lng'])*$scale;$ay=($a['lat']-$q['lat'])*111319.49;$bx=($b['lng']-$q['lng'])*$scale;$by=($b['lat']-$q['lat'])*111319.49;$dx=$bx-$ax;$dy=$by-$ay;$den=$dx*$dx+$dy*$dy;$t=$den>0?max(0,min(1,-($ax*$dx+$ay*$dy)/$den)):0;$best=min($best,hypot($ax+$t*$dx,$ay+$t*$dy));}
+  if($best<=35)$near++;
+ }
+ return $near/count($log['track'])>=.75?$candidate:null;
+}

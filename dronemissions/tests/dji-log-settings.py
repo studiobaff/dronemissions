@@ -8,7 +8,7 @@ def main():
  p=argparse.ArgumentParser();p.add_argument('--base',required=True);p.add_argument('--access',type=Path,required=True);a=p.parse_args();assert urlparse(a.base).hostname=='127.0.0.1'
  owner=Client(a.base);owner.login(json.loads(a.access.read_text()));action='dji-log-settings'
  anon=Client(a.base);anon.call(action,expected=401)
- initial=owner.call(action);assert not initial['configured'] and not initial['cloudSyncReady']
+ initial=owner.call(action);assert not initial['configured'] and initial['cloudSyncReady']
  fake='synthetic-not-a-real-key-12345678';body={'revision':initial['revision'],'apiKey':fake}
  saved=owner.call(action,body);assert saved['configured'] and fake not in json.dumps(saved)
  assert fake not in json.dumps(owner.call(action));assert fake not in json.dumps(owner.call('library'))

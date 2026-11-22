@@ -201,6 +201,27 @@ const assert = require('node:assert/strict');
     await page.locator('#dji-log-close').click();
     // Clear synthetic server key without interacting with the separate confirmation dialog.
     await page.evaluate(async()=>{const s=await api('dji-log-settings');await api('dji-log-settings',{revision:s.revision,apiKey:null});});
+    let cloudConnected=false;
+    await page.route('**/api.php?action=dji-cloud-*',async route=>{
+     const action=new URL(route.request().url()).searchParams.get('action');let result;
+     if(action==='dji-cloud-status')result={connected:cloudConnected,email:cloudConnected?'pilot@example.test':null,decoderReady:true};
+     else if(action==='dji-cloud-captcha')result={challengeId:'test-challenge',image:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1ioAAAAASUVORK5CYII='};
+     else if(action==='dji-cloud-login'){assert.equal(route.request().postDataJSON().answer,'AB12');cloudConnected=true;result={connected:true};}
+     else if(action==='dji-cloud-list')result={records:[{id:'synthetic-ui',filename:'Synthetic.txt',status:'pending'}],done:true};
+     else if(action==='dji-cloud-sync')result={id:'synthetic-log',assigned:true,duplicate:false};
+     else if(action==='dji-cloud-disconnect'){cloudConnected=false;result={ok:true};}
+     else throw Error('Unexpected mocked cloud action');
+     await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result)});
+    });
+    await page.locator('#dji-cloud-open').click();await page.locator('#dc-refresh').click();
+    await page.locator('#dc-captcha').waitFor({state:'visible'});
+    await page.locator('#dc-email').fill('pilot@example.test');await page.locator('#dc-password').fill('synthetic-password');await page.locator('#dc-answer').fill('AB12');
+    await page.locator('#dc-login button[type="submit"]').click();await page.locator('#dc-connected').waitFor({state:'visible'});
+    assert.equal(await page.locator('#dc-password').inputValue(),'');
+    await page.locator('#dc-list').click();await page.waitForFunction(()=>document.querySelector('#dc-status').textContent.includes('1 Flüge gefunden'));
+    await page.locator('#dc-sync').click();await page.waitForFunction(()=>document.querySelector('#dc-status').textContent.includes('1 automatisch zugeordnet'));
+    await page.locator('#dc-disconnect').click();await page.locator('#dc-login').waitFor({state:'visible'});await page.locator('#dc-close').click();
+    await page.unroute('**/api.php?action=dji-cloud-*');
     const project=await page.evaluate(()=>data.folders.find(f=>f.name==='Synthetic flight logs').id);
     await page.locator('#fl-folder').selectOption(project);
     const fixture={_exportInfo:{format:'Open DroneLog JSON Export'},flight:{displayName:'Browser log import',startTime:'2026-10-17T13:00:00Z',durationSecs:600,totalDistance:1200,droneModel:'Synthetic Mavic 4'},telemetry:{time:[0,300,600],latitude:[48,48.001,48],longitude:[16,16.002,16.004],battery:[95,80,65]}};

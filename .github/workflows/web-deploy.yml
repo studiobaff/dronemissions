@@ -35,6 +35,8 @@ jobs:
         run: php deploy/tests/receiver.php
       - name: Parser regression tests
         run: |
+          node dronemissions/tests/dji-decoder.cjs
+          php dronemissions/tests/dji-cloud-core.php
           php dronemissions/tests/parser.php
           php dronemissions/tests/planner.php
           php dronemissions/tests/grid-turns.php

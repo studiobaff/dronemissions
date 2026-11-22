@@ -2,7 +2,7 @@
 
 Der Import liest vollständige OpenDroneLog-CSV-/JSON-Exporte. Unabhängig implementierter Formatadapter; kein Quellcode aus OpenDroneLog übernommen. Formatquelle: https://github.com/arpanghosh8453/open-dronelog/blob/main/src/lib/exportUtils.ts (buildCsv/buildJson, geprüft am 22.11.2026).
 
-Im Webarchiv „Fluglogs“ öffnen, Projekt auswählen und bis zu 20 Dateien prüfen. Importieren speichert Originalexport und normalisierte Daten im privaten Archiv. Die Prüfung allein speichert nichts. Kein Versand an DJI/OpenDroneLog. Aktuell keine native DJI-TXT-Entschlüsselung oder direkte DJI-Cloud-Anmeldung.
+Im Webarchiv „Fluglogs“ öffnen, Projekt auswählen und bis zu 20 Dateien prüfen. Importieren speichert Originalexport und normalisierte Daten im privaten Archiv. Die Prüfung allein speichert nichts. Kein Versand an DJI/OpenDroneLog. Alternativ steht der direkte DJI-Cloud-Abruf mit serverseitiger TXT-Entschlüsselung bereit; siehe [DJI-CLOUD.md](DJI-CLOUD.md).
 
 Gemeldete Flugdauer wird getrennt vom Telemetriezeitraum gehalten. JSON-Strecken in Fuß werden in Meter umgerechnet; CSV-Metadaten total_distance_m bleiben SI. Akkuverbrauch ist Start minus Ende in Prozentpunkten, optional mAh; fehlende Abdeckung oder ein großer Anstieg verhindern eine verlässliche Verbrauchszahl. Keine Summierung von Prozentwerten unterschiedlicher Akkus. Fotoereignisse sind steigende isPhoto-Flanken, keine garantierte Zahl gespeicherter Bilder.
 
@@ -14,4 +14,4 @@ Zugriff: Eigentümer und berechtigte Projekteditoren. Kundenansichten und Bridge
 
 Validierung: synthetische API-Tests für CSV/JSON, Einheiten, Akkuwerte/Lücken, Duplikate, mehrdeutige Routen, Versionsbindung und Freigabegrenzen. Browsertest für Prüfen, Import, manuelle Zuordnung und Kartenvergleich. Noch keine echten Fluglogs bereitgestellt; kein DJI-Konto verbunden und kein echter Flug damit abgeglichen.
 
-DJI Cloud: https://github.com/arpanghosh8453/Drone-Cloud-Sync ist eine Tauri/Rust-Desktop-Anwendung, keine direkt installierbare PHP-Webkomponente. Serverbetrieb benötigt zusätzlich einen Authentifizierungs-/Download-Dienst, interaktive CAPTCHA-Anmeldung, geschützte Sitzungsablage und einen DJI-TXT-Parser. Diese Erweiterung ist nicht Bestandteil des Dateiimports.
+DJI Cloud: Implementierung, Bedienung, Datenschutz und Testgrenzen stehen in [DJI-CLOUD.md](DJI-CLOUD.md).
