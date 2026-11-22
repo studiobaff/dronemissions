@@ -15,7 +15,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
    window.refMissions=[{id:'kmz',name:'Test Raster',folder:'project',details:{sourceFormat:'dji-kmz',points:[{lat:48,lng:16},{lat:48.01,lng:16},{lat:48.1,lng:16.1},{lat:48.11,lng:16.1}],routes:[{start:0,count:2},{start:2,count:2}]}}];window.refBefore=JSON.stringify(refMissions);
    window.refRequest=async action=>{refCalls.push(action);if(action.startsWith('flight-logs'))return {logs:[{id:'actual',folder:'project',summary:{model:'Mavic 3 Cine',startTime:'2026-10-16T10:00:00Z'}},{id:'slow',summary:{name:'Delayed'}}]};if(action.endsWith('slow'))return new Promise(resolve=>window.refResolve=resolve);return {track:[{lat:48,lng:16,time:0},{lat:48.01,lng:16,time:1},{lat:48.1,lng:16,time:50},{lat:48.11,lng:16,time:51}]};};
    dmFlightReference(refMap,document.querySelector('#ref-controls'),{missions:refMissions,scope:'editor-scope',project:'project',request:refRequest});
-   window.refLayers=()=>Object.values(refMap._layers).filter(l=>l.options?.pane==='flightReference');
+   window.refLayers=()=>Object.values(refMap._layers).filter(l=>l instanceof L.Path&&l.options?.pane==='flightReference');
   });
   await page.locator('.map-flight-reference summary').click();
   await page.waitForFunction(()=>document.querySelector('[data-ref-select]').options.length===4);
