@@ -797,4 +797,4 @@ button.list-chip-project:focus-visible{outline-offset:1px}
 /* Keep Google's native logo/terms visible; Leaflet owns route editing above it. */
 .dm-google-map{position:absolute;inset:0;z-index:0;pointer-events:none}
 .dm-google-map a,.dm-google-map button{pointer-events:auto}
-.dm-google-active .leaflet-bottom.leaflet-right{bottom:28px}
+.dm-google-active .leaflet-bottom{bottom:28px}
