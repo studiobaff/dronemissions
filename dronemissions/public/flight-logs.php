@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__.'/flight-logs-core.php';
 function dm_log_schema(PDO $db): void {
- $db->exec('CREATE TABLE IF NOT EXISTS flight_logs(id TEXT PRIMARY KEY,folder TEXT REFERENCES folders(id),fingerprint TEXT NOT NULL,source_hash TEXT NOT NULL,filename TEXT NOT NULL,summary TEXT NOT NULL,track TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,created TEXT NOT NULL); CREATE UNIQUE INDEX IF NOT EXISTS flight_logs_unique ON flight_logs(COALESCE(folder,""),fingerprint); CREATE TABLE IF NOT EXISTS flight_log_links(log TEXT PRIMARY KEY REFERENCES flight_logs(id),mission TEXT NOT NULL REFERENCES missions(id),version TEXT NOT NULL REFERENCES versions(id),planned TEXT NOT NULL,method TEXT NOT NULL)');
+ $db->exec('CREATE TABLE IF NOT EXISTS flight_logs(id TEXT PRIMARY KEY,folder TEXT REFERENCES folders(id),fingerprint TEXT NOT NULL,source_hash TEXT NOT NULL,filename TEXT NOT NULL,summary TEXT NOT NULL,track TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,created TEXT NOT NULL); CREATE UNIQUE INDEX IF NOT EXISTS flight_logs_unique ON flight_logs(COALESCE(folder,\'\'),fingerprint); CREATE TABLE IF NOT EXISTS flight_log_links(log TEXT PRIMARY KEY REFERENCES flight_logs(id),mission TEXT NOT NULL REFERENCES missions(id),version TEXT NOT NULL REFERENCES versions(id),planned TEXT NOT NULL,method TEXT NOT NULL)');
 }
 function dm_log_uploaded(): array {
  $f=$_FILES['file']??null;if(!$f||$f['error']!==UPLOAD_ERR_OK||!is_uploaded_file($f['tmp_name'])||$f['size']>16777216)problem('Eine OpenDroneLog-CSV/JSON-Datei bis 16 MB wählen.');
