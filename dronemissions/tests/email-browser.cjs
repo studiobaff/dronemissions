@@ -231,8 +231,12 @@ const assert = require('node:assert/strict');
     await page.locator('[data-import-choice="0"]').selectOption(option);
     await page.locator('#fl-import').click();await page.waitForFunction(()=>document.querySelector('#fl-status').textContent.includes('1 Fluglogs importiert'));
     assert((await page.locator('#fl-list').textContent()).includes('Browser log import'));
-    await page.locator('[data-log-map="0"]').click();await page.waitForFunction(()=>document.querySelector('#fl-status').textContent.includes('Orange:'));
-    assert(await page.locator('#fl-map path[stroke="#ed6a28"]').count()>0);
+    const flightCard=page.locator('#fl-list [data-ref-card]').filter({has:page.locator('.flight-card-title', {hasText:'Browser log import'})});
+    await flightCard.locator('[data-ref-pick]').check();
+    await page.waitForFunction(()=>document.querySelectorAll('#fl-map .leaflet-flightReference-pane path').length>0);
+    await flightCard.locator('[data-ref-details]').click();assert((await page.locator('#fl-detail').textContent()).includes('30 Prozentpunkte'));
+    await flightCard.locator('.flight-edit summary').click();await flightCard.locator('[data-ref-name]').fill('Browser renamed flight');await flightCard.locator('[data-ref-capture]').selectOption('panorama');await flightCard.locator('[data-ref-save]').click();
+    await page.waitForFunction(()=>document.querySelector('#fl-list').textContent.includes('Browser renamed flight'));
     await page.locator('[data-log-close]').click();
    }
    // Mobile navigation may hide logout; open the drawer through the existing toggle.
