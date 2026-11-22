@@ -29,3 +29,5 @@ Tests erzeugen einen synthetischen AES-verschlüsselten DJI-v13-Binärlog mit er
 Ein erfolgreicher Test mit einem echten DJI-Konto bzw. echten Mavic-3/Mavic-4-Logs ist erst nach der Anmeldung des Nutzers möglich. Die private DJI-Konto-Schnittstelle kann sich ändern; Erreichbarkeit des CAPTCHA allein beweist keinen vollständigen Kontoabruf. Keiner der synthetischen Tests wird als echter Kontotest ausgegeben.
 
 Protokollreferenz: https://github.com/arpanghosh8453/Drone-Cloud-Sync . Eigenständiger PHP-Adapter; keine Desktop-Anwendung oder deren Quelltext übernommen. Decoder: https://github.com/lvauvillier/dji-log-parser . Entwicklerregistrierung: https://github.com/dji-sdk/FlightRecordParsingLib/blob/master/README.md .
+
+DJI downloads may be raw, ZIP, GZIP or Zlib. The flight-list MD5 is retained with measured payload/content MD5 values in private integrity metadata; an unknown hash interpretation is not treated as verified content corruption. Local SHA-256 verification and successful decoding are required before import.

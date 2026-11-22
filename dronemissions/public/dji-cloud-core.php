@@ -87,6 +87,8 @@ function dm_cloud_download(string $token,string $filename): string {
     }throw new RuntimeException('Zu viele DJI-Weiterleitungen.');
 }
 function dm_cloud_extract(string $raw): string {
+    // DJI also returns RFC 1950 Zlib streams without an archive extension.
+    if(strlen($raw)>=2&&(ord($raw[0])&15)===8&&(ord($raw[0])>>4)<=7&&((ord($raw[0])*256+ord($raw[1]))%31)===0){$decoded=@gzuncompress($raw,16777217);if(!is_string($decoded)||strlen($decoded)<16||strlen($decoded)>16777216)throw new RuntimeException('DJI-Zlib nicht lesbar oder zu groß.');return $decoded;}
     if(str_starts_with($raw,"\x1f\x8b")){$decoded=@gzdecode($raw,16777217);if(!is_string($decoded)||strlen($decoded)>16777216)throw new RuntimeException('DJI-GZIP nicht lesbar oder zu groß.');return $decoded;}
     if(!str_starts_with($raw,"PK\x03\x04"))return $raw;
     $tmp=tempnam(dm_cloud_dir(),'.zip-');file_put_contents($tmp,$raw);chmod($tmp,0600);$z=new ZipArchive();
