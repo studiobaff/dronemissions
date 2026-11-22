@@ -10,7 +10,7 @@ STUB=r'''
 function dm_cloud_http(string $url,?string $body=null,array $headers=[],int $limit=4194304): array {
  $dir=dm_private();$path=parse_url($url,PHP_URL_PATH);parse_str(parse_url($url,PHP_URL_QUERY)??'',$query);
  $reply=fn($data)=>['status'=>200,'headers'=>['content-type'=>'application/json'],'body'=>json_encode($data)];
- if($path==='/apis/apprest/v1/vcode'){$im=imagecreatetruecolor(8,8);ob_start();imagepng($im);$raw=ob_get_clean();return ['status'=>200,'headers'=>['content-type'=>'image/png'],'body'=>$raw];}
+ if($path==='/apis/apprest/v1/vcode'){$im=imagecreatetruecolor(8,8);ob_start();imagepng($im);$raw=ob_get_clean();return ['status'=>200,'headers'=>['content-type'=>'image/jpeg'],'body'=>$raw];}
  if($path==='/apis/apprest/v1/email_login'){parse_str($body,$form);if(($form['verificationCode']??'')!=='AB12')throw new RuntimeException('DJI rejected synthetic login',401);return $reply(['data'=>['token'=>'synthetic-session-token-123456789']]);}
  if($path==='/flight/record_info_list'){
   if(is_file($dir.'/expire-dji-test'))throw new RuntimeException('DJI expired synthetic session',401);
