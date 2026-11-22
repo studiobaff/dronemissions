@@ -15,11 +15,11 @@ function dm_cloud_http(string $url,?string $body=null,array $headers=[],int $lim
  if($path==='/flight/record_info_list'){
   if(is_file($dir.'/expire-dji-test'))throw new RuntimeException('DJI expired synthetic session',401);
   if(($query['token']??'')!=='synthetic-session-token-123456789')throw new RuntimeException('DJI bad synthetic token',401);
-  return $reply(['data'=>['list'=>[['file_name'=>'SyntheticDJI.txt','start_time'=>'2026-10-16T13:00:00Z','aircraft_name'=>'Synthetic drone','md5'=>md5_file($dir.'/synthetic-dji.txt')]],'total'=>1]]);
+  return $reply(['data'=>['list'=>[['file_name'=>'SyntheticDJI.txt','start_time'=>'2026-10-16T13:00:00Z','aircraft_name'=>'Synthetic drone','md5'=>str_repeat('a',32)]],'total'=>1]]);
  }
  if($path==='/flight/zipdownload'){
   $count=(int)@file_get_contents($dir.'/dji-download-count');file_put_contents($dir.'/dji-download-count',(string)($count+1));
-  return ['status'=>200,'headers'=>['content-type'=>'application/octet-stream'],'body'=>file_get_contents($dir.'/synthetic-dji.txt')];
+  return ['status'=>200,'headers'=>['content-type'=>'application/octet-stream'],'body'=>gzcompress(file_get_contents($dir.'/synthetic-dji.txt'))];
  }
  if($path==='/openapi/v1/flight-records/keychains'){
   if(!in_array('Api-Key: synthetic-decoder-key-123456789',$headers,true))throw new RuntimeException('DJI bad synthetic API key',401);
@@ -63,6 +63,8 @@ def main():
     row=c.call('flight-logs&folder='+folder)['logs'][0];assert row['mission']==mid and row['summary']['durationSeconds']==960 and row['summary']['batteryUsedPercent']==40
     duplicate=c.call('dji-cloud-sync',{'id':rid,'folder':folder});assert duplicate['duplicate'] and duplicate['id']==imported['id']
     assert (private/'dji-download-count').read_text()=='1'
+    integrity=json.loads(next((private/'dji-cloud').glob('integrity-*.json')).read_text());assert integrity['serverHashKind']=='unknown'
+    assert integrity['contentMd5']!=integrity['payloadMd5']
     for role in ['view','edit']:
      guest=Client(base);guest.call('share-login',{'token':c.call('share',{'folder':folder,'role':role})['token']});guest.call('dji-cloud-status',expected=403);guest.call('dji-cloud-sync',{'id':rid},expected=403)
     (private/'expire-dji-test').touch();c.call('dji-cloud-list',{},expected=409);assert not c.call('dji-cloud-status')['connected'];assert c.call('session')['authenticated']

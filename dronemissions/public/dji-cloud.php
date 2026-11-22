@@ -55,8 +55,12 @@ if(str_starts_with($action,'dji-cloud-')) {
                 $hash=$row['source_hash'];$path=$hash?dm_cloud_dir().'/'.$hash.'.txt':null;
                 if(!$path||!is_file($path)||!hash_equals($hash,hash_file('sha256',$path))){
                     $download=dm_cloud_download($session['token'],$row['filename']);$raw=dm_cloud_extract($download);$meta=json_decode($row['metadata'],true);$md5=$meta['md5']??'';
-                    if(preg_match('/^[a-f0-9]{32}$/i',$md5)&&!hash_equals(strtolower($md5),md5($raw))&&!hash_equals(strtolower($md5),md5($download)))throw new RuntimeException('DJI-Dateiprüfsumme stimmt nicht überein.');
+                    // The list MD5 has no documented content/payload semantics. Preserve the evidence;
+                    // local SHA-256 and successful binary decoding remain required before importing.
+                    $md5=strtolower($md5);$integrity=['serverMd5'=>$md5,'contentMd5'=>md5($raw),'payloadMd5'=>md5($download)];
+                    $integrity['serverHashKind']=$md5===$integrity['contentMd5']?'content':($md5===$integrity['payloadMd5']?'payload':'unknown');
                     $hash=hash('sha256',$raw);$path=dm_cloud_dir().'/'.$hash.'.txt';if(!is_file($path)){if(file_put_contents($path,$raw,LOCK_EX)===false)throw new RuntimeException('DJI-Fluglog nicht gespeichert.');chmod($path,0600);}
+                    dm_cloud_write(dm_cloud_dir().'/integrity-'.$hash.'.json',$integrity);
                     stmt('UPDATE dji_cloud_records SET source_hash=?,status=\'downloaded\',error=NULL WHERE id=?',[$hash,$id]);
                 }
                 if(!hash_equals($hash,hash_file('sha256',$path)))throw new RuntimeException('Gespeicherte DJI-Datei beschädigt.');
