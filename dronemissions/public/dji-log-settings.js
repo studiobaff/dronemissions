@@ -1,0 +1,17 @@
+'use strict';
+(()=>{
+ const dialog=document.createElement('dialog');
+ dialog.className='dialog';dialog.id='dji-log-settings-dialog';
+ dialog.innerHTML=`<form id="dji-log-settings-form"><div class="dialog-head"><h2>DJI-Fluglogs einrichten</h2><button type="button" class="btn btn-icon" id="dji-log-close" aria-label="Schließen">×</button></div><div class="dialog-body"><p>Vorbereitung für die Auswertung verschlüsselter DJI-Fluglogs. Die direkte Cloud-Synchronisierung ist noch nicht verfügbar.</p><ol><li>Im <a href="https://developer.dji.com/user/apps/" target="_blank" rel="noopener noreferrer">DJI Developer Center</a> anmelden und bei Bedarf das Entwicklerkonto einrichten.</li><li>„Create App“ wählen, Typ <strong>Open API</strong>. Name: <strong>Studio Baff Flight Logs</strong>. Kategorie passend zu Fluglog-Auswertung auswählen.</li><li>Beschreibung: <em>Private server-side analysis of our DJI flight records to compare mission duration and battery usage.</em></li><li>DJI-Bedingungen selbst lesen und bestätigen. Anwendung über die DJI-E-Mail aktivieren; anschließend den App Key in den Details öffnen.</li></ol><p>„App“ bezeichnet hier die Registrierung eures Webdienstes. Du installierst dafür nichts auf deinem Mac.</p><label class="field">DJI Open API · App Key<input type="password" id="dji-log-api-key" autocomplete="off" spellcheck="false" maxlength="256" placeholder="Neuen Schlüssel eingeben"></label><p class="hint">Nur den App Key eingeben, kein DJI-Passwort und keinen Mac-Bridge-Geräteschlüssel. Speicherung im privaten Serververzeichnis; der gespeicherte Wert wird nicht wieder angezeigt.</p><p id="dji-log-key-status" role="status"></p><div class="pl-tools"><button class="btn btn-primary" type="submit">Schlüssel speichern</button><button class="btn btn-outline" type="button" id="dji-log-key-remove" hidden>Schlüssel entfernen</button></div></div></form>`;
+ document.body.append(dialog);
+ let revision='',busy=false;
+ const key=dialog.querySelector('#dji-log-api-key'),status=dialog.querySelector('#dji-log-key-status'),remove=dialog.querySelector('#dji-log-key-remove');
+ function show(result){revision=result.revision;remove.hidden=!result.configured;status.textContent=result.configured?'Schlüssel hinterlegt. Noch kein DJI-Konto verbunden und noch keine Cloud-Synchronisierung aktiv.':'Noch kein App Key hinterlegt.';key.value='';}
+ function freeze(on){busy=on;dialog.querySelectorAll('button,input').forEach(e=>e.disabled=on);}
+ async function save(value){freeze(true);try{show(await api('dji-log-settings',{revision,apiKey:value}));}catch(e){status.textContent=e.message;}finally{key.value='';freeze(false);}}
+ document.addEventListener('click',async e=>{if(!e.target.closest('#dji-log-setup-open')||!isOwner())return;dialog.showModal();key.value='';freeze(true);try{show(await api('dji-log-settings'));}catch(err){status.textContent=err.message;}finally{freeze(false);}});
+ dialog.querySelector('form').onsubmit=e=>{e.preventDefault();if(!key.value.trim()){status.textContent='Bitte zuerst den App Key eingeben.';return;}save(key.value.trim());};
+ remove.onclick=async()=>{if(await confirmDialog('DJI-Schlüssel entfernen?','Der gespeicherte App Key wird vom Server entfernt. Dein DJI-Konto und deine Fluglogs bleiben erhalten.','Schlüssel entfernen',true))save(null);};
+ dialog.querySelector('#dji-log-close').onclick=()=>{if(!busy){key.value='';dialog.close();}};
+ dialog.addEventListener('cancel',e=>{if(busy)e.preventDefault();else key.value='';});
+})();
