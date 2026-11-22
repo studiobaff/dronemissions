@@ -1,5 +1,14 @@
 <?php
 declare(strict_types=1);
+// Small local map previews, preserving telemetry gaps. Full tracks stay on the track endpoint.
+function dm_log_preview(array $track): array {
+ $segments=[];$line=[];$last=null;$stride=max(1,(int)ceil(count($track)/120));
+ foreach($track as $i=>$p){if(!is_numeric($p['lat']??null)||!is_numeric($p['lng']??null)){if($line)$segments[]=$line;$line=[];$last=null;continue;}
+  if($last!==null&&(($p['time']??0)-($last['time']??0)>30||($p['time']??0)<($last['time']??0))){if($line&&end($line)!==[(float)$last['lat'],(float)$last['lng']])$line[]=[(float)$last['lat'],(float)$last['lng']];if($line)$segments[]=$line;$line=[];}
+  if(!$line||$i%$stride===0||$i===count($track)-1)$line[]=[(float)$p['lat'],(float)$p['lng']];$last=$p;
+ }if($line)$segments[]=$line;return $segments;
+}
+
 // Independent OpenDroneLog CSV/JSON format adapter. No upstream application code.
 function dm_log_number(mixed $v,?float $min=null,?float $max=null): ?float {
  if($v===null||$v===''||!is_numeric($v)||!is_finite((float)$v))return null;$v=(float)$v;

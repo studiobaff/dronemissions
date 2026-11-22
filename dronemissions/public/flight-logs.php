@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__.'/flight-logs-core.php';
 function dm_log_schema(PDO $db): void {
+ $db->exec('CREATE TABLE IF NOT EXISTS flight_log_labels(log TEXT PRIMARY KEY REFERENCES flight_logs(id),name TEXT NOT NULL DEFAULT \'\',capture TEXT NOT NULL DEFAULT \'unknown\')');
  $db->exec('CREATE TABLE IF NOT EXISTS flight_logs(id TEXT PRIMARY KEY,folder TEXT REFERENCES folders(id),fingerprint TEXT NOT NULL,source_hash TEXT NOT NULL,filename TEXT NOT NULL,summary TEXT NOT NULL,track TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,created TEXT NOT NULL); CREATE UNIQUE INDEX IF NOT EXISTS flight_logs_unique ON flight_logs(COALESCE(folder,\'\'),fingerprint); CREATE TABLE IF NOT EXISTS flight_log_links(log TEXT PRIMARY KEY REFERENCES flight_logs(id),mission TEXT NOT NULL REFERENCES missions(id),version TEXT NOT NULL REFERENCES versions(id),planned TEXT NOT NULL,method TEXT NOT NULL)');
 }
 function dm_log_uploaded(): array {
@@ -12,7 +13,7 @@ function dm_log_link(string $log,string $mid,string $vid,string $method): void {
  $planned=['durationSeconds'=>$d['estimatedSeconds']??null,'distanceMeters'=>$d['distance']??null,'points'=>$d['count']??null,'camera'=>$d['plannerCamera']??null];
  stmt('INSERT INTO flight_log_links(log,mission,version,planned,method) VALUES(?,?,?,?,?) ON CONFLICT(log) DO UPDATE SET mission=excluded.mission,version=excluded.version,planned=excluded.planned,method=excluded.method',[$log,$mid,$vid,json_encode($planned,JSON_THROW_ON_ERROR),$method]);
 }
-if(in_array($action,['flight-log-inspect','flight-log-import','flight-logs','flight-log-link','flight-log-track'],true)){
+if(in_array($action,['flight-log-inspect','flight-log-import','flight-logs','flight-log-link','flight-log-track','flight-log-label'],true)){
  if($current&&$current['role']!=='edit')problem('Fluglogs sind nicht für Kunden freigegeben.',403);dm_log_schema($db);
  if(in_array($action,['flight-log-inspect','flight-log-import'],true)&&$method==='POST'){
   $folder=($input['folder']??'')?:null;may_folder($folder,true);[$log,$raw,$filename]=dm_log_uploaded();$library=dm_payload($db,$current);$ids=$folder?dm_folder_ids($db,$folder):[null];$missions=array_values(array_filter($library['missions'],fn($m)=>in_array($m['folder'],$ids,true)&&dm_format($m['details'])==='kmz'));
@@ -26,9 +27,14 @@ if(in_array($action,['flight-log-inspect','flight-log-import','flight-logs','fli
  }
  if($action==='flight-logs'&&$method==='GET'){
   $folder=($_GET['folder']??'')?:null;may_folder($folder);$ids=$folder?dm_folder_ids($db,$folder):null;$out=[];
-  foreach(stmt('SELECT l.*,k.mission,k.version,k.planned,k.method,m.folder AS mission_folder,m.name AS mission_name FROM flight_logs l LEFT JOIN flight_log_links k ON k.log=l.id LEFT JOIN missions m ON m.id=k.mission ORDER BY l.created DESC')->fetchAll() as $r){if($ids!==null&&!in_array($r['folder'],$ids,true))continue;if($current&&$r['mission']!==null&&!in_array($r['mission_folder'],dm_folder_ids($db,$current['folder']),true))continue;unset($r['track'],$r['source_hash'],$r['fingerprint'],$r['mission_folder']);$r['summary']=json_decode($r['summary'],true);$r['planned']=$r['planned']?json_decode($r['planned'],true):null;$out[]=$r;}respond(['logs'=>$out]);
+  foreach(stmt('SELECT l.*,k.mission,k.version,k.planned,k.method,m.folder AS mission_folder,m.name AS mission_name,n.name AS displayName,n.capture AS captureType,v.details AS linked_details FROM flight_logs l LEFT JOIN flight_log_links k ON k.log=l.id LEFT JOIN missions m ON m.id=k.mission LEFT JOIN flight_log_labels n ON n.log=l.id LEFT JOIN versions v ON v.id=k.version ORDER BY l.created DESC')->fetchAll() as $r){if($ids!==null&&!in_array($r['folder'],$ids,true))continue;if($current&&$r['mission']!==null&&!in_array($r['mission_folder'],dm_folder_ids($db,$current['folder']),true))continue;if(($_GET['geometry']??'')==='1')$r['previewSegments']=dm_log_preview(json_decode($r['track'],true));$linked=$r['linked_details']?json_decode($r['linked_details'],true):[];$r['plannedCaptureType']=$linked['plannerCaptureMode']??'unknown';unset($r['track'],$r['source_hash'],$r['fingerprint'],$r['mission_folder'],$r['linked_details']);$r['summary']=json_decode($r['summary'],true);$r['planned']=$r['planned']?json_decode($r['planned'],true):null;$out[]=$r;}respond(['logs'=>$out]);
  }
  $id=(string)($method==='GET'?($_GET['id']??''):($input['id']??''));$row=stmt('SELECT * FROM flight_logs WHERE id=?',[$id])->fetch();if(!$row)problem('Fluglog nicht gefunden.',404);may_folder($row['folder'],$method==='POST');
+ if($action==='flight-log-label'&&$method==='POST'){
+  $name=$input['name']??'';$capture=$input['captureType']??'unknown';
+  if(!is_string($name)||strlen($name)>240||preg_match('/[\x00-\x1f]/',$name)||!in_array($capture,['unknown','photo','video','panorama','mixed'],true))problem('Name (max. 240 Bytes) und gültige Aufnahmeart angeben.');
+  $db->beginTransaction();try{$updated=stmt('UPDATE flight_logs SET revision=revision+1 WHERE id=? AND revision=?',[$id,(int)($input['revision']??0)]);if(!$updated->rowCount()){$db->rollBack();problem('Fluglog wurde inzwischen geändert. Bitte neu laden.',409);}stmt('INSERT INTO flight_log_labels(log,name,capture) VALUES(?,?,?) ON CONFLICT(log) DO UPDATE SET name=excluded.name,capture=excluded.capture',[$id,trim($name),$capture]);$db->commit();}catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}respond(['ok'=>true,'revision'=>(int)$row['revision']+1]);
+ }
  if($action==='flight-log-track'&&$method==='GET'){$link=stmt('SELECT mission,version FROM flight_log_links WHERE log=?',[$id])->fetch();$planned=null;if($link){mission($link['mission']);$v=stmt('SELECT details FROM versions WHERE id=?',[$link['version']])->fetch();$planned=$v?json_decode($v['details'],true):null;}respond(['track'=>json_decode($row['track'],true),'planned'=>$planned]);}
  if($action==='flight-log-link'&&$method==='POST'){
   if((int)($input['revision']??0)!==(int)$row['revision'])problem('Zuordnung wurde inzwischen geändert.',409);
