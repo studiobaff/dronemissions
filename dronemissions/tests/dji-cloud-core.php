@@ -18,3 +18,6 @@ echo "PASS: DJI redirect/IP/filename rejection and unique/ambiguous route matchi
 $raw=str_repeat('synthetic flight data',10);check(dm_cloud_extract(gzcompress($raw))===$raw,'Zlib extraction');
 $broken=substr(gzcompress($raw),0,-3);$rejected=false;try{dm_cloud_extract($broken);}catch(Throwable $e){$rejected=true;}check($rejected,'Truncated Zlib accepted');
 $rejected=false;try{dm_cloud_extract(gzcompress(str_repeat('x',16777217)));}catch(Throwable $e){$rejected=true;}check($rejected,'Oversized Zlib accepted');
+
+$nearby=['summary'=>['name'=>'Other name'],'track'=>array_map(fn($p)=>['lat'=>$p['lat']+34/111319.49,'lng'=>$p['lng']],$points)];check(count(dm_log_candidates($nearby,[$missions[0]]))===1,'Bounding box excluded nearby route');
+$far=['summary'=>['name'=>'Other name'],'track'=>array_map(fn($p)=>['lat'=>$p['lat']+1,'lng'=>$p['lng']],$points)];check(dm_log_candidates($far,[$missions[0]])===[],'Distant route accepted');

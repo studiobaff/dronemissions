@@ -119,3 +119,10 @@ function dm_cloud_decode(string $path,string $hash): array {
     if(isset($cache)&&!is_file($cache))dm_cloud_write($cache,$chains);
     return $decoded;
 }
+
+function dm_cloud_selected(array $meta,string $account): bool {
+    $path=dm_cloud_dir().'/selection.json';if(!is_file($path))return true;
+    $selection=json_decode(file_get_contents($path),true,16,JSON_THROW_ON_ERROR);
+    if(($selection['account']??'')!==$account)return true;
+    return in_array($meta['serial']??'',array_filter($selection['serials']??[]),true)||in_array(strtolower(trim($meta['aircraft']??'')),$selection['names']??[],true);
+}
