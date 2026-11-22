@@ -70,7 +70,8 @@ function dm_log_candidates(array $log,array $missions): array {
 }
 function dm_log_auto_candidate(array $log,array $candidates,array $missions): ?array {
  // Cloud filenames do not carry a mission name. Require a unique bidirectional route match.
- if(count($candidates)!==1||$candidates[0]['coverage']<.95||count($log['track'])<3)return null;
+ if(!$candidates||$candidates[0]['coverage']<.95||count($log['track'])<3)return null;
+ if(count($candidates)>1){$first=$candidates[0];$second=$candidates[1];if($first['coverage']<.98||$first['meanDistance']>2||$second['meanDistance']<max($first['meanDistance']*3,$first['meanDistance']+2))return null;}
  $candidate=$candidates[0];$points=[];$distance=null;foreach($missions as $m)if($m['id']===$candidate['id']){$points=$m['details']['points']??[];$distance=$m['details']['distance']??null;break;}
  $flown=$log['summary']['distanceMeters']??null;if(!is_numeric($distance)||$distance<=0||!is_numeric($flown)||$flown<$distance*.85||$flown>$distance*1.5)return null;
  if(count($points)<3)return null;$near=0;
