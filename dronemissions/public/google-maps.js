@@ -17,9 +17,10 @@
   });return loading;
  }
  const GoogleLayer=L.Layer.extend({
+  options:{minZoom:2,maxZoom:20},
   initialize(key,type){this.key=key;this.type=type;},
   onAdd(map){
-   this.map=map;active.add(this);map.dmGoogleActive=true;map.getContainer().classList.add('dm-google-active');
+   this.map=map;map._addZoomLimit(this);active.add(this);map.dmGoogleActive=true;map.getContainer().classList.add('dm-google-active');
    this.container=L.DomUtil.create('div','dm-google-map');map.getContainer().prepend(this.container);
    const container=this.container;
    load(this.key).then(()=>{
@@ -30,7 +31,7 @@
    }).catch(()=>{if(this.map===map&&this.container===container)this.fail();});
   },
   fail(){if(this.map)this.map.fire('googlemaperror',{layer:this});},
-  onRemove(map){active.delete(this);if(this.sync)map.off('move zoom resize',this.sync);if(this.googleMap)google.maps.event.clearInstanceListeners(this.googleMap);this.googleMap=null;this.container?.remove();this.container=null;this.map=null;map.dmGoogleActive=false;map.getContainer().classList.remove('dm-google-active');}
+  onRemove(map){map._removeZoomLimit(this);active.delete(this);if(this.sync)map.off('move zoom resize',this.sync);if(this.googleMap)google.maps.event.clearInstanceListeners(this.googleMap);this.googleMap=null;this.container?.remove();this.container=null;this.map=null;map.dmGoogleActive=false;map.getContainer().classList.remove('dm-google-active');}
  });
  window.dmGoogleLayers=key=>key?{'Google · Karte':new GoogleLayer(key,'roadmap'),'Google · Satellit':new GoogleLayer(key,'satellite'),'Google · Satellit mit Beschriftung':new GoogleLayer(key,'hybrid')}:{};
 })();
