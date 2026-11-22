@@ -93,7 +93,7 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(old=>document.querySelector('#pl-entry-lat').value!==old,oldLat);
     await recalc;assert.notEqual(await page.locator('#pl-entry-lat').inputValue(),oldLat,'H drag updates coordinates');
     await page.locator('#pl-review').click();
-    assert(await page.locator('#pl-profile').inputValue(),'saved drone profile is selected automatically');
+    const profile=await page.locator('#pl-profile').inputValue();assert(profile,'saved drone profile is selected automatically');
     assert(await page.locator('#pl-device-settings').isHidden(),'known drone needs no extra KMZ selection');
     await page.getByRole('button',{name:'Mission im Projekt speichern',exact:true}).click();
     await page.waitForFunction(()=>document.querySelector('#pl-status').textContent.includes('Flüge zur gemeinsamen Planung im Projekt gespeichert'));
