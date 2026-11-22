@@ -44,7 +44,8 @@ function dm_plan_flights(array $points,array $p): array {
  if($mode==='count'&&$count<count($chains))throw new InvalidArgumentException('Der Umriss erfordert mindestens '.count($chains).' getrennte Flüge (Löcher/Kreuzraster).');
  $allocation=array_fill(0,count($chains),1);
  for($i=count($chains);$mode==='count'&&$i<$count;$i++){$scores=[];foreach($chains as $k=>$path)$scores[$k]=$path['length']/$allocation[$k];$allocation[array_search(max($scores),$scores)]++;}
- $parts=[];$estimates=[];$limit=(int)($p['photoLimit']??200);$budget=$minutes*60;
+ $parts=[];$estimates=[];// Minutes mode is independent of the legacy photo cap. Keep the export geometry bound.
+ $limit=5000;$budget=$minutes*60;
  foreach($chains as $k=>$path){
   if(count($path['points'])<2||$path['length']<.1)throw new InvalidArgumentException('Flugbereich ist zu kurz.');
   $cursor=0.0;$flight=0;$lastStart=0.0;
