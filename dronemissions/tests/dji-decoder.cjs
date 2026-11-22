@@ -10,3 +10,8 @@ assert.equal(out.telemetry.batteryRemainedCapacity.at(-1),3000);
 assert(Math.abs(out.telemetry.latitude[1]-48.001)<1e-6);
 assert.equal(log.keychainsRequest().department,3);log.free();
 console.log('PASS: synthetic AES-encrypted DJI v13 binary decoded, coordinates, duration and battery verified.');
+
+const sample=t=>({osd:{flyTime:t,latitude:t,longitude:16},battery:{voltage:12,chargeLevel:90,currentCapacity:1000}});
+const startup=normalize({},[sample(.1),sample(0),sample(.2)]);assert.deepEqual(startup.telemetry.time,[0,.1,.2]);assert.deepEqual(startup.telemetry.latitude,[0,.1,.2]);
+assert.deepEqual(normalize({},[sample(1),sample(2),sample(0)]).telemetry.time,[1,2,0]);
+assert.deepEqual(normalize({},[sample(10),sample(0),sample(11)]).telemetry.time,[10,0,11]);

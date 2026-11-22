@@ -42,13 +42,14 @@ if(str_starts_with($action,'dji-cloud-')) {
             $page=filter_var($input['page']??1,FILTER_VALIDATE_INT);if($page===false||$page<1||$page>500)problem('Ungültige Seite.');
             $payload=dm_cloud_json(dm_cloud_http('https://mydjiflight.dji.com/flight/record_info_list?'.http_build_query(['token'=>$session['token'],'page'=>$page,'page_size'=>99])));
             $rows=dm_cloud_records($payload);$out=[];
-            foreach($rows as $row){$id=hash('sha256',$session['account']."\0".$row['filename']);stmt('INSERT INTO dji_cloud_records(id,account,filename,metadata,updated) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET metadata=excluded.metadata,updated=excluded.updated',[$id,$session['account'],$row['filename'],json_encode($row,JSON_THROW_ON_ERROR),gmdate('c')]);$saved=stmt('SELECT id,status,log,error FROM dji_cloud_records WHERE id=?',[$id])->fetch();$out[]=$saved+$row;}
+            foreach($rows as $row){$id=hash('sha256',$session['account']."\0".$row['filename']);stmt('INSERT INTO dji_cloud_records(id,account,filename,metadata,updated) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET metadata=excluded.metadata,updated=excluded.updated',[$id,$session['account'],$row['filename'],json_encode($row,JSON_THROW_ON_ERROR),gmdate('c')]);$saved=stmt('SELECT id,status,log,error FROM dji_cloud_records WHERE id=?',[$id])->fetch();$out[]=$saved+$row+['selected'=>dm_cloud_selected($row,$session['account'])];}
             $more=dm_cloud_find($payload,['has_more','hasMore']);$totalPages=dm_cloud_find($payload,['total_pages','totalPages','page_count']);$total=dm_cloud_find($payload,['total','total_count','totalCount']);
             $done=is_bool($more)?!$more:(is_numeric($totalPages)?$page>=(int)$totalPages:(is_numeric($total)?$page*99>=(int)$total:count($rows)<99));
             respond(['records'=>$out,'done'=>$done,'page'=>$page]);
         }
         if($action==='dji-cloud-sync'){
             set_time_limit(150);$id=dm_text($input['id']??'',64);$row=stmt('SELECT * FROM dji_cloud_records WHERE id=? AND account=?',[$id,$session['account']])->fetch();if(!$row)problem('Flug zuerst aus der DJI-Liste laden.',404);
+            if(!dm_cloud_selected(json_decode($row['metadata'],true),$session['account'])||$row['status']==='archived')problem('DJI-Flug liegt außerhalb der gewählten Geräteauswahl und bleibt im Archiv.',409);
             if($row['log'])respond(['id'=>$row['log'],'duplicate'=>true]);
             $folder=($input['folder']??'')?:null;may_folder($folder,true);
             try{

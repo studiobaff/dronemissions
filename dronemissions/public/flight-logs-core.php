@@ -54,7 +54,12 @@ function dm_log_parse(string $raw,string $filename): array {
 }
 function dm_log_candidates(array $log,array $missions): array {
  if(count($log['track'])<3)return [];$out=[];$track=$log['track'];
- foreach($missions as $m){$points=$m['details']['points']??[];if(count($points)<2)continue;$route=[];$stride=max(1,(int)ceil(count($points)/100));foreach($points as $i=>$p)if($i%$stride===0||$i===count($points)-1)$route[]=$p;
+ $latitudes=array_column($track,'lat');$longitudes=array_column($track,'lng');$south=min($latitudes);$north=max($latitudes);$west=min($longitudes);$east=max($longitudes);
+ $latMargin=35/111319.49;$maxLat=max(abs($south),abs($north))+$latMargin;$lngMargin=$maxLat<89?35/(111319.49*cos(deg2rad($maxLat))):360;
+ foreach($missions as $m){$points=$m['details']['points']??[];if(count($points)<2)continue;
+  $pLat=array_column($points,'lat');$pLng=array_column($points,'lng');if(max($pLat)<$south-$latMargin||min($pLat)>$north+$latMargin)continue;
+  if($east-$west<180&&max($pLng)-min($pLng)<180&&(max($pLng)<$west-$lngMargin||min($pLng)>$east+$lngMargin))continue;
+  $route=[];$stride=max(1,(int)ceil(count($points)/100));foreach($points as $i=>$p)if($i%$stride===0||$i===count($points)-1)$route[]=$p;
   // Compare only route samples: takeoff and return legs may extend beyond the mission.
   $near=0;$sum=0;foreach($route as $p){$best=INF;foreach($track as $q)$best=min($best,dm_log_distance($p,$q));if($best<=35)$near++;$sum+=min($best,10000);}
   $coverage=$near/count($route);if($coverage<.5)continue;

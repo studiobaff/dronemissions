@@ -4,6 +4,9 @@ const fs=require('node:fs');
 const {DJILog}=require('./vendor/dji-log-parser.js');
 function normalize(details,frames){
  if(!Array.isArray(frames)||frames.length<2||frames.length>50000)throw Error('FRAME_LIMIT');
+ // Some DJI streams emit the first two samples in reverse order (one tick).
+ // Reorder the complete samples only at startup; later clock resets stay invalid.
+ if(frames.length>=3){const a=frames[0]?.osd?.flyTime,b=frames[1]?.osd?.flyTime,c=frames[2]?.osd?.flyTime;if(Number.isFinite(a)&&Number.isFinite(b)&&Number.isFinite(c)&&a>b&&a-b<=.25&&c>=a)frames=[frames[1],frames[0],...frames.slice(2)];}
  const telemetry={time:[],latitude:[],longitude:[],battery:[],batteryRemainedCapacity:[]};
  for(const frame of frames){
   const o=frame.osd,b=frame.battery;

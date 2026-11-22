@@ -55,6 +55,12 @@ def main():
     assert c.call('dji-cloud-status')['connected']
     stored=(private/'dji-cloud/session.json').read_text();assert 'synthetic-session-token' not in stored and 'synthetic-password' not in stored
     listing=c.call('dji-cloud-list',{'page':1});assert listing['done'] and len(listing['records'])==1;rid=listing['records'][0]['id']
+    selection=private/'dji-cloud/selection.json'
+    import hashlib
+    selection.write_text(json.dumps({'account':hashlib.sha256(b'pilot@example.test').hexdigest(),'names':['different drone'],'serials':[]}))
+    assert c.call('dji-cloud-list',{'page':1})['records'][0]['selected'] is False
+    c.call('dji-cloud-sync',{'id':rid,'folder':folder},expected=409)
+    selection.unlink()
     # Missing/incorrect API key must not clear the valid cloud login; downloaded source is retained.
     settings=c.call('dji-log-settings');c.call('dji-log-settings',{'revision':settings['revision'],'apiKey':'wrong-synthetic-key-12345678'})
     c.call('dji-cloud-sync',{'id':rid,'folder':folder},expected=400);assert c.call('dji-cloud-status')['connected']

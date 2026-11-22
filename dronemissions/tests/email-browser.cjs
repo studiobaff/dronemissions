@@ -207,8 +207,8 @@ const assert = require('node:assert/strict');
      if(action==='dji-cloud-status')result={connected:cloudConnected,email:cloudConnected?'pilot@example.test':null,decoderReady:true};
      else if(action==='dji-cloud-captcha')result={challengeId:'test-challenge',image:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1ioAAAAASUVORK5CYII='};
      else if(action==='dji-cloud-login'){assert.equal(route.request().postDataJSON().answer,'AB12');cloudConnected=true;result={connected:true};}
-     else if(action==='dji-cloud-list')result={records:[{id:'synthetic-ui',filename:'Synthetic.txt',status:'pending'}],done:true};
-     else if(action==='dji-cloud-sync')result={id:'synthetic-log',assigned:true,duplicate:false};
+     else if(action==='dji-cloud-list')result={records:[{id:'synthetic-ui',filename:'Synthetic.txt',status:'pending',selected:true},{id:'archived-ui',filename:'Archived.txt',status:'archived',selected:false}],done:true};
+     else if(action==='dji-cloud-sync'){assert.equal(route.request().postDataJSON().id,'synthetic-ui');result={id:'synthetic-log',assigned:true,duplicate:false};}
      else if(action==='dji-cloud-disconnect'){cloudConnected=false;result={ok:true};}
      else throw Error('Unexpected mocked cloud action');
      await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result)});
@@ -218,7 +218,8 @@ const assert = require('node:assert/strict');
     await page.locator('#dc-email').fill('pilot@example.test');await page.locator('#dc-password').fill('synthetic-password');await page.locator('#dc-answer').fill('AB12');
     await page.locator('#dc-login button[type="submit"]').click();await page.locator('#dc-connected').waitFor({state:'visible'});
     assert.equal(await page.locator('#dc-password').inputValue(),'');
-    await page.locator('#dc-list').click();await page.waitForFunction(()=>document.querySelector('#dc-status').textContent.includes('1 Flüge gefunden'));
+    await page.locator('#dc-list').click();await page.waitForFunction(()=>document.querySelector('#dc-status').textContent.includes('1 relevante Flüge'));
+    assert.equal(await page.locator('#dc-records').getByText('Archived.txt',{exact:true}).count(),0);await page.locator('#dc-archive').check();assert.equal(await page.locator('#dc-records').getByText('Archived.txt',{exact:true}).count(),1);
     await page.locator('#dc-sync').click();await page.waitForFunction(()=>document.querySelector('#dc-status').textContent.includes('1 automatisch zugeordnet'));
     await page.locator('#dc-disconnect').click();await page.locator('#dc-login').waitFor({state:'visible'});await page.locator('#dc-close').click();
     await page.unroute('**/api.php?action=dji-cloud-*');

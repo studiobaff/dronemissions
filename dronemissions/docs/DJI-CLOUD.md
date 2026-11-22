@@ -31,3 +31,5 @@ Ein erfolgreicher Test mit einem echten DJI-Konto bzw. echten Mavic-3/Mavic-4-Lo
 Protokollreferenz: https://github.com/arpanghosh8453/Drone-Cloud-Sync . Eigenständiger PHP-Adapter; keine Desktop-Anwendung oder deren Quelltext übernommen. Decoder: https://github.com/lvauvillier/dji-log-parser . Entwicklerregistrierung: https://github.com/dji-sdk/FlightRecordParsingLib/blob/master/README.md .
 
 DJI downloads may be raw, ZIP, GZIP or Zlib. The flight-list MD5 is retained with measured payload/content MD5 values in private integrity metadata; an unknown hash interpretation is not treated as verified content corruption. Local SHA-256 verification and successful decoding are required before import.
+
+A private, account-scoped selection.json can restrict active imports by verified aircraft serials and normalized aircraft names. Nonselected records and archived originals are hidden from the default cloud list, available via the archive checkbox, and rejected by the sync endpoint. Spatial bounding boxes with the matching tolerance eliminate distant missions before detailed comparison.
