@@ -6,6 +6,7 @@ const MAX_KMZ = 16777216;
 function dm_user_agent(string $component): string { return $component.' ('.preg_replace('/[^A-Za-z0-9.:-]/','',$_SERVER['HTTP_HOST']??'localhost').')'; }
 function dm_private(): string { return getenv('DRONEMISSIONS_PRIVATE') ?: dirname(__DIR__).'/private'; }
 /* Kartenstart aus config.json (Einstellungen → Kartenstart); ohne Eintrag Österreich-Mitte. Wird an alle Rollen geliefert, enthält keine Missionsdaten. */
+function dm_google_maps_key(): string { $file=dm_private().'/config.json';$c=is_file($file)?json_decode((string)file_get_contents($file),true):[];$key=$c['googleMapsKey']??'';return ($c['googleMapsEnabled']??false)===true&&is_string($key)&&preg_match('/^[A-Za-z0-9_-]{20,200}$/D',$key)?$key:''; }
 function dm_map_start(): array { $file=dm_private().'/config.json'; $config=is_file($file)?json_decode((string)file_get_contents($file),true):null; $m=is_array($config)?($config['mapStart']??null):null; if(is_array($m)&&is_numeric($m['lat']??null)&&is_numeric($m['lng']??null)&&abs((float)$m['lat'])<=85&&abs((float)$m['lng'])<=180){$zoom=(int)($m['zoom']??13);return ['lat'=>round((float)$m['lat'],5),'lng'=>round((float)$m['lng'],5),'zoom'=>max(3,min(19,$zoom))];} return ['lat'=>47.6,'lng'=>14.1,'zoom'=>7]; }
 function dm_db(): PDO {
  $dir=dm_private(); if(!is_dir($dir))throw new RuntimeException('Installation nicht eingerichtet.');
@@ -118,7 +119,7 @@ function dm_payload(PDO $db,?array $scope): array {
   $plans=$db->query('SELECT id,folder,name,revision,updated FROM mission_plans ORDER BY updated DESC')->fetchAll();
   if($allowed!==null)$plans=array_values(array_filter($plans,fn($plan)=>in_array($plan['folder'],$allowed,true)));
  }
- return ['folders'=>$folders,'missions'=>$missions,'points'=>$points,'plans'=>$plans,'role'=>$scope?($scope['role']==='edit'?'editor':'viewer'):'owner','scope'=>$scope['folder']??null,'presentation'=>$scope['presentation']??'library','layers'=>dm_layers_public($db,$scope),'mapStart'=>dm_map_start()];
+ return ['folders'=>$folders,'missions'=>$missions,'points'=>$points,'plans'=>$plans,'role'=>$scope?($scope['role']==='edit'?'editor':'viewer'):'owner','scope'=>$scope['folder']??null,'presentation'=>$scope['presentation']??'library','layers'=>dm_layers_public($db,$scope),'mapStart'=>dm_map_start(),'googleMapsKey'=>dm_google_maps_key()];
 }
 
 function dm_mission_capture_type(array $m): string {

@@ -164,6 +164,8 @@ def main():
             if os.environ.get('DM_BROWSER_TESTS')=='1':
                 clear_rates()
                 run('node',str(ROOT/'tests/email-browser.cjs'),base,str(private/'access.json'))
+                clear_rates()
+                run('node',str(ROOT/'tests/google-maps-browser.cjs'),base,str(private/'access.json'))
         finally:
             server.terminate();server.wait();log.close();smtp.shutdown();smtp.server_close();users.close()
 

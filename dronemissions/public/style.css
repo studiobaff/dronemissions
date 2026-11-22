@@ -793,3 +793,8 @@ button.list-chip-project:focus-visible{outline-offset:1px}
 @media(max-width:850px){.mission-planner .leaflet-top.leaflet-right{top:8rem}.page-actions{flex-basis:auto}}
 
 .fl-row{border:1px solid var(--line);border-radius:12px;padding:1rem;margin:1rem 0}.fl-row table{width:100%;border-collapse:collapse;margin:.7rem 0}.fl-row th,.fl-row td{text-align:left;padding:.5rem;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}.fl-row select{max-width:100%}#flight-logs-dialog .dialog-body{overflow:auto}
+
+/* Keep Google's native logo/terms visible; Leaflet owns route editing above it. */
+.dm-google-map{position:absolute;inset:0;z-index:0;pointer-events:none}
+.dm-google-map a,.dm-google-map button{pointer-events:auto}
+.dm-google-active .leaflet-bottom{bottom:28px}
