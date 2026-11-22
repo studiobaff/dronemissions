@@ -1,5 +1,5 @@
 <?php
-// Preparation only: storing a decoder key does not enable cloud synchronization.
+// Decoder key and cloud account session are separate credentials.
 if ($action === 'dji-log-settings') {
     owner();
     $path = dm_private().'/dji-log-key.json';
@@ -23,5 +23,5 @@ if ($action === 'dji-log-settings') {
         }
     }
     flock($lock, LOCK_UN);fclose($lock);
-    respond(['configured'=>!empty($stored['apiKey']), 'revision'=>$stored['revision'] ?? '', 'cloudSyncReady'=>false]);
+    respond(['configured'=>!empty($stored['apiKey']), 'revision'=>$stored['revision'] ?? '', 'cloudSyncReady'=>true]);
 }

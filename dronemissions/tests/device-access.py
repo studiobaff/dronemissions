@@ -13,9 +13,9 @@ def main():
  device=Client(base);device.call('login',{'password':key['token']})
  assert device.call('session')['authenticated']
  assert device.call('library')['role']=='editor'
- for action in ['settings','shares','device-keys','planner-list','bridge-config']:
+ for action in ['settings','shares','device-keys','planner-list','bridge-config','dji-cloud-status','dji-log-settings','flight-logs']:
   device.call(action,expected=403)
- for action in ['share','folder-delete','device-key-create','planner-save','mission-map-type','share-login']:
+ for action in ['share','folder-delete','device-key-create','planner-save','mission-map-type','share-login','dji-cloud-login','dji-cloud-sync','dji-cloud-disconnect']:
   device.call(action,{},expected=403)
  device.call('upload',{'mission':'existing'},expected=403)
  stranger=Client(base);stranger.call('device-key-create',{'name':'bad'},expected=403)
