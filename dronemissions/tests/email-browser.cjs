@@ -192,6 +192,15 @@ const assert = require('node:assert/strict');
    }
    if(viewport.width>1000){
     await page.locator('#flight-logs-open').click();
+    await page.locator('#dji-log-setup-open').click();
+    await page.waitForFunction(()=>document.querySelector('#dji-log-key-status').textContent.includes('Noch kein App Key'));
+    await page.locator('#dji-log-api-key').fill('synthetic-browser-test-key-123456');
+    await page.locator('#dji-log-settings-form button[type="submit"]').click();
+    await page.waitForFunction(()=>document.querySelector('#dji-log-key-status').textContent.includes('Schlüssel hinterlegt'));
+    assert.equal(await page.locator('#dji-log-api-key').inputValue(),'');
+    await page.locator('#dji-log-close').click();
+    // Clear synthetic server key without interacting with the separate confirmation dialog.
+    await page.evaluate(async()=>{const s=await api('dji-log-settings');await api('dji-log-settings',{revision:s.revision,apiKey:null});});
     const project=await page.evaluate(()=>data.folders.find(f=>f.name==='Synthetic flight logs').id);
     await page.locator('#fl-folder').selectOption(project);
     const fixture={_exportInfo:{format:'Open DroneLog JSON Export'},flight:{displayName:'Browser log import',startTime:'2026-10-17T13:00:00Z',durationSecs:600,totalDistance:1200,droneModel:'Synthetic Mavic 4'},telemetry:{time:[0,300,600],latitude:[48,48.001,48],longitude:[16,16.002,16.004],battery:[95,80,65]}};

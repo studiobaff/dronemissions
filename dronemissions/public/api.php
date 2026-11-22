@@ -41,6 +41,7 @@ try {
  if($action==='share-login'&&$method==='POST'){$token=$input['token']??'';if(!is_string($token)||strlen($token)>128)problem('Ungültige Freigabe.',403);$s=stmt('SELECT * FROM shares WHERE token_hash=? AND expires>?',[hash('sha256',$token),time()])->fetch();if(!$s)problem('Freigabe ist ungültig, abgelaufen oder widerrufen.',403);session_regenerate_id(true);$_SESSION=['share'=>$s['id'],'csrf'=>bin2hex(random_bytes(32))];respond(['ok'=>true,'csrf'=>$_SESSION['csrf']]);}
  if($action==='logout'&&$method==='POST'){$_SESSION=[];dm_session_cookie(time()-3600);session_destroy();respond(['ok'=>true]);}
  $current=scope();
+ require __DIR__.'/dji-log-settings.php';
  require __DIR__.'/flight-logs.php';
  require __DIR__.'/previews.php';
  require __DIR__.'/layers.php';
