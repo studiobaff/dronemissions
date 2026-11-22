@@ -87,3 +87,27 @@ $large['params']['photoLimit']=5001;try{dm_plan_build($large);throw new RuntimeE
 $fp['flightMinutes']=60;$fp['photoLimit']=500;$pts=[];for($i=0;$i<300;$i++)$pts[]=['lat'=>48+$i*.000003,'lng'=>16,'height'=>20,'pitch'=>-90,'yaw'=>0,'capture'=>true,'breakBefore'=>false];$fp['captureMode']='photo';
 $long=dm_plan_flights($pts,$fp);ft(count($long['parts'])===1&&count($long['parts'][0])===300,'time mode retains >200 points within selected cap and budget');
 echo "PASS: selected legacy/time caps above 200 and global geometry bound.\n";
+
+// Time mode must not inherit an old 150/200-photo split, or separate a helix
+// into batteries at the change of direction when its connector fits the budget.
+$fp['photoLimit']=20;$uncapped=dm_plan_flights($pts,$fp);
+ft(count($uncapped['parts'])===1,'time mode ignores legacy photo cap');
+$large['params']=array_replace($large['params'],['photoLimit'=>150,'flightSplit'=>'time','flightMinutes'=>60,'entryEnabled'=>true,'entryLat'=>48,'entryLng'=>16,'speed'=>5.1]);
+$large['type']='doubleHelix';$continuous=dm_plan_build($large);
+ft(count($continuous['parts'])===1,'automatic double helix can use one battery');
+ft(!array_filter($continuous['points'],fn($p)=>$p['breakBefore']),'automatic double helix has continuous top connector');
+$concave['params']=array_replace($concave['params'],['flightSplit'=>'time','flightMinutes'=>60,'photoLimit'=>20]);
+$connected=dm_plan_build($concave);
+ft(!array_filter($connected['points'],fn($p)=>$p['breakBefore']),'time mode uses checked concave boundary connectors');
+// Anonymized regression dimensions from the two linked reference missions.
+// These verify nominal route time, not a promise about wind or battery life.
+foreach([[2651.5,222,3,884],[3303,118,5.1,648]] as [$metres,$n,$speed,$seconds]){
+ $reference=[];for($i=0;$i<$n;$i++)$reference[]=['lat'=>48+rad2deg($metres/(2*M_PI)*sin(2*M_PI*$i/($n-1))/6371000),'lng'=>16+rad2deg($metres/(2*M_PI)*(cos(2*M_PI*$i/($n-1))-1)/(6371000*cos(deg2rad(48)))),'height'=>100,'pitch'=>-90,'yaw'=>0,'capture'=>true,'breakBefore'=>false];
+ $options=array_replace($fp,['speed'=>$speed,'flightMinutes'=>25,'reserveMinutes'=>2,'photoLimit'=>150]);
+ $r=dm_plan_flights($reference,$options);
+ ft(count($r['parts'])===1,'reference length fits a flight despite old 150 cap');
+ ft(abs($r['info']['flights'][0]['routeSeconds']-$seconds)<3,'reference speed gives measured-plan nominal time');
+ $slow=dm_plan_flights($reference,array_replace($options,['speed'=>$speed/2,'flightMinutes'=>60]));
+ ft(abs($slow['info']['flights'][0]['routeSeconds']-2*$r['info']['flights'][0]['routeSeconds'])<.01,'route time responds to chosen speed');
+}
+echo "PASS: time mode independent of photo cap, continuous double helix/concave raster, reference dimensions and speed scaling.\n";
