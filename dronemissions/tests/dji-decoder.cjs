@@ -5,7 +5,7 @@ const {normalize}=require('../public/dji-decoder.js');
 const f=fixture(),log=new DJILog(new Uint8Array(f.raw));
 assert.equal(log.version,13);assert.equal(log.details.totalTime,960);
 const frames=log.frames(f.chains),out=normalize(log.details,frames);
-assert.equal(out.telemetry.time.at(-1),960);assert.equal(out.telemetry.battery[0],100);assert.equal(out.telemetry.battery.at(-1),60);
+assert.equal(out.flight.totalDistance,750);assert.equal(out.telemetry.time.at(-1),960);assert.equal(out.telemetry.battery[0],100);assert.equal(out.telemetry.battery.at(-1),60);
 assert.equal(out.telemetry.batteryRemainedCapacity.at(-1),3000);
 assert(Math.abs(out.telemetry.latitude[1]-48.001)<1e-6);
 assert.equal(log.keychainsRequest().department,3);log.free();

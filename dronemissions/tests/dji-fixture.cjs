@@ -6,7 +6,7 @@ function xor(type,bytes){const key=Buffer.alloc(8);key.writeBigUInt64LE(crc(type
 function fixture(){
  const key=Buffer.alloc(32,7),initial=Buffer.alloc(16,9);let iv=initial;
  const chains=[[{featurePoint:'FR_Standardization_Feature_Base_1',aesKey:key.toString('base64'),aesIv:iv.toString('base64')}]];
- const details=Buffer.alloc(400);details.writeBigInt64LE(1792155600000n,91);details.writeDoubleLE(16,99);details.writeDoubleLE(48,107);details.writeFloatLE(750,115);details.writeInt32LE(960000,119);details.writeFloatLE(60,123);details[271]=77;details.write('Synthetic drone',280);details.write('SYNTHETIC-SN',312);
+ const details=Buffer.alloc(400);details.writeBigInt64LE(1792155600000n,91);details.writeDoubleLE(16,99);details.writeDoubleLE(48,107);details.writeFloatLE(.75,115);details.writeInt32LE(960000,119);details.writeFloatLE(60,123);details[271]=77;details.write('Synthetic drone',280);details.write('SYNTHETIC-SN',312);
  const payload=Buffer.concat([Buffer.from([1,144,1]),details,Buffer.alloc(2)]),info=xor(0,payload),header=Buffer.alloc(3);header[0]=0;header.writeUInt16LE(info.length,1);
  const aux=Buffer.concat([header,info,Buffer.from([1,3,0,13,0,3])]);
  const records=[];
