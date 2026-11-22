@@ -15,3 +15,5 @@ const sample=t=>({osd:{flyTime:t,latitude:t,longitude:16},battery:{voltage:12,ch
 const startup=normalize({},[sample(.1),sample(0),sample(.2)]);assert.deepEqual(startup.telemetry.time,[0,.1,.2]);assert.deepEqual(startup.telemetry.latitude,[0,.1,.2]);
 assert.deepEqual(normalize({},[sample(1),sample(2),sample(0)]).telemetry.time,[1,2,0]);
 assert.deepEqual(normalize({},[sample(10),sample(0),sample(11)]).telemetry.time,[10,0,11]);
+
+assert.deepEqual(normalize({},[sample(0),sample(.2),sample(.1),sample(.3),sample(.4),sample(.5)]).telemetry.time,[0,.1,.2,.3,.4,.5]);
