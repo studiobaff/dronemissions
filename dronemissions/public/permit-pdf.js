@@ -112,6 +112,7 @@ async function dmBuildPermitPDF(canvas,options,missions){
 }
 /* options: {title, kind, subtitle, file} – Quellen, Betreiber, Logo und Ebenenstatus werden hier ergänzt. */
 async function dmDownloadPermitPDF(map,options,missions){
+ if(map.dmGoogleActive)throw Error('Für den PDF-Export bitte basemap.at, OpenStreetMap oder Esri wählen. Google-Karten werden nicht als Bild kopiert.');
  const container=map.getContainer(),credits=(container.querySelector('.leaflet-control-attribution')?.textContent||'basemap.at · CC BY 4.0').replace(/^\s*Leaflet\s*\|?\s*/,'').split('Schutzgebiete')[0].replace(/[\s,·|]+$/,'').trim();
  const author=(document.querySelector('.sidebar-head .brand-name small')?.textContent||'').trim();
  const canvas=await dmPermitCanvas(map,missions),logo=await dmPdfLogo();
