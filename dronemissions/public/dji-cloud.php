@@ -21,7 +21,7 @@ if(str_starts_with($action,'dji-cloud-')) {
         if($action==='dji-cloud-captcha'){
             dm_cloud_rate('captcha');$id=substr(bin2hex(random_bytes(8)),0,6);
             $r=dm_cloud_http('https://account-api.dji.com/apis/apprest/v1/vcode?srandom='.$id,null,[],2097152);
-            $mime=explode(';',$r['headers']['content-type']??'')[0];$image=@getimagesizefromstring($r['body']);if(!$image||!in_array($mime,['image/jpeg','image/png','image/gif','image/webp'],true)||$image['mime']!==$mime)throw new RuntimeException('DJI lieferte kein CAPTCHA-Bild.');
+            $image=@getimagesizefromstring($r['body']);$mime=$image['mime']??'';if(!$image||!in_array($mime,['image/jpeg','image/png','image/gif','image/webp'],true)||$image[0]<1||$image[1]<1||$image[0]>2048||$image[1]>2048)throw new RuntimeException('DJI lieferte kein CAPTCHA-Bild.');
             $_SESSION['djiChallenge']=['id'=>$id,'created'=>time(),'cookie'=>explode(';',$r['headers']['set-cookie']??'')[0]];
             respond(['challengeId'=>$id,'image'=>'data:'.$mime.';base64,'.base64_encode($r['body'])]);
         }
