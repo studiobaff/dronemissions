@@ -791,3 +791,5 @@ button.list-chip-project:focus-visible{outline-offset:1px}
 .mission-planner .leaflet-top.leaflet-right{top:4.5rem}
 .mission-planner .dm-map-control{max-width:min(320px,calc(100vw - 110px))}
 @media(max-width:850px){.mission-planner .leaflet-top.leaflet-right{top:8rem}.page-actions{flex-basis:auto}}
+
+.fl-row{border:1px solid var(--line);border-radius:12px;padding:1rem;margin:1rem 0}.fl-row table{width:100%;border-collapse:collapse;margin:.7rem 0}.fl-row th,.fl-row td{text-align:left;padding:.5rem;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}.fl-row select{max-width:100%}#flight-logs-dialog .dialog-body{overflow:auto}

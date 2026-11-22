@@ -41,6 +41,7 @@ try {
  if($action==='share-login'&&$method==='POST'){$token=$input['token']??'';if(!is_string($token)||strlen($token)>128)problem('Ungültige Freigabe.',403);$s=stmt('SELECT * FROM shares WHERE token_hash=? AND expires>?',[hash('sha256',$token),time()])->fetch();if(!$s)problem('Freigabe ist ungültig, abgelaufen oder widerrufen.',403);session_regenerate_id(true);$_SESSION=['share'=>$s['id'],'csrf'=>bin2hex(random_bytes(32))];respond(['ok'=>true,'csrf'=>$_SESSION['csrf']]);}
  if($action==='logout'&&$method==='POST'){$_SESSION=[];dm_session_cookie(time()-3600);session_destroy();respond(['ok'=>true]);}
  $current=scope();
+ require __DIR__.'/flight-logs.php';
  require __DIR__.'/previews.php';
  require __DIR__.'/layers.php';
  require __DIR__.'/planner.php';
@@ -74,6 +75,7 @@ try {
   owner();$id=(string)($input['id']??'');may_folder($id,true);$db->beginTransaction();$f=stmt('SELECT * FROM folders WHERE id=?',[$id])->fetch();
   if(!$f||$f['name']!==($input['name']??null)||$f['parent']!==(($input['parent']??null)?:null)){$db->rollBack();problem('Ordner wurde inzwischen geändert. Bitte neu laden.',409);}
   foreach(['SELECT COUNT(*) FROM folders WHERE parent=?','SELECT COUNT(*) FROM missions WHERE folder=?','SELECT COUNT(*) FROM points WHERE folder=?'] as $sql)if((int)stmt($sql,[$id])->fetchColumn()){$db->rollBack();problem('Ordner ist nicht leer. Inhalte zuerst verschieben oder den Ordner archivieren.',409);}
+  if($db->query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='flight_logs'")->fetchColumn()&&(int)stmt('SELECT COUNT(*) FROM flight_logs WHERE folder=?',[$id])->fetchColumn()){$db->rollBack();problem('Projekt enthält Fluglogs. Den Ordner bei Bedarf archivieren.',409);}
   foreach(dm_layers($db) as $layer)if(($layer['config']['folder']??null)===$id){$db->rollBack();problem('Projekt enthält noch Kartenreferenzen. Diese zuerst entfernen oder anders zuordnen.',409);}
   dm_planner_schema($db);if((int)stmt('SELECT COUNT(*) FROM mission_plans WHERE folder=?',[$id])->fetchColumn()){$db->rollBack();problem('Projekt enthält noch Planungen. Diese zuerst anders zuordnen.',409);}
   stmt('DELETE FROM shares WHERE folder=?',[$id]);stmt('DELETE FROM folders WHERE id=?',[$id]);$db->commit();respond(['ok'=>true]);
