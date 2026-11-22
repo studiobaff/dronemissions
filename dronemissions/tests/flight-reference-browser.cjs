@@ -25,7 +25,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
   assert.equal(await page.evaluate(()=>refLayers().every(l=>l.options.pmIgnore&&l.options.snapIgnore&&!l.options.interactive)),true);
   await page.locator('[data-ref-visible]').uncheck();assert.equal(await page.evaluate(()=>refLayers().length),0);
   await page.locator('[data-ref-visible]').check();assert.equal(await page.evaluate(()=>refLayers().length),2);
-  await page.locator('[data-ref-color]').fill('#00ff00');assert.equal(await page.evaluate(()=>refLayers()[0].options.color),'#00ff00');
+  await page.locator('[data-ref-color]').evaluate(e=>{e.value='#00ff00';e.dispatchEvent(new Event('input',{bubbles:true}));});assert.equal(await page.evaluate(()=>refLayers()[0].options.color),'#00ff00');
   await page.locator('[data-ref-search]').fill('mavic3');assert.equal(await page.locator('[data-ref-select] option').count(),3,'search retains current selection');
   await page.locator('[data-ref-select]').selectOption('log:actual');await page.waitForFunction(()=>refLayers().length===2);
   assert.equal(await page.evaluate(()=>refLayers().every(l=>!l.options.dashArray)),true,'actual track is solid and split at gaps');
