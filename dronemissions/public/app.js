@@ -345,7 +345,7 @@ function dmApplyProjectView(map, projectFolder) {
  for(const p of data.points||[])if(ids.has(p.folder))coords.push([p.lat,p.lng]);
  const bounds=L.latLngBounds(coords);if(bounds.isValid())map.fitBounds(bounds,{padding:[45,45],maxZoom:17,animate:false});
 }
-function tiles(map,projectFolder=folder) {
+function tiles(map,projectFolder=folder,references=true) {
  map.on('unload',()=>{map.dmDisposed=true;});
  const attribution = 'Datenquelle: <a href="https://basemap.at/#lizenz" target="_blank" rel="noreferrer">basemap.at</a> · CC BY 4.0';
  const austria = { bounds: [[46.35, 9.45], [49.05, 17.2]], maxNativeZoom: 19, maxZoom: 20, attribution };
@@ -370,7 +370,7 @@ function tiles(map,projectFolder=folder) {
   if (l.kind === 'tile') { if (l.overlay) overlays[l.id] = { label: l.name, layer: L.tileLayer(l.url, { maxZoom: l.maxZoom || 19, opacity: l.opacity ?? 1, attribution: esc(l.attribution || ''), referrerPolicy: 'strict-origin-when-cross-origin', zIndex: 360 + index }) }; }
   else overlays[l.id] = { defaultOn:Boolean(l.folder), label: `${l.name} (${l.features})`, layer: null, load: async () => { const r = await fetch(`api.php?action=layer-data&id=${encodeURIComponent(l.id)}`); if (!r.ok) throw Error('Ebene konnte nicht geladen werden.'); const geo = await r.json(); const pane = 'layer-' + l.id; if (!map.getPane(pane)) { map.createPane(pane); map.getPane(pane).style.zIndex = String(381 + Math.min(index, 18)); } const layer=L.geoJSON(geo, { pane, attribution: esc(l.attribution || ''), style: f=>referenceStyle(l,f), pointToLayer: (f, latlng) => L.circleMarker(latlng, { radius: 5, ...referenceStyle(l,f), fillOpacity: .7 }), onEachFeature: (f, layer) => { const rows = Object.entries(f.properties || {}).filter(([, v]) => v !== null && v !== '').slice(0, 12); if (rows.length) layer.bindPopup(`<strong>${esc(l.name)}</strong><br>` + rows.map(([k, v]) => `${esc(k)}: ${esc(String(v))}`).join('<br>')); } }); if(map===overview&&!map.dmDisposed&&l.folder&&layer.getBounds().isValid()){map.dmReferenceBounds=map.dmReferenceBounds?map.dmReferenceBounds.extend(layer.getBounds()):layer.getBounds();map.dmFitProject?.();}return layer; } };
  });
- const controls=dmMapControls(map, base, roads, overlays);if(canEdit())window.dmFlightReference?.(map,controls.getContainer().querySelector('.map-panel-body'),{missions:data.missions,scope:data.scope,project:projectFolder,request:api});syncRoads(); L.control.scale({ imperial: false }).addTo(map);
+ const controls=dmMapControls(map, base, roads, overlays);if(references&&canEdit())window.dmFlightReference?.(map,controls.getContainer().querySelector('.map-panel-body'),{missions:data.missions,scope:data.scope,project:projectFolder,request:api});syncRoads(); L.control.scale({ imperial: false }).addTo(map);
  let lastError = 0; [...Object.values(base), roads].forEach(layer => layer.on('tileerror', () => { if (Date.now() - lastError > 15000) { lastError = Date.now(); toast('Kartenkacheln nicht erreichbar. Bitte Verbindung oder Kartenebene prüfen.', true); } }));
 }
 function drawRoute(map, mission, group = null, numbered = true) {

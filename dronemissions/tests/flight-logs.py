@@ -36,11 +36,22 @@ def main():
  assert c.call('flight-logs&folder='+folder)['logs'][0]['version']==mission['versionId']
  assert c.call('flight-log-track&id='+lid)['planned']['points'][0]['height']==60
  c.call('flight-log-link',{'id':lid,'revision':row['revision'],'mission':'','version':''});c.call('flight-log-link',{'id':lid,'revision':row['revision'],'mission':'','version':''},expected=409)
+ # Display labels are separate from original telemetry and fingerprint; CAS and enum validation.
+ row=c.call('flight-logs&folder='+folder)['logs'][0]
+ c.call('flight-log-label',{'id':lid,'revision':row['revision'],'name':'Ebenfurth Nord','captureType':'video'})
+ labelled=c.call('flight-logs&geometry=1&folder='+folder)['logs'][0]
+ assert labelled['displayName']=='Ebenfurth Nord' and labelled['captureType']=='video'
+ assert labelled['summary']==row['summary'] and labelled['filename']==row['filename']
+ assert len(labelled['previewSegments'])==5 and 'track' not in labelled
+ c.call('flight-log-label',{'id':lid,'revision':row['revision'],'name':'Stale','captureType':'photo'},expected=409)
+ c.call('flight-log-label',{'id':lid,'revision':labelled['revision'],'name':'Invalid','captureType':'invented'},expected=400)
+ assert call('flight-log-import')['duplicate']
  # Both log and mission need authorization; viewers never see telemetry.
  viewer=Client(a.base);viewer.call('share-login',{'token':c.call('share',{'folder':folder,'role':'view'})['token']})
  outsider=Client(a.base);outsider.call('share-login',{'token':c.call('share',{'folder':other,'role':'edit'})['token']})
  for guest in (viewer,outsider):
   guest.call('flight-logs&folder='+folder,expected=403);guest.call('flight-log-track&id='+lid,expected=403)
+  guest.call('flight-log-label',{'id':lid,'revision':labelled['revision'],'name':'Forbidden','captureType':'photo'},expected=403)
   guest.call('flight-log-link',{'id':lid,'revision':2,'mission':mid,'version':mission['versionId']},expected=403)
  outsider.call('flight-log-import',{'folder':other,'mission':mid,'version':mission['versionId']},files={'file':('private.json',raw)},expected=403)
  c.call('logout',{});print('PASS: OpenDroneLog CSV/JSON, SI conversion, battery gaps/reset, dedup, ambiguous match, version snapshot, CAS and scope isolation.')
