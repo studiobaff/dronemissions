@@ -166,6 +166,8 @@ def main():
                 run('node',str(ROOT/'tests/email-browser.cjs'),base,str(private/'access.json'))
                 clear_rates()
                 run('node',str(ROOT/'tests/google-maps-browser.cjs'),base,str(private/'access.json'))
+                clear_rates()
+                run('node',str(ROOT/'tests/flight-reference-browser.cjs'),base,str(private/'access.json'))
         finally:
             server.terminate();server.wait();log.close();smtp.shutdown();smtp.server_close();users.close()
 
