@@ -2,7 +2,7 @@
 require_once __DIR__.'/dji-cloud-core.php';
 function dm_cloud_schema(): void {
     global $db;
-    $db->exec('CREATE TABLE IF NOT EXISTS dji_cloud_records(id TEXT PRIMARY KEY,account TEXT NOT NULL,filename TEXT NOT NULL,metadata TEXT NOT NULL,source_hash TEXT,log TEXT REFERENCES flight_logs(id),status TEXT NOT NULL DEFAULT "pending",error TEXT,updated TEXT NOT NULL)');
+    $db->exec('CREATE TABLE IF NOT EXISTS dji_cloud_records(id TEXT PRIMARY KEY,account TEXT NOT NULL,filename TEXT NOT NULL,metadata TEXT NOT NULL,source_hash TEXT,log TEXT REFERENCES flight_logs(id),status TEXT NOT NULL DEFAULT \'pending\',error TEXT,updated TEXT NOT NULL)');
 }
 function dm_cloud_rate(string $kind): void {
     $path=dm_cloud_dir().'/rate-'.$kind.'.json';$rows=is_file($path)?json_decode(file_get_contents($path),true):[];$rows=array_values(array_filter($rows,fn($t)=>$t>time()-300));
@@ -57,7 +57,7 @@ if(str_starts_with($action,'dji-cloud-')) {
                     $download=dm_cloud_download($session['token'],$row['filename']);$raw=dm_cloud_extract($download);$meta=json_decode($row['metadata'],true);$md5=$meta['md5']??'';
                     if(preg_match('/^[a-f0-9]{32}$/i',$md5)&&!hash_equals(strtolower($md5),md5($raw))&&!hash_equals(strtolower($md5),md5($download)))throw new RuntimeException('DJI-Dateiprüfsumme stimmt nicht überein.');
                     $hash=hash('sha256',$raw);$path=dm_cloud_dir().'/'.$hash.'.txt';if(!is_file($path)){if(file_put_contents($path,$raw,LOCK_EX)===false)throw new RuntimeException('DJI-Fluglog nicht gespeichert.');chmod($path,0600);}
-                    stmt('UPDATE dji_cloud_records SET source_hash=?,status="downloaded",error=NULL WHERE id=?',[$hash,$id]);
+                    stmt('UPDATE dji_cloud_records SET source_hash=?,status=\'downloaded\',error=NULL WHERE id=?',[$hash,$id]);
                 }
                 if(!hash_equals($hash,hash_file('sha256',$path)))throw new RuntimeException('Gespeicherte DJI-Datei beschädigt.');
                 $export=dm_cloud_decode($path,$hash);$json=json_encode($export,JSON_THROW_ON_ERROR);$log=dm_log_parse($json,$row['filename']);$log['summary']['source']='dji-cloud';
@@ -68,10 +68,10 @@ if(str_starts_with($action,'dji-cloud-')) {
                 $db->beginTransaction();try{
                     $lid=$duplicate?:dm_id();
                     if(!$duplicate){$sha=hash('sha256',$json);$blob=dm_private().'/blobs/'.$sha.'.flightlog';if(file_put_contents($blob,$json,LOCK_EX)===false)throw new RuntimeException('Fluglog nicht gespeichert.');chmod($blob,0600);stmt('INSERT INTO flight_logs(id,folder,fingerprint,source_hash,filename,summary,track,created) VALUES(?,?,?,?,?,?,?,?)',[$lid,$folder,$log['fingerprint'],$sha,$row['filename'].'.json',json_encode($log['summary'],JSON_THROW_ON_ERROR),json_encode($log['track'],JSON_THROW_ON_ERROR),gmdate('c')]);if($auto)dm_log_link($lid,$auto['id'],$auto['versionId'],'automatic-route');}
-                    stmt('UPDATE dji_cloud_records SET log=?,status="imported",error=NULL WHERE id=?',[$lid,$id]);$db->commit();
+                    stmt('UPDATE dji_cloud_records SET log=?,status=\'imported\',error=NULL WHERE id=?',[$lid,$id]);$db->commit();
                 }catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
                 respond(['id'=>$lid,'assigned'=>$auto!==null,'duplicate'=>(bool)$duplicate,'candidates'=>$candidates]);
-            }catch(Throwable $e){if($e->getCode()===401)throw $e;stmt('UPDATE dji_cloud_records SET status="error",error=? WHERE id=?',['Abruf oder Entschlüsselung fehlgeschlagen. Bitte erneut versuchen.',$id]);throw $e;}
+            }catch(Throwable $e){if($e->getCode()===401)throw $e;stmt('UPDATE dji_cloud_records SET status=\'error\',error=? WHERE id=?',['Abruf oder Entschlüsselung fehlgeschlagen. Bitte erneut versuchen.',$id]);throw $e;}
         }
         problem('Unbekannte DJI-Aktion.',404);
     }catch(Throwable $e){
