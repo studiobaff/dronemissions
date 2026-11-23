@@ -48,7 +48,7 @@ const assert = require('node:assert/strict');
     await page.locator('#pl-type').selectOption('helix');assert.equal(await page.locator('#pl-pitchMode').inputValue(),'auto');
     await page.locator('#pl-type').selectOption('corridor');assert.equal(await page.locator('#pl-cameraPitch').inputValue(),'-70');assert.equal(await page.locator('#pl-pitchMode').inputValue(),'manual');
     await page.locator('#pl-cameraPitch').fill('-75');await page.locator('#pl-type').selectOption('grid');assert.equal(await page.locator('#pl-cameraPitch').inputValue(),'-75','explicit pitch preserved');
-    await page.locator('#pl-close').click();
+    page.once('dialog',d=>d.accept());await page.locator('#pl-close').click();
     const saved=await page.evaluate(async()=>{
      const folder=(await api('folder',{name:'Synthetic smooth grid browser'})).id;
      const plan={name:'Synthetic video turns',type:'grid',cameraId:'mavic3',geometry:{type:'Polygon',coordinates:[[[16,48],[16.003,48],[16.003,48.003],[16,48.003],[16,48]]]},params:{captureMode:'video',height:70,gridMotion:'smooth',gridTurnRadius:10,speed:5,photoLimit:200,sectionOverlap:2,terrainMode:'off',flightSplit:'count',flightCount:2,flightMinutes:15,entryEnabled:true,entryLat:48,entryLng:16}};
