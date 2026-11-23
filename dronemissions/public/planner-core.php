@@ -15,7 +15,7 @@ function dm_plan_catalog(): array {
   $row('air3','Air 3',82,8064,6048,'https://www.dji.com/air-3/specs'),
   $row('air3s','Air 3S',84,8192,6144,'https://www.dji.com/air-3s/specs'),
   $row('mavic3','Mavic 3 Series · Hauptkamera',84,5280,3956,'https://www.dji.com/mavic-3/specs'),
-  $row('mavic4','Mavic 4 Pro · Hauptkamera',72,12288,8192,'https://www.dji.com/mavic-4-pro/specs')];
+  $row('mavic4','Mavic 4 Pro · Hauptkamera · 25 MP',72,6144,4096,'https://www.dji.com/mavic-4-pro/specs')];
 }
 function dm_pnum(array $a,string $key,float $min,float $max,?float $default=null): float {
  $v=$a[$key]??$default;if(!is_numeric($v)||!is_finite((float)$v)||(float)$v<$min||(float)$v>$max)throw new InvalidArgumentException("$key: Wert zwischen $min und $max erforderlich.");return (float)$v;
