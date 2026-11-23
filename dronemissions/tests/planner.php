@@ -153,3 +153,7 @@ $file=$tmp.'/pano.kmz';file_put_contents($file,dm_plan_kmz($plan,$plan['parts'][
 $invalid=$in;$invalid['geometry']['coordinates'][]=[16.002,48];rejects(fn()=>dm_plan_build($invalid),'pano rejects ambiguous third point');$invalid=$in;$invalid['params']['panoOverlap']=99;rejects(fn()=>dm_plan_build($invalid),'pano bounded overlap');$invalid=$in;$invalid['params']['terrainMode']='follow';rejects(fn()=>dm_plan_build($invalid),'pano does not silently flatten terrain');}}
 finally{putenv('DRONEMISSIONS_PRIVATE'.($old===false?'':'='.$old));rmdir($tmp.'/tmp');rmdir($tmp);}
 echo "PASS: hover panorama/sphere orientation coverage, WP2-only action sequences in both XMLs, photo/time counts, deterministic replay and bounds.\n";
+
+$photo25=dm_plan_camera(['cameraId'=>'mavic4'],60);$photo100=dm_plan_camera(['cameraId'=>'mavic4','camera'=>['fov'=>72,'w'=>12288,'h'=>8192]],60);
+pc($photo25['w']==6144&&$photo25['h']==4096,'Mavic 4 default is 25 MP');pc(abs($photo25['footprintWidth']-$photo100['footprintWidth'])<.00001,'25 MP preserves coverage at same FOV and ratio');pc(abs(($photo25['footprintWidth']/$photo25['w'])/($photo100['footprintWidth']/$photo100['w'])-2)<.00001,'25 MP doubles pixel ground size');
+echo "PASS: Mavic 4 25 MP dimensions, unchanged footprint and pixel resolution scaling.\n";
