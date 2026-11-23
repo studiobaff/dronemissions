@@ -1,3 +1,7 @@
+# Bridge-Kompatibilität geprüft · 23. November 2026
+
+Live-Server steht auf `main` (`27b770c`). Unveränderter Bridge-0.6.2-Client und Geräteschlüssel gegen den aktuellen Webstand mit der synthetischen Mission BRIDGE-KOMPATIBILITAETSTEST geprüft (Anmeldung, Sichern, Projektzuordnung, Download, Verschieben, Fehler, Widerruf). Neuer Test `tests/bridge-compat.py` in der E-Mail-Suite; Bridge-Patch 0.6.3 (Sitzungserneuerung, Anzeige „Gerätezugang“) unter `bridge-patches/`. Schnittstellenvertrag für den QR-/Kurzcode-Download und offene Gerätetests: [BRIDGE.md](BRIDGE.md), Bericht [HANDOFF-BRIDGE-2026-11-23.md](HANDOFF-BRIDGE-2026-11-23.md). Keine Serveränderung, kein Deployment.
+
 # KMZ-Editor · 8. November 2026
 
 Neu: Archivmission öffnen → **Wegpunkte bearbeiten**. Punkte ziehen, Koordinaten/Höhen ändern, kontrolliert löschen/einfügen und als neue Version speichern. Originale bleiben erhalten. Separate Module `kmz-editor*`; Claudes Planer-UI wird nicht verändert. Umfang, Grenzen und Prüfungen: [KMZ-EDITOR.md](KMZ-EDITOR.md). Veröffentlichung über geprüften PR nach main; nur Web-App, kein Bridge-Build nötig.

@@ -1,0 +1,269 @@
+From 7c5c14ea05ac32010f9469cf875e8f759967bdf7 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 23 Nov 2026 19:55:35 +0000
+Subject: [PATCH] =?UTF-8?q?Bridge=200.6.3:=20Ger=C3=A4teschl=C3=BCssel-Sit?=
+ =?UTF-8?q?zung=20erneuern,=20Ger=C3=A4tezugang=20anzeigen?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Webarchiv-Geräteschlüssel (dmb_…, 180 Tage, Sitzungen 12 Stunden) werden mit
+unverändertem Drahtformat verwendet. Läuft die Sitzung während der Arbeit ab,
+meldet sich der Client mit dem im Speicher gehaltenen Schlüssel einmal neu an
+und wiederholt die Anfrage; ein widerrufener Schlüssel scheitert mit der
+Servermeldung und löst keine weiteren Anmeldeversuche aus. Die Verbindung wird
+als Gerätezugang statt Freigabe angezeigt. Platzhalter nennt den
+Geräteschlüssel, User-Agent trägt die Version. Keine Änderung an USB-Übertragung,
+Geräteerkennung oder Dateiformaten.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014vQgmaSyGLfPUjADjL8wqh
+---
+ bridge/README.md             | 12 ++++++++++++
+ bridge/archive.py            | 34 +++++++++++++++++++++++++--------
+ bridge/build_desktop.py      |  2 +-
+ bridge/desktop.py            |  6 +++---
+ bridge/tests/test_archive.py | 37 ++++++++++++++++++++++++++++++++++--
+ bridge/tests/test_desktop.py | 13 +++++++++++++
+ 6 files changed, 90 insertions(+), 14 deletions(-)
+
+diff --git a/bridge/README.md b/bridge/README.md
+index e7efe10..11e5d0b 100644
+--- a/bridge/README.md
++++ b/bridge/README.md
+@@ -176,3 +176,15 @@ Validierung: 109 isolierte Tests, darunter exakte Auswahl trotz Filter, Abbreche
+ Die Darstellung zeigt die horizontale Lage. In der 3D-Ansicht stehen POI-Symbole auf der unteren Routenebene; der nicht bestätigte Höhenbezug wird nicht mit Wegpunkthöhen vermischt. Titelband unten bleibt erhalten. Eigene Fotos und vorhandene Archivbilder bleiben unverändert; für POI-Marker eine neue 3D-/Luftbildvorschau erzeugen. KMZ, Aktionen und Missionsversion werden durch die Darstellung nicht geändert.
+ 
+ 113 isolierte Tests bestehen einschließlich Koordinatenreihenfolge, aktiver/inaktiver POIs, Zusammenfassung, ungültiger Werte, Bildausschnitt und 3D-/Luftbildrendering mit Kachel-Fakes. Keine zusätzliche Geräteübertragung für diesen Darstellungswechsel. Die geprüfte iPad-Aufräumfunktion und der Verpackungsfix für eigenes ADB sind enthalten.
++
++## 0.6.3: Geräteschlüssel-Sitzung und Anzeige
++
++Das Webarchiv vergibt seit dem 20. November 2026 widerrufbare Geräteschlüssel (`dmb_…`, **Bridge → Geräteschlüssel erstellen** nach der E-Mail-Anmeldung). Das Drahtformat der Bridge ist unverändert: `session` → CSRF, `login` mit dem Schlüssel im Feld `password`, danach `library`, `original`, `preview`, `upload`, `missions-move` und `preview-save`. Die Browser-Anmeldung per E-Mail-Code und die Geräteanmeldung bleiben getrennt; die Bridge sendet keine Codes und erhält keine Eigentümerrechte (Einstellungen, Freigaben, Löschen, Ersetzen bestehender Archivversionen sind serverseitig gesperrt).
++
++Neu in 0.6.3:
++
++* Die Verbindung wird als **Gerätezugang** angezeigt (bisher fälschlich „Freigabe“, weil Geräte in der Bibliothek als `editor` erscheinen). Der Schlüssel wird weiterhin weder protokolliert noch außerhalb des gewählten Schlüsselspeichers abgelegt.
++* Gerätesitzungen enden serverseitig nach **12 Stunden** oder beim Widerruf. Läuft eine Sitzung während der Arbeit ab, meldet sich der Client mit dem im Speicher gehaltenen Schlüssel **einmal** neu an und wiederholt die Anfrage (auch Uploads). Ein widerrufener oder abgelaufener Schlüssel scheitert bei dieser Erneuerung mit der Servermeldung; es gibt keine Wiederholungsschleife und keine stillen Erfolge. Nach einem fehlgeschlagenen Login bleibt kein Schlüssel im Speicher.
++* Platzhalter im Einstellungsfenster nennt den Geräteschlüssel; User-Agent trägt die Versionsnummer.
++
++Keine Änderung an Geräteerkennung, USB-Übertragung (`core.py`, `ios.py`), Vorschauen oder Dateiformaten. Die Prüfung erfolgte mit synthetischen Daten gegen eine lokale Installation des Webstands `27b770c` (identisch mit dem am 23. November 2026 erreichbaren Server) sowie offline gegen den Nachbau der Archiv-API in `tests/test_archive.py`. Ein erneuter realer Mac-/DJI-Gerätetest steht aus.
+diff --git a/bridge/archive.py b/bridge/archive.py
+index 853c9b8..46153ee 100644
+--- a/bridge/archive.py
++++ b/bridge/archive.py
+@@ -1,7 +1,10 @@
+-"""GPL-3.0-or-later. Read-only client for the Drone Missions web archive (api.php).
++"""GPL-3.0-or-later. Client for the Drone Missions web archive (api.php).
+ 
+-Logs in with the owner's access key, lists the library and downloads verified KMZ originals.
+-Only the standard library is used; the access key is kept in memory for the session and never written to disk.
++Logs in with a revocable device key (``dmb_…``, issued in the web archive under Bridge after the owner's e-mail login),
++lists the library, downloads verified KMZ originals and saves new missions. Browser e-mail login and device
++authentication stay separate: the client never sends e-mail codes and never receives owner rights.
++Only the standard library is used; the key is kept in memory for the session (to renew an expired 12-hour device
++session once) and is never written to disk or logged.
+ """
+ from __future__ import annotations
+ import http.cookiejar,json,re,urllib.error,urllib.parse,urllib.request,uuid
+@@ -9,7 +12,7 @@ from pathlib import Path
+ from core import BridgeError,digest
+ 
+ MAX_KMZ=16*1024*1024
+-USER_AGENT='studiobaff-DroneMissionsBridge/0.4'
++USER_AGENT='studiobaff-DroneMissionsBridge/0.6.3'
+ 
+ def normalize_url(url:str)->str:
+  url=(url or '').strip()
+@@ -20,11 +23,22 @@ def normalize_url(url:str)->str:
+  path=parts.path.rsplit('/',1)[0] if parts.path.endswith(('.php','.html')) else parts.path
+  return urllib.parse.urlunsplit((parts.scheme,parts.netloc,path.rstrip('/')+'/','',''))
+ 
++class SessionExpired(BridgeError):
++ """HTTP 401: no or no longer valid archive session (expired, revoked or wrong key)."""
++
+ class ArchiveClient:
+  def __init__(self,url:str,timeout=30):
+-  self.base=normalize_url(url);self.timeout=timeout;self.csrf='';self.role=None;self.folders=[];self.missions=[]
++  self.base=normalize_url(url);self.timeout=timeout;self.csrf='';self.role=None;self.auth=None;self.folders=[];self.missions=[];self._key=None
+   self.opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+- def _request(self,action:str,body=None,raw=False,limit=4*1024*1024,multipart=None):
++ def _request(self,action:str,body=None,raw=False,limit=4*1024*1024,multipart=None,renew=True):
++  try:return self._send(action,body,raw,limit,multipart)
++  except SessionExpired as expired:
++   # Device sessions end after 12 hours or when the key is revoked. Renew once with the key held in memory;
++   # a revoked or expired key fails the renewal and surfaces the server's message unchanged.
++   if not renew or not self._key or action.split('&',1)[0] in ('session','login','logout'):raise BridgeError(str(expired))
++   key=self._key;self._key=None  # a failed renewal keeps no key: later calls fail fast instead of repeating logins
++   self.login(key);return self._send(action,body,raw,limit,multipart)
++ def _send(self,action:str,body=None,raw=False,limit=4*1024*1024,multipart=None):
+   url=self.base+'api.php?action='+action;headers={'User-Agent':USER_AGENT,'Accept':'application/json' if not raw else '*/*'};data=None
+   if body is not None:data=json.dumps(body).encode();headers.update({'X-CSRF-Token':self.csrf,'Content-Type':'application/json'})
+   if multipart is not None:
+@@ -38,6 +52,7 @@ class ArchiveClient:
+   except urllib.error.HTTPError as error:
+    try:message=json.loads(error.read(65536)).get('error','')
+    except Exception:message=''
++   if error.code==401:raise SessionExpired(message or 'Webarchiv-Sitzung abgelaufen. Bitte neu verbinden.')
+    raise BridgeError(message or f'Webarchiv antwortet mit HTTP {error.code}.')
+   except urllib.error.URLError as error:raise BridgeError('Webarchiv nicht erreichbar: '+str(error.reason))
+   if len(payload)>limit:raise BridgeError('Antwort des Webarchivs ist zu groß.')
+@@ -46,8 +61,11 @@ class ArchiveClient:
+   return json.loads(payload)
+  def login(self,password:str):
+   if not password:raise BridgeError('Bitte den Zugangsschlüssel eingeben.')
+-  session=self._request('session');self.csrf=session['csrf']
+-  result=self._request('login',{'password':password});self.csrf=result['csrf'];return result
++  try:
++   session=self._send('session');self.csrf=session['csrf']
++   result=self._send('login',{'password':password});self.csrf=result['csrf']
++  except SessionExpired as refused:raise BridgeError(str(refused))
++  self._key=password;self.auth=result.get('role') or 'owner';return result
+  def library(self):
+   data=self._request('library');self.role=data.get('role');folders={f['id']:f for f in data['folders']}
+   def path(folder_id):
+diff --git a/bridge/build_desktop.py b/bridge/build_desktop.py
+index 36dd40f..8b4098e 100644
+--- a/bridge/build_desktop.py
++++ b/bridge/build_desktop.py
+@@ -17,7 +17,7 @@ if sys.platform=='darwin':
+  import plistlib
+  info=root.parent/'outputs'/'dronemissions-bridge.app'/'Contents'/'Info.plist'
+  with info.open('rb') as stream:metadata=plistlib.load(stream)
+- metadata.update(CFBundleShortVersionString='0.6.2',CFBundleVersion='20261108.8',CFBundleName='dronemissions-bridge',CFBundleDisplayName='dronemissions-bridge',UIDesignRequiresCompatibility=True)
++ metadata.update(CFBundleShortVersionString='0.6.3',CFBundleVersion='20261123.1',CFBundleName='dronemissions-bridge',CFBundleDisplayName='dronemissions-bridge',UIDesignRequiresCompatibility=True)
+  with info.open('wb') as stream:plistlib.dump(metadata,stream)
+ 
+  # PyInstaller thins and signs Mach-O inputs, so the bundled ADB is no longer
+diff --git a/bridge/desktop.py b/bridge/desktop.py
+index c21a3b3..b696138 100644
+--- a/bridge/desktop.py
++++ b/bridge/desktop.py
+@@ -24,7 +24,7 @@ import credentials
+ import ios
+ import theme
+ 
+-VERSION='0.6.2'
++VERSION='0.6.3'
+ APP_NAME='dronemissions-bridge'  # Wortmarke wie die Web-App: drone·missions, dazu -bridge
+ THUMB=QSize(176,118)
+ TAB_DEVICE,TAB_ARCHIVE,TAB_TRANSFER,TAB_RUN=0,1,2,3
+@@ -349,7 +349,7 @@ class Window(QMainWindow):
+   saved_url=self.settings.value('archiveURL','') or ''
+   if re.match(r'^https?://(?:127\.0\.0\.1|localhost|\[::1\]|example\.(?:com|net|org))(?=[:/]|$)',saved_url,re.I) and not os.environ.get('DRONEMISSIONS_DEV'):saved_url='';self.settings.setValue('archiveURL',ARCHIVE_URL)
+   grid.addWidget(QLabel('Archiv-Adresse'),0,0);self.archive_url=QLineEdit(saved_url or ARCHIVE_URL);self.archive_url.setPlaceholderText(ARCHIVE_URL);self.archive_url.editingFinished.connect(self.archive_url_edited);grid.addWidget(self.archive_url,1,0)
+-  grid.addWidget(QLabel('Zugangsschlüssel'),0,1);self.archive_key=QLineEdit();self.archive_key.setEchoMode(QLineEdit.Password);self.archive_key.setPlaceholderText('Nur für diese Sitzung, außer „merken“');self.archive_key.returnPressed.connect(self.archive_login);grid.addWidget(self.archive_key,1,1)
++  grid.addWidget(QLabel('Zugangsschlüssel'),0,1);self.archive_key=QLineEdit();self.archive_key.setEchoMode(QLineEdit.Password);self.archive_key.setPlaceholderText('Geräteschlüssel aus dem Webarchiv (Bridge → Geräteschlüssel erstellen); nur für diese Sitzung, außer „merken“');self.archive_key.returnPressed.connect(self.archive_login);grid.addWidget(self.archive_key,1,1)
+   self.archive_login_button=QPushButton('Verbinden');self.archive_login_button.setMinimumHeight(40);self.archive_login_button.clicked.connect(self.archive_login);grid.addWidget(self.archive_login_button,1,2,Qt.AlignTop);grid.setColumnStretch(0,3);grid.setColumnStretch(1,2);card.addLayout(grid)
+   remember=QHBoxLayout();self.store_pref=self.settings.value('credentialStore','auto') or 'auto';stores=self.credential_store.available()
+   self.archive_remember=QCheckBox('Schlüssel merken');self.archive_remember.setEnabled(bool(stores));remember.addWidget(self.archive_remember)
+@@ -840,7 +840,7 @@ class Window(QMainWindow):
+     try:self.archive_forget.setEnabled(self.credential_store.save(url,key,self.root,preference=pref));self.log_line(f'Zugangsschlüssel gespeichert ({self.archive_store.currentText()}).')
+     except Exception as e:self.log_line('Schlüssel konnte nicht gespeichert werden: '+str(e))
+    else:self.credential_store.delete(url,self.root,preference=pref);self.archive_key.clear();self.archive_forget.setEnabled(False)
+-   who='Eigentümer' if client.role=='owner' else 'Freigabe';self.archive_note.setText(f'Verbunden als {who} · {len(rows)} Missionen in der Bibliothek.');self.archive_status.setText(f'Webarchiv: verbunden als {who} · {len(rows)} Missionen · {url}');self.archive_connect_button.setText('Neu laden')
++   who='Eigentümer' if client.role=='owner' else ('Gerätezugang' if getattr(client,'auth',None)=='device' else 'Freigabe');self.archive_note.setText(f'Verbunden als {who} · {len(rows)} Missionen in der Bibliothek.');self.archive_status.setText(f'Webarchiv: verbunden als {who} · {len(rows)} Missionen · {url}');self.archive_connect_button.setText('Neu laden')
+    self.status.setText(f'{len(rows)} Missionen aus dem Webarchiv geladen.');self.render_folder_tree();self.archive_filter();self.archive_previews();self.render_device_list();self.update_checked()
+   self.task('Mit dem Webarchiv verbinden und Bibliothek laden …',connect,done)
+  def store_preference(self):return self.archive_store.currentData() or 'auto'
+diff --git a/bridge/tests/test_archive.py b/bridge/tests/test_archive.py
+index 6023817..85e7b62 100644
+--- a/bridge/tests/test_archive.py
++++ b/bridge/tests/test_archive.py
+@@ -14,13 +14,14 @@ LIBRARY={'role':'owner','folders':[{'id':'f1','parent':None,'name':'Demo'},{'id'
+   {'id':'m2','name':'Projekt','folder':None,'archived':True,'filename':'b.mproj','sha256':'x','bytes':10,'versionId':'v2','version':1,'updated':'','details':{'sourceFormat':'mapcreator-project','count':None,'distance':0}}]}
+ 
+ class Handler(BaseHTTPRequestHandler):
+- state={'logged':False,'csrf':'token-1','tampered':False}
++ state={'logged':False,'csrf':'token-1','tampered':False,'expire_next':False,'revoked':False,'logins':0}
+  def log_message(self,*a):pass
+  def send(self,code,body,content_type='application/json'):
+   self.send_response(code);self.send_header('Content-Type',content_type);self.send_header('Set-Cookie','dm_session=abc; Path=/');self.end_headers();self.wfile.write(body)
+  def do_GET(self):
+   action=parse_qs(urlparse(self.path).query).get('action',[''])[0]
+   if action=='session':return self.send(200,json.dumps({'authenticated':False,'csrf':self.state['csrf']}).encode())
++  if self.state['expire_next']:self.state.update(expire_next=False,logged=False);return self.send(401,'{"error":"Gerätezugang abgelaufen oder widerrufen. Bitte neu verbinden."}'.encode())
+   if not self.state['logged']:return self.send(401,b'{"error":"Bitte anmelden."}')
+   if action=='library':return self.send(200,json.dumps(LIBRARY).encode())
+   if action=='preview':return self.send(200,b'<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>','image/svg+xml')
+@@ -36,6 +37,9 @@ class Handler(BaseHTTPRequestHandler):
+    raw=self.raw_body;assert b'name="id"\r\n\r\nm1' in raw and b'name="revision"\r\n\r\n2' in raw and b'name="sourceVersion"\r\n\r\nv1' in raw and b'"mode": "photo"' in raw and b'name="image"; filename="vorschau.jpg"' in raw and b'name="photo"; filename="foto.jpg"' in raw and b'\xff\xd8bild' in raw,'preview multipart'
+    return self.send(200,b'{"ok":true,"image":"p1","revision":3}')
+   if action=='login':
++   self.state['logins']+=1
++   if self.state['revoked']:return self.send(401,'{"error":"Geräteschlüssel ungültig, abgelaufen oder widerrufen."}'.encode())
++   if body.get('password')=='dmb_richtig':self.state['logged']=True;self.state['csrf']='token-'+str(self.state['logins']+1);return self.send(200,json.dumps({'ok':True,'csrf':self.state['csrf'],'role':'device'}).encode())
+    if body.get('password')!='richtig':return self.send(401,b'{"error":"Zugangsschl\\u00fcssel nicht korrekt."}')
+    self.state['logged']=True;self.state['csrf']='token-2';return self.send(200,json.dumps({'ok':True,'csrf':'token-2'}).encode())
+   self.send(404,b'{"error":"Nicht gefunden."}')
+@@ -47,7 +51,7 @@ class Tests(unittest.TestCase):
+   cls.url=f'http://127.0.0.1:{cls.server.server_port}/dronemissions/'
+  @classmethod
+  def tearDownClass(cls):cls.server.shutdown()
+- def setUp(self):Handler.state.update(logged=False,csrf='token-1',tampered=False)
++ def setUp(self):Handler.state.update(logged=False,csrf='token-1',tampered=False,expire_next=False,revoked=False,logins=0)
+  def test_normalize_url_requires_https_except_loopback(self):
+   self.assertEqual(normalize_url('service.example.com/dronemissions/index.php'),'https://service.example.com/dronemissions/')
+   self.assertEqual(normalize_url(self.url),self.url)
+@@ -74,6 +78,35 @@ class Tests(unittest.TestCase):
+    with self.assertRaisesRegex(BridgeError,'Prüfsumme'):c.download(rows[0],Path(t)/'c.kmz')
+    self.assertFalse((Path(t)/'c.kmz').exists());self.assertFalse((Path(t)/'c.kmz.part').exists())
+ 
++class DeviceKeyTests(Tests):
++ """Revocable device keys (Webarchiv → Bridge → Geräteschlüssel): same wire format, 12-hour sessions, server-side revocation."""
++ def test_device_login_records_role_and_owner_login_stays_owner(self):
++  c=ArchiveClient(self.url);c.login('dmb_richtig');self.assertEqual(c.auth,'device');self.assertEqual(c.library()[0]['name'],'Rundflug');self.assertEqual(c.role,'owner')
++  o=ArchiveClient(self.url);o.login('richtig');self.assertEqual(o.auth,'owner')
++ def test_failed_login_keeps_no_key(self):
++  c=ArchiveClient(self.url)
++  with self.assertRaisesRegex(BridgeError,'nicht korrekt'):c.login('falsch')
++  self.assertIsNone(c._key);self.assertIsNone(c.auth)
++  Handler.state['expire_next']=True
++  with self.assertRaisesRegex(BridgeError,'abgelaufen'):c.library()   # no key in memory: no renewal attempt
++  self.assertEqual(Handler.state['logins'],1)
++ def test_expired_device_session_is_renewed_once_with_fresh_csrf(self):
++  c=ArchiveClient(self.url);c.login('dmb_richtig');self.assertEqual(Handler.state['logins'],1)
++  Handler.state['expire_next']=True
++  rows=c.library();self.assertEqual(rows[0]['name'],'Rundflug');self.assertEqual(Handler.state['logins'],2);self.assertEqual(c.csrf,Handler.state['csrf'])
++  Handler.state['expire_next']=True
++  self.assertEqual(c.upload('Rundflug','a.kmz',KMZ,'f2',b'\xff\xd8preview')['id'],'m3');self.assertEqual(Handler.state['logins'],3)  # multipart POST renewed too
++ def test_revoked_key_fails_renewal_with_server_message_and_no_loop(self):
++  c=ArchiveClient(self.url);c.login('dmb_richtig')
++  Handler.state.update(expire_next=True,revoked=True)
++  with self.assertRaisesRegex(BridgeError,'widerrufen'):c.library()
++  self.assertEqual(Handler.state['logins'],2);self.assertIsNone(c._key)
++  Handler.state['expire_next']=True
++  with self.assertRaisesRegex(BridgeError,'abgelaufen'):c.library()   # no further login attempts without a key (server rate limit)
++  self.assertEqual(Handler.state['logins'],2)
++  with self.assertRaisesRegex(BridgeError,'widerrufen'):c.login('dmb_richtig')
++  self.assertEqual(Handler.state['logins'],3)
++
+ class UploadTests(Tests):
+  def test_upload_sends_multipart_and_refreshes_library(self):
+   c=ArchiveClient(self.url);c.login('richtig');rows=c.library();self.assertEqual([f['path'] for f in c.folders],['Demo','Demo / Süd']);self.assertEqual(c.find_by_sha(SHA)['name'],'Rundflug');self.assertIsNone(c.find_by_sha('x'*64))
+diff --git a/bridge/tests/test_desktop.py b/bridge/tests/test_desktop.py
+index e0af579..4fc98dd 100644
+--- a/bridge/tests/test_desktop.py
++++ b/bridge/tests/test_desktop.py
+@@ -75,6 +75,19 @@ class Tests(DesktopCase):
+         w=self.window;self.select('android');w.set_mode('new');self.assertTrue(w.target_panel.isHidden());self.assertIn('experimentell',w.mode_note.text())
+         self.select('ios','ipad');w.set_mode('new');self.assertNotIn('experimentell',w.mode_note.text())
+ 
++    def test_device_key_login_is_labelled_as_device_access(self):
++        w=self.window
++        class DeviceClient:
++            role='editor';auth='device'
++            def __init__(self,url):self.url=url
++            def login(self,key):pass
++            def library(self):return []
++        w.client_factory=DeviceClient;w.archive_url.setText('https://archive.test/dronemissions/');w.archive_key.setText('dmb_synthetic');w.archive_login()
++        deadline=time.monotonic()+10
++        while (w.job and w.job.isRunning()) or w.archive is None:
++            self.app.processEvents()
++            if time.monotonic()>deadline:self.fail('Archive login did not complete')
++        self.app.processEvents();self.assertIn('Gerätezugang',w.archive_note.text());self.assertIn('Gerätezugang',w.archive_status.text());self.assertEqual(w.archive_key.text(),'')
+     def test_archive_tab_loads_library_and_hands_over_a_verified_kmz(self):
+         w=self.window;kmz=fixture()
+         class FakeClient:
+-- 
+2.43.0
+

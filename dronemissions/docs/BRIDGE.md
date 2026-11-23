@@ -1,6 +1,6 @@
 # Bridge bedienen und aktualisieren
 
-Stand: 20. November 2026.
+Stand: 23. November 2026.
 
 ## Neuer Gerätezugang nach der E-Mail-Anmeldung
 
@@ -11,6 +11,34 @@ Geräteschlüssel gelten 180 Tage, Sitzungen höchstens 12 Stunden. Unter Bridge
 Erlaubt sind Bibliothek, Originaldateien und Vorschaubilder lesen, neue KMZ-Missionen und Vorschaubilder sichern sowie vorhandene Missionen in Projektordner verschieben. Nicht erlaubt sind Einstellungen, Freigaben, Planungsänderungen, Löschungen oder das Ersetzen bestehender Archivversionen. Diese Grenzen gelten serverseitig unabhängig vom User-Agent; ein Geräteschlüssel ist kein Browser-Administratorzugang.
 
 Kompatibilitätstest: unveränderter HTTP-Client aus Bridge 0.6.2, Quellstand 618aa5a, mit synthetischen Dateien. Der USB-Transfer selbst wird dadurch nicht verändert; ein erneuter realer Mac-/DJI-Gerätetest steht aus.
+
+## Kompatibilitätsprüfung 23. November 2026
+
+Cloud-Sitzung ohne Mac und ohne Gerät; vollständiger Bericht in [HANDOFF-BRIDGE-2026-11-23.md](HANDOFF-BRIDGE-2026-11-23.md).
+
+* **Webstand:** Der erreichbare Server meldet im Header `X-Drone-Release` den Commit `27b770c`, also den aktuellen `main`-Stand. Der abgebrochene Deploy-Lauf 110 ist damit überholt; PR #43 ist live.
+* **Bridge-Quellstand:** `618aa5a` (Bridge 0.6.2) ist nur noch über die vollständige SHA erreichbar und nicht Teil der `main`-Historie. Die installierte Mac-App konnte aus der Cloud nicht gelesen werden; ihre Zuordnung zu `618aa5a` bleibt eine Annahme aus dieser Anleitung, bis `CFBundleVersion` (erwartet `20261108.8`) und die ZIP-Prüfsumme auf dem Mac verglichen sind.
+* **Geprüft (synthetisch, lokale Installation des Webstands `27b770c`, unveränderter 0.6.2-Client aus `tests/fixtures/bridge062`):** Geräteschlüssel-Anmeldung, Ablehnung des alten gemeinsamen Schlüssels, Sichern der Testmission **BRIDGE-KOMPATIBILITAETSTEST** mit Titelbild in einen Projektordner, Wiederfinden mit Name, Dateiname, Prüfsumme, Wegpunktzahl und Strecke, bytegleicher Download mit intakter ZIP und lesbarem WPML, Verschieben statt Duplizieren beim erneuten Sichern in ein anderes Projekt, lesbare Fehler (unbekannter Ordner, Nicht-KMZ, veraltete Revision, gesperrte Eigentümeraktionen), Hash-Speicherung des Schlüssels, Widerruf während der Sitzung. Neuer Test: `tests/bridge-compat.py`, Teil von `run-email-suite.py`.
+* **Live-Server:** nur die unauthentifizierte Seite des Ablaufs (Sitzung, CSRF, Ablehnung ungültiger Schlüssel mit den erwarteten Meldungen). Keine Anmeldung mit echtem Schlüssel aus der Cloud.
+* **Bridge 0.6.3** (Patch unter `bridge-patches/`): erneuert eine abgelaufene 12-Stunden-Gerätesitzung einmal mit dem im Speicher gehaltenen Schlüssel, bricht bei Widerruf ohne weitere Anmeldeversuche ab (Serverlimit: 10 Geräteanmeldungen je IP in 15 Minuten) und zeigt „Gerätezugang“ statt „Freigabe“. 123 isolierte Tests, Baseline 113.
+* **Nicht geprüft:** installierte App, USB-Erkennung, iPad-Übertragung, RC-Controller, DJI-Fly-Sichtbarkeit, Rückimport vom Gerät. Für RC-Controller gilt weiterhin nur das Ersetzen eines vorhandenen, in DJI Fly registrierten Missionsplatzes als geprüft; neu angelegte Kennungen waren im früheren Test nach Neustart nicht sichtbar.
+
+### Schnittstellenvertrag für den geplanten QR-/Kurzcode-Download
+
+Der Patch `ccd63b9`/`e4ed6a0` ist weder auf GitHub noch auf dem Server vorhanden und konnte nicht geprüft werden. Damit „An Gerät senden“ weiter zum Bridge-Ablauf führt, muss er Folgendes unverändert lassen (geprüft von `tests/device-access.py` und `tests/bridge-compat.py`):
+
+| Aufruf | Anfrage | Antwort, die die Bridge liest |
+| --- | --- | --- |
+| `GET api.php?action=session` | ohne Anmeldung | `csrf` |
+| `POST api.php?action=login` | JSON `{"password": "<Geräteschlüssel>"}`, Header `X-CSRF-Token`, ohne `Origin` | `ok`, `csrf`, `role` (`device`); Fehler als JSON `error` mit HTTP 401 |
+| `GET action=library` | Gerätesitzung | `role`, `folders[].id/name/parent/archived`, `missions[].id/revision/folder/name/archived/filename/sha256/bytes/versionId/version/updated/details.sourceFormat/details.count/details.distance` |
+| `GET action=original&id=` | Gerätesitzung | Rohdatei; SHA-256 muss `missions[].sha256` entsprechen |
+| `GET action=preview&id=&version=` | Gerätesitzung | `image/jpeg` oder `image/svg+xml` |
+| `POST action=upload` | multipart `name`, `folder`, Datei `kmz`, optional `preview` (JPEG) | `id`, `version`; HTTP 403, wenn `mission` gesetzt oder keine KMZ |
+| `POST action=missions-move` | JSON `folder`, `missions[{id,revision}]` | `ok`; HTTP 409 bei veralteter Revision |
+| `POST action=preview-save&id=` | multipart `id`, `revision`, `sourceVersion`, `settings`, Dateien `image`, `photo` | `ok`, `image`, `revision` |
+
+Ein neuer Kurzcode-Endpunkt gehört als zusätzliche Aktion dazu; die Erlaubnisliste in `device-auth.php` darf diese Aktionen nicht verlieren, ein Kurzcode darf keine Gerätesitzung oder Eigentümersitzung erzeugen, und HTTP 401 bleibt das Signal „Sitzung ungültig“, auf das Bridge 0.6.3 mit genau einer Neuanmeldung reagiert.
 
 
 ## Aktueller Stand und offene Gerätetests
