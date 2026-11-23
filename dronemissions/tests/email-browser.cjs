@@ -42,6 +42,13 @@ const assert = require('node:assert/strict');
    await page.waitForFunction(()=>document.querySelector('#bridge-device-secret').value==='');
    await page.locator('#bridge-dialog [data-close]').first().click();
    if(viewport.width>1000){
+    await page.locator('#planner-open').click();await page.locator('#planner-dialog').waitFor({state:'visible'});
+    await page.locator('#pl-type').selectOption('grid');
+    assert.equal(await page.locator('#pl-pitchMode').inputValue(),'manual');assert.equal(await page.locator('#pl-cameraPitch').inputValue(),'-70');
+    await page.locator('#pl-type').selectOption('helix');assert.equal(await page.locator('#pl-pitchMode').inputValue(),'auto');
+    await page.locator('#pl-type').selectOption('corridor');assert.equal(await page.locator('#pl-cameraPitch').inputValue(),'-70');assert.equal(await page.locator('#pl-pitchMode').inputValue(),'manual');
+    await page.locator('#pl-cameraPitch').fill('-75');await page.locator('#pl-type').selectOption('grid');assert.equal(await page.locator('#pl-cameraPitch').inputValue(),'-75','explicit pitch preserved');
+    await page.locator('#pl-close').click();
     const saved=await page.evaluate(async()=>{
      const folder=(await api('folder',{name:'Synthetic smooth grid browser'})).id;
      const plan={name:'Synthetic video turns',type:'grid',cameraId:'mavic3',geometry:{type:'Polygon',coordinates:[[[16,48],[16.003,48],[16.003,48.003],[16,48.003],[16,48]]]},params:{captureMode:'video',height:70,gridMotion:'smooth',gridTurnRadius:10,speed:5,photoLimit:200,sectionOverlap:2,terrainMode:'off',flightSplit:'count',flightCount:2,flightMinutes:15,entryEnabled:true,entryLat:48,entryLng:16}};
@@ -53,6 +60,7 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(()=>document.querySelector('#pl-live-status').textContent.includes('Fließendes Raster'));
     assert(result.gridTurns.roundedCorners>0);
     assert.equal(await page.locator('#pl-gridMotion').inputValue(),'smooth');
+    assert.equal(await page.locator('#pl-pitchMode').inputValue(),'auto','legacy saved plan keeps automatic pitch');
     assert.equal(await page.locator('#pl-drafts').inputValue(),saved.id,'loaded plan selected');
     assert.equal(await page.locator('.pl-head .badge-warn').count(),0);
     const cameraFits=await page.locator('#pl-cameraId').evaluate(e=>{const c=document.createElement('canvas').getContext('2d'),s=getComputedStyle(e);c.font=s.font;return e.clientWidth-parseFloat(s.paddingLeft)-parseFloat(s.paddingRight)>=c.measureText(e.selectedOptions[0].text).width;});assert(cameraFits,'camera label fits with arrow space');
